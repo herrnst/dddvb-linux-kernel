@@ -49,6 +49,7 @@
 #define DVB_DEVICE_NET        7
 #define DVB_DEVICE_OSD        8
 #define DVB_DEVICE_CI         9
+#define DVB_DEVICE_MOD       10
 
 #define DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr) \
 	static short adapter_nr[] = \

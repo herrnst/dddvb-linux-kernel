@@ -50,7 +50,7 @@ static DEFINE_MUTEX(dvbdev_register_lock);
 
 static const char * const dnames[] = {
 	"video", "audio", "sec", "frontend", "demux", "dvr", "ca",
-	"net", "osd", "ci"
+	"net", "osd", "ci", "mod"
 };
 
 #ifdef CONFIG_DVB_DYNAMIC_MINORS
