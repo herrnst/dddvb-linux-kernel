@@ -35,6 +35,29 @@ config DVB_STV6110x
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+config DVB_STV0910
+	tristate "STV0910 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  ST STV0910 DVB-S/S2 demodulator.
+	  Say Y when you want to support these frontends.
+
+config DVB_STV6111
+	tristate "STV6111 based tuners"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A Silicon tuner that supports DVB-S and DVB-S2 modes
+
+config DVB_MXL5XX
+	tristate "Maxlinear MX58x based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Maxlinear MX58x family of tuners/demods.
+	  Say Y when you want to support these frontends.
+
 config DVB_M88DS3103
 	tristate "Montage Technology M88DS3103"
 	depends on DVB_CORE && I2C && I2C_MUX
@@ -70,6 +93,33 @@ config DVB_SI2165
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-C/T demodulator.
+
+	  Say Y when you want to support this frontend.
+
+config DVB_STV0367DD
+	tristate "STV 0367 (DD)"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  STV 0367 DVB-C/T demodulator (Digital Devices driver).
+
+	  Say Y when you want to support this frontend.
+
+config DVB_TDA18212DD
+	tristate "NXP TDA18212 silicon tuner (DD)"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  NXP TDA18212 silicon tuner (Digital Devices driver).
+
+	  Say Y when you want to support this tuner.
+
+config DVB_CXD2843
+	tristate "Sony CXD2843 DVB-C/T demodulator family"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Sony CXD2843 demodulator (Digital Devices driver).
 
 	  Say Y when you want to support this frontend.
 
