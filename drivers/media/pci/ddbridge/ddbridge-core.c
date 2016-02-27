@@ -2556,6 +2556,7 @@ struct cxd2099_cfg cxd_cfg = {
 	.adr     =  0x40,
 	.polarity = 1,
 	.clock_mode = 1,
+	.max_i2c = 512,
 };
 
 static int ddb_ci_attach(struct ddb_port *port)
