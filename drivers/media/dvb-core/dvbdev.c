@@ -573,6 +573,7 @@ out:
 	kfree(mbuf);
 	return err;
 }
+EXPORT_SYMBOL(dvb_usercopy);
 
 static int dvb_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
