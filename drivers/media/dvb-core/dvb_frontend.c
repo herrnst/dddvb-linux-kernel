@@ -1124,6 +1124,7 @@ static char *dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_DVBT2_PLP_ID_LEGACY),
 	_DTV_CMD(DTV_SCRAMBLING_SEQUENCE_INDEX),
 	_DTV_CMD(DTV_LNA),
+	_DTV_CMD(DTV_INPUT),
 
 	/* Get */
 	_DTV_CMD(DTV_DISEQC_SLAVE_REPLY),
@@ -1530,6 +1531,14 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 
 	case DTV_LNA:
 		tvp->u.data = c->lna;
+		break;
+
+	case DTV_INPUT:
+		tvp->u.buffer.data[0] = c->input;
+		tvp->u.buffer.data[1] = fe->ops.xbar[0];
+		tvp->u.buffer.data[2] = fe->ops.xbar[1];
+		tvp->u.buffer.data[3] = fe->ops.xbar[2];
+		tvp->u.buffer.len = 4;
 		break;
 
 	/* Fill quality measures */
@@ -2050,6 +2059,12 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 			r = fe->ops.set_lna(fe);
 		if (r < 0)
 			c->lna = LNA_AUTO;
+		break;
+
+	case DTV_INPUT:
+		c->input = tvp->u.data;
+		if (fe->ops.set_input)
+			r = fe->ops.set_input(fe, c->input);
 		break;
 
 	default:
