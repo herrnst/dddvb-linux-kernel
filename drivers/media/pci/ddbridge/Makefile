@@ -2,8 +2,6 @@
 # Makefile for the ddbridge device driver
 #
 
-ddbridge-objs := ddbridge-core.o
-
 obj-$(CONFIG_DVB_DDBRIDGE) += ddbridge.o
 
 ccflags-y += -Idrivers/media/dvb-core/
