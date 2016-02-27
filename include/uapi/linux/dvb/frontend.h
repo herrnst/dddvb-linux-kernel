@@ -310,7 +310,8 @@ enum fe_interleaving {
 #define DTV_STAT_ERROR_BLOCK_COUNT	68
 #define DTV_STAT_TOTAL_BLOCK_COUNT	69
 
-#define DTV_PLS				70
+#define DTV_INPUT			70
+#define DTV_PLS				71
 
 #define DTV_MAX_COMMAND			DTV_PLS
 
