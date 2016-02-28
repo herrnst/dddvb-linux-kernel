@@ -107,7 +107,7 @@ static void octonet_unmap(struct ddb *dev)
 	vfree(dev);
 }
 
-static int __exit octonet_remove(struct platform_device *pdev)
+static int octonet_remove(struct platform_device *pdev)
 {
 	struct ddb *dev;
 
@@ -129,7 +129,7 @@ static int __exit octonet_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init octonet_probe(struct platform_device *pdev)
+static int octonet_probe(struct platform_device *pdev)
 {
 	struct ddb *dev;
 	struct resource *regs;
@@ -229,7 +229,7 @@ static struct platform_driver octonet_driver = {
 	},
 };
 
-static __init int init_octonet(void)
+static int init_octonet(void)
 {
 	int res;
 
@@ -246,7 +246,7 @@ static __init int init_octonet(void)
 	return 0;
 }
 
-static __exit void exit_octonet(void)
+static void exit_octonet(void)
 {
 	platform_driver_unregister(&octonet_driver);
 	ddb_class_destroy();

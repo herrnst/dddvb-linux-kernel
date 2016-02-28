@@ -39,6 +39,7 @@ MODULE_PARM_DESC(adapter_alloc,
 		 "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
 
 #ifdef CONFIG_PCI_MSI
+#define DDB_USE_MSI_IRQHANDLERS
 static int msi = 1;
 module_param(msi, int, 0444);
 MODULE_PARM_DESC(msi,
@@ -59,7 +60,7 @@ static void ddb_unmap(struct ddb *dev)
 }
 
 
-static void __devexit ddb_remove(struct pci_dev *pdev)
+static void ddb_remove(struct pci_dev *pdev)
 {
 	struct ddb *dev = (struct ddb *) pci_get_drvdata(pdev);
 
@@ -88,12 +89,7 @@ static void __devexit ddb_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-#define __devinit
-#define __devinitdata
-#endif
-
-static int __devinit ddb_probe(struct pci_dev *pdev,
+static int ddb_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
 	struct ddb *dev;
@@ -162,7 +158,6 @@ static int __devinit ddb_probe(struct pci_dev *pdev,
 
 #ifdef CONFIG_PCI_MSI
 	if (msi && pci_msi_enabled()) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0))
 		stat = pci_enable_msi_range(dev->pdev, 1, 2);
 		if (stat >= 1) {
 			dev->msi = stat;
@@ -170,22 +165,6 @@ static int __devinit ddb_probe(struct pci_dev *pdev,
 			irq_flag = 0;
 		} else
 			pr_info("DDBridge: MSI not available.\n");
-
-#else
-		stat = pci_enable_msi_block(dev->pdev, 2);
-		if (stat == 0) {
-			dev->msi = 1;
-			pr_info("DDBridge: using 2 MSI interrupts\n");
-		}
-		if (stat == 1)
-			stat = pci_enable_msi(dev->pdev);
-		if (stat < 0) {
-			pr_info("DDBridge: MSI not available.\n");
-		} else {
-			irq_flag = 0;
-			dev->msi++;
-		}
-#endif
 	}
 	if (dev->msi == 2) {
 		stat = request_irq(dev->pdev->irq, irq_handler0,
@@ -466,7 +445,7 @@ static struct ddb_info ddb_octopus_net = {
 	.subvendor   = _subvend, .subdevice = _subdev, \
 	.driver_data = (unsigned long)&_driverdata }
 
-static const struct pci_device_id ddb_id_tbl[] __devinitconst = {
+static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0002, DDVID, 0x0001, ddb_octopus),
 	DDB_ID(DDVID, 0x0003, DDVID, 0x0001, ddb_octopus),
 	DDB_ID(DDVID, 0x0005, DDVID, 0x0004, ddb_octopusv3),
