@@ -222,11 +222,11 @@ struct ddb_dvb {
 	u32                    attached;
 	u8                     input;
 	
-	fe_sec_tone_mode_t     tone;
-	fe_sec_voltage_t       voltage;
+	enum fe_sec_tone_mode  tone;
+	enum fe_sec_voltage    voltage;
 	
 	int (*i2c_gate_ctrl)(struct dvb_frontend *, int);
-	int (*set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*set_voltage)(struct dvb_frontend *fe, enum fe_sec_voltage voltage);
 	int (*set_input)(struct dvb_frontend *fe, int input);
 	int (*diseqc_send_master_cmd)(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd);
 };
@@ -374,7 +374,7 @@ struct ddb_ns {
 struct ddb_lnb {
 	struct mutex           lock;
 	u32                    tone;
-        fe_sec_voltage_t       oldvoltage[4];
+        enum fe_sec_voltage    oldvoltage[4];
 	u32                    voltage[4];
 	u32                    voltages;
 	u32                    fmode;
