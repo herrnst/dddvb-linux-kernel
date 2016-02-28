@@ -1269,7 +1269,7 @@ static int get_tune_settings(struct dvb_frontend *fe,
 	}
 }
 
-static int read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd_state *state = fe->demodulator_priv;
 	u8 rdata;
@@ -1691,7 +1691,7 @@ static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 static int tune(struct dvb_frontend *fe, bool re_tune,
 		unsigned int mode_flags,
-		unsigned int *delay, fe_status_t *status)
+		unsigned int *delay, enum fe_status *status)
 {
 	struct cxd_state *state = fe->demodulator_priv;
 	int r;
@@ -1716,7 +1716,7 @@ static enum dvbfe_search search(struct dvb_frontend *fe)
 {
 	int r;
 	u32 loops = 20, i;
-	fe_status_t status;
+	enum fe_status status;
 
 	r = set_parameters(fe);
 

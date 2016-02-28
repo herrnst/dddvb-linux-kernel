@@ -1040,7 +1040,7 @@ static int set_parameters(struct dvb_frontend *fe)
 }
 
 
-static int read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv *state = fe->demodulator_priv;
 	u8 DmdState = 0;
@@ -1146,7 +1146,7 @@ static int read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int tune(struct dvb_frontend *fe, bool re_tune,
 		unsigned int mode_flags,
-		unsigned int *delay, fe_status_t *status)
+		unsigned int *delay, enum fe_status *status)
 {
 	struct stv *state = fe->demodulator_priv;
 	int r;
@@ -1173,7 +1173,7 @@ static int get_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_HW;
 }
 
-static int set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct stv *state = fe->demodulator_priv;
 	u16 offs = state->nr ? 0x40 : 0;
@@ -1229,7 +1229,7 @@ static int recv_slave_reply(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t burst)
+static int send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 {
 #if 0
 	struct stv *state = fe->demodulator_priv;

@@ -516,7 +516,7 @@ static int set_parameters(struct dvb_frontend *fe)
 	return stat;
 }
 
-static int read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mxl *state = fe->demodulator_priv;
 
@@ -538,7 +538,7 @@ static int read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int tune(struct dvb_frontend *fe, bool re_tune,
 		unsigned int mode_flags,
-		unsigned int *delay, fe_status_t *status)
+		unsigned int *delay, enum fe_status *status)
 {
 	struct mxl *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
