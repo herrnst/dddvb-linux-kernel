@@ -27,12 +27,6 @@
 
 #include <linux/version.h>
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-#define __devexit
-#define __devinit
-#define __devinitconst
-#endif
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -483,40 +477,6 @@ static inline void gtlw(struct ddb_link *link)
         while (1 & ddbreadl0(link, link->regs + 0x10));
 }
 #endif
-
-static u32 ddblreadl(struct ddb_link *link, u32 adr)
-{
-        if (unlikely(link->nr)) {
-                unsigned long flags;
-                u32 val;
-		
-                spin_lock_irqsave(&link->lock, flags);
-		gtlw(link);
-		ddbwritel0(link, adr & 0xfffc, link->regs + 0x14);
-		ddbwritel0(link, 3, link->regs + 0x10);
-		gtlw(link);
-		val = ddbreadl0(link, link->regs + 0x1c);
-		spin_unlock_irqrestore(&link->lock, flags);
-		return val;
-	}
-	return readl((char *) (link->dev->regs + (adr)));
-}
-
-static void ddblwritel(struct ddb_link *link, u32 val, u32 adr)
-{
-	if (unlikely(link->nr)) {
-		unsigned long flags;
-		
-                spin_lock_irqsave(&link->lock, flags);
-		gtlw(link);
-		ddbwritel0(link, 0xf0000 | (adr & 0xfffc), link->regs + 0x14);
-		ddbwritel0(link, val, link->regs + 0x18);
-		ddbwritel0(link, 1, link->regs + 0x10);
-		spin_unlock_irqrestore(&link->lock, flags);
-		return;
-	}
-	writel(val, (char *) (link->dev->regs + (adr)));
-}
 
 static u32 ddbreadl(struct ddb *dev, u32 adr)
 {

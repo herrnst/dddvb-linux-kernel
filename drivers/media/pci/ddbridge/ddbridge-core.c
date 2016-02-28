@@ -3177,6 +3177,7 @@ static void irq_handle_io(struct ddb *dev, u32 s)
 	}
 }
 
+#ifdef DDB_USE_MSI_IRQHANDLERS
 static irqreturn_t irq_handler0(int irq, void *dev_id)
 {
 	struct ddb *dev = (struct ddb *) dev_id;
@@ -3210,6 +3211,7 @@ static irqreturn_t irq_handler1(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 static irqreturn_t irq_handler(int irq, void *dev_id)
 {
@@ -3844,11 +3846,7 @@ static const struct file_operations ddb_fops = {
 	.release        = ddb_release,
 };
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
-static char *ddb_devnode(struct device *device, mode_t *mode)
-#else
 static char *ddb_devnode(struct device *device, umode_t *mode)
-#endif
 {
 	struct ddb *dev = dev_get_drvdata(device);
 
@@ -4687,12 +4685,7 @@ static int ddb_init(struct ddb *dev)
 		pr_info(": Could not allocate buffer memory\n");
 		goto fail2;
 	}
-#if 0
-	if (ddb_ports_attach(dev) < 0)
-		goto fail3;
-#else
 	ddb_ports_attach(dev);
-#endif
 	ddb_nsd_attach(dev);
 
 	ddb_device_create(dev);
@@ -4705,10 +4698,6 @@ static int ddb_init(struct ddb *dev)
 		ddbridge_mod_init(dev);
 	return 0;
 
-fail3:
-	ddb_ports_detach(dev);
-	pr_err("fail3\n");
-	ddb_ports_release(dev);
 fail2:
 	pr_err("fail2\n");
 	ddb_buffers_free(dev);
