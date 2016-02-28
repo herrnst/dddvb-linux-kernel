@@ -2695,13 +2695,13 @@ static int ddb_port_attach(struct ddb_port *port)
 		ret = dvb_register_device(port->dvb[0].adap,
 					  &port->dvb[0].dev,
 					  &dvbdev_ci, (void *) port->output,
-					  DVB_DEVICE_CI);
+					  DVB_DEVICE_CI, 0);
 		break;
 	case DDB_PORT_MOD:
 		ret = dvb_register_device(port->dvb[0].adap,
 					  &port->dvb[0].dev,
 					  &dvbdev_mod, (void *) port->output,
-					  DVB_DEVICE_MOD);
+					  DVB_DEVICE_MOD, 0);
 		break;
 	default:
 		break;
@@ -3422,7 +3422,7 @@ static int ddb_nsd_attach(struct ddb *dev)
 	ret = dvb_register_device(&dev->adap[0],
 				  &dev->nsd_dev,
 				  &dvbdev_nsd, (void *) dev,
-				  DVB_DEVICE_NSD);
+				  DVB_DEVICE_NSD, 0);
 	return ret;
 }
 
