@@ -962,16 +962,18 @@ static int locked_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return status;
 }
 
-#ifdef CONFIG_DVB_DRXK
 static int demod_attach_drxk(struct ddb_input *input)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
+	struct drxk_config config;
 
-	fe = dvb->fe = dvb_attach(drxk_attach,
-				  i2c, 0x29 + (input->nr & 1),
-				  &dvb->fe2);
+	memset(&config, 0, sizeof(config));
+	config.adr = 0x29 + (input->nr & 1);
+	config.microcode_name = "drxk_a3.mc";
+
+	fe = dvb->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!fe) {
 		pr_err("No DRXK found!\n");
 		return -ENODEV;
@@ -981,7 +983,6 @@ static int demod_attach_drxk(struct ddb_input *input)
 	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 	return 0;
 }
-#endif
 
 struct cxd2843_cfg cxd2843_0 = {
 	.adr = 0x6c,
@@ -1920,14 +1921,12 @@ static int dvb_input_attach(struct ddb_input *input)
 		if (tuner_attach_stv6111(input, 1) < 0)
 			return -ENODEV;
 		break;
-#ifdef CONFIG_DVB_DRXK
 	case DDB_TUNER_DVBCT_TR:
 		if (demod_attach_drxk(input) < 0)
 			return -ENODEV;
 		if (tuner_attach_tda18271(input) < 0)
 			return -ENODEV;
 		break;
-#endif
 	case DDB_TUNER_DVBCT_ST:
 		if (demod_attach_stv0367dd(input) < 0)
 			return -ENODEV;
