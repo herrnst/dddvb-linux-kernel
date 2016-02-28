@@ -108,7 +108,7 @@ static int read_regs(struct stv *state, u8 reg, u8 *val, int len)
 
 static void dump_regs(struct stv *state)
 {
-	u8 d[11], *c = &state->reg[0];
+	u8 d[11];
 
 	read_regs(state, 0, d, 11);
 #if 0
@@ -329,54 +329,9 @@ static int get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static u32 AGC_Gain[] = {
-	000, /* 0.0 */
-	000, /* 0.1 */
-	1000, /* 0.2 */
-	2000, /* 0.3 */
-	3000, /* 0.4 */
-	4000, /* 0.5 */
-	5000, /* 0.6 */
-	6000, /* 0.7 */
-	7000, /* 0.8 */
-	14000, /* 0.9 */
-	20000, /* 1.0 */
-	27000, /* 1.1 */
-	32000, /* 1.2 */
-	37000, /* 1.3 */
-	42000, /* 1.4 */
-	47000, /* 1.5 */
-	50000, /* 1.6 */
-	53000, /* 1.7 */
-	56000, /* 1.8 */
-	58000, /* 1.9 */
-	60000, /* 2.0 */
-	62000, /* 2.1 */
-	63000, /* 2.2 */
-	64000, /* 2.3 */
-	64500, /* 2.4 */
-	65000, /* 2.5 */
-	65500, /* 2.6 */
-	66000, /* 2.7 */
-	66500, /* 2.8 */
-	67000, /* 2.9 */
-};
-
 static int get_rf_strength(struct dvb_frontend *fe, u16 *st)
 {
 	*st = 0;
-#if 0
-	struct stv *state = fe->tuner_priv;
-	s32 Gain;
-	u32 Index = RFAgc / 100;
-	if (Index >= (sizeof(AGC_Gain) / sizeof(AGC_Gain[0]) - 1))
-		Gain = AGC_Gain[sizeof(AGC_Gain) / sizeof(AGC_Gain[0]) - 1];
-	else
-		Gain = AGC_Gain[Index] +
-			((AGC_Gain[Index+1] - AGC_Gain[Index]) *
-			 (RFAgc % 100)) / 100;
-	*st = Gain;
-#endif
 	return 0;
 }
 
