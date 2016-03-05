@@ -90,6 +90,15 @@ config DVB_MN88473
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_CXD2843
+	tristate "Sony CXD2843 DVB-C/T demodulator family"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Sony CXD2843 demodulator (Digital Devices driver).
+
+	  Say Y when you want to support this frontend.
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
