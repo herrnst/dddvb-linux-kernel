@@ -380,6 +380,15 @@ static struct ddb_info ddb_dvbct = {
 
 /****************************************************************************/
 
+static struct ddb_info ddb_s2_48 = {
+	.type     = DDB_OCTOPUS_MAX,
+	.name     = "Digital Devices MAX S8 4/8",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x01,
+	.board_control = 1,
+};
+
 static struct ddb_info ddb_ct_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX CT8",
@@ -418,6 +427,7 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0031, ddb_ctv7),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0032, ddb_ctv7),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0033, ddb_ctv7),
+	DDB_ID(DDVID, 0x0007, DDVID, 0x0023, ddb_s2_48),
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0034, ddb_ct_8),
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0035, ddb_ct_8),
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0036, ddb_ct_8),
