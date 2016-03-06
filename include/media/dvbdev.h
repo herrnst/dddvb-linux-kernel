@@ -45,6 +45,7 @@
  * @DVB_DEVICE_DEMUX:		Digital TV demux.
  * @DVB_DEVICE_DVR:		Digital TV digital video record (DVR).
  * @DVB_DEVICE_CA:		Digital TV Conditional Access (CA).
+ * @DVB_DEVICE_CI:		Digital TV raw CI/TS
  * @DVB_DEVICE_NET:		Digital TV network.
  *
  * @DVB_DEVICE_VIDEO:		Digital TV video decoder.
@@ -60,6 +61,7 @@ enum dvb_device_type {
 	DVB_DEVICE_DEMUX,
 	DVB_DEVICE_DVR,
 	DVB_DEVICE_CA,
+	DVB_DEVICE_CI,
 	DVB_DEVICE_NET,
 
 	DVB_DEVICE_VIDEO,
