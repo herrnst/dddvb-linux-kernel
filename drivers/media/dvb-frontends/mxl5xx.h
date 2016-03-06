@@ -10,7 +10,7 @@ struct mxl5xx_cfg {
 	u32  cap;
 	u32  clk;
 	u32  ts_clk;
-	
+
 	u8  *fw;
 	u32  fw_len;
 
