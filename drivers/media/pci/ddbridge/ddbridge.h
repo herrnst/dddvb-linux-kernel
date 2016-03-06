@@ -134,6 +134,7 @@ struct ddb_info {
 #define DDB_NONE         0
 #define DDB_OCTOPUS      1
 #define DDB_OCTOPUS_CI   2
+#define DDB_MOD          3
 #define DDB_OCTOPUS_MAX  5
 #define DDB_OCTOPUS_MAX_CT  6
 	char *name;
@@ -264,6 +265,7 @@ struct ddb_port {
 #define DDB_PORT_CI             1
 #define DDB_PORT_TUNER          2
 #define DDB_PORT_LOOP           3
+#define DDB_PORT_MOD            4
 	char                   *name;
 	char                   *type_name;
 	u32                     type;
@@ -298,6 +300,38 @@ struct ddb_port {
 	u32                    gap;
 	u32                    obr;
 	u8                     creg;
+};
+
+struct mod_base {
+	u32                    frequency;
+	u32                    flat_start;
+	u32                    flat_end;
+};
+
+struct mod_state {
+	u32                    modulation;
+	u64                    obitrate;
+	u64                    ibitrate;
+	u32                    pcr_correction;
+
+	u32                    rate_inc;
+	u32                    Control;
+	u32                    State;
+	u32                    StateCounter;
+	s32                    LastPCRAdjust;
+	s32                    PCRAdjustSum;
+	s32                    InPacketsSum;
+	s32                    OutPacketsSum;
+	s64                    PCRIncrement;
+	s64                    PCRDecrement;
+	s32                    PCRRunningCorr;
+	u32                    OutOverflowPacketCount;
+	u32                    InOverflowPacketCount;
+	u32                    LastOutPacketCount;
+	u32                    LastInPacketCount;
+	u64                    LastOutPackets;
+	u64                    LastInPackets;
+	u32                    MinInputPackets;
 };
 
 #define CM_STARTUP_DELAY 2
@@ -370,6 +404,9 @@ struct ddb {
 	struct mutex           mutex;
 
 	u8                     tsbuf[TS_CAPTURE_LEN];
+
+	struct mod_base        mod_base;
+	struct mod_state       mod[10];
 };
 
 static inline void ddbwriteb(struct ddb *dev, u32 val, u32 adr)
@@ -524,6 +561,62 @@ static void ddbcpyfrom(struct ddb *dev, void *dst, u32 adr, long count)
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
+
+#define dd_uint8    u8
+#define dd_uint16   u16
+#define dd_int16    s16
+#define dd_uint32   u32
+#define dd_int32    s32
+#define dd_uint64   u64
+#define dd_int64    s64
+
+#define DDMOD_FLASH_START  0x1000
+
+struct DDMOD_FLASH_DS {
+	dd_uint32   Symbolrate;             /* kSymbols/s */
+	dd_uint32   DACFrequency;           /* kHz        */
+	dd_uint16   FrequencyResolution;    /* kHz        */
+	dd_uint16   IQTableLength;
+	dd_uint16   FrequencyFactor;
+	dd_int16    PhaseCorr;              /* TBD        */
+	dd_uint32   Control2;
+	dd_uint16   PostScaleI;
+	dd_uint16   PostScaleQ;
+	dd_uint16   PreScale;
+	dd_int16    EQTap[11];
+	dd_uint16   FlatStart;
+	dd_uint16   FlatEnd;
+	dd_uint32   FlashOffsetPrecalculatedIQTables;       /* 0 = none */
+	dd_uint8    Reserved[28];
+
+};
+
+struct DDMOD_FLASH {
+	dd_uint32   Magic;
+	dd_uint16   Version;
+	dd_uint16   DataSets;
+
+	dd_uint16   VCORefFrequency;    /* MHz */
+	dd_uint16   VCO1Frequency;      /* MHz */
+	dd_uint16   VCO2Frequency;      /* MHz */
+
+	dd_uint16   DACAux1;    /* TBD */
+	dd_uint16   DACAux2;    /* TBD */
+
+	dd_uint8    Reserved1[238];
+
+	struct DDMOD_FLASH_DS DataSet[1];
+};
+
+#define DDMOD_FLASH_MAGIC   0x5F564d5F
+
+
+int ddbridge_mod_do_ioctl(struct file *file, unsigned int cmd, void *parg);
+int ddbridge_mod_init(struct ddb *dev);
+void ddbridge_mod_output_stop(struct ddb_output *output);
+void ddbridge_mod_output_start(struct ddb_output *output);
+void ddbridge_mod_rate_handler(unsigned long data);
+
 
 int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 
