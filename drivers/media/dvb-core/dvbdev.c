@@ -51,7 +51,8 @@ static const char * const dnames[] = {
 	[DVB_DEVICE_DVR] =		"dvr",
 	[DVB_DEVICE_CA] =		"ca",
 	[DVB_DEVICE_NET] =		"net",
-	[DVB_DEVICE_OSD] =		"osd"
+	[DVB_DEVICE_OSD] =		"osd",
+	[DVB_DEVICE_CI] =		"ci"
 };
 
 #ifdef CONFIG_DVB_DYNAMIC_MINORS
@@ -70,6 +71,7 @@ static const u8 minor_type[] = {
 	[DVB_DEVICE_CA]         = 6,
 	[DVB_DEVICE_NET]        = 7,
 	[DVB_DEVICE_OSD]        = 8,
+	[DVB_DEVICE_CI]         = 9,
 };
 
 #define nums2minor(num, type, id) \
