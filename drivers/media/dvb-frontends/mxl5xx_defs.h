@@ -12,22 +12,22 @@
  * version 2, as published by the Free Software Foundation.
  */
 
-typedef enum 
+typedef enum
 {
   MXL_DISABLE = 0,
-  MXL_ENABLE  = 1,  
-        
+  MXL_ENABLE  = 1,
+
   MXL_FALSE = 0,
-  MXL_TRUE  = 1,  
+  MXL_TRUE  = 1,
 
   MXL_INVALID = 0,
   MXL_VALID   = 1,
 
   MXL_NO      = 0,
-  MXL_YES     = 1,  
-  
+  MXL_YES     = 1,
+
   MXL_OFF     = 0,
-  MXL_ON      = 1  
+  MXL_ON      = 1
 } MXL_BOOL_E;
 
 // Firmware-Host Command IDs
@@ -142,7 +142,7 @@ typedef enum
 #define MXL_HYDRA_SKU_ID_568 6
 
 // macro for register write data buffer size (PLID + LEN (0xFF) + RegAddr + RegData)
-#define MXL_HYDRA_REG_WRITE_LEN       (MXL_HYDRA_I2C_HDR_SIZE + (2 * MXL_HYDRA_REG_SIZE_IN_BYTES)) 
+#define MXL_HYDRA_REG_WRITE_LEN       (MXL_HYDRA_I2C_HDR_SIZE + (2 * MXL_HYDRA_REG_SIZE_IN_BYTES))
 
 // maro to extract a single byte from 4-byte(32-bit) data
 #define GET_BYTE(x,n)  (((x) >> (8*(n))) & 0xFF)
@@ -163,34 +163,34 @@ typedef enum
 
 typedef struct
 {
-	u8 id;                 
-	u8 fmtVersion;         
-	u8 headerLen;          
-	u8 numSegments;        
-	u8 entryAddress[4];    
-	u8 imageSize24[3];     
-	u8 imageChecksum;      
-	u8 reserved[4];        
+	u8 id;
+	u8 fmtVersion;
+	u8 headerLen;
+	u8 numSegments;
+	u8 entryAddress[4];
+	u8 imageSize24[3];
+	u8 imageChecksum;
+	u8 reserved[4];
 } MBIN_FILE_HEADER_T;
 
 typedef struct
 {
-	MBIN_FILE_HEADER_T  header;    
-	u8 data[1];                 
+	MBIN_FILE_HEADER_T  header;
+	u8 data[1];
 } MBIN_FILE_T;
 
 typedef struct
 {
-	u8 id;                      
-	u8 len24[3];                
-	u8 address[4];              
+	u8 id;
+	u8 len24[3];
+	u8 address[4];
 } MBIN_SEGMENT_HEADER_T;
 
 
 typedef struct
 {
-	MBIN_SEGMENT_HEADER_T header;  
-	u8 data[1];                 
+	MBIN_SEGMENT_HEADER_T header;
+	u8 data[1];
 } MBIN_SEGMENT_T;
 
 
@@ -244,7 +244,7 @@ typedef struct
 } MXL_HYDRA_SKU_COMMAND_T;
 
 
-typedef  enum 
+typedef  enum
 {
   MXL_HYDRA_DEMOD_ID_0 = 0,
   MXL_HYDRA_DEMOD_ID_1,
@@ -302,7 +302,7 @@ typedef enum
   MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE,
 } MXL_DEMOD_CHAN_PARAMS_OFFSET_E;
 
-typedef enum 
+typedef enum
 {
   MXL_HYDRA_TUNER_ID_0 = 0,
   MXL_HYDRA_TUNER_ID_1,
@@ -313,7 +313,7 @@ typedef enum
 
 typedef enum
 {
-  MXL_HYDRA_DSS = 0,  
+  MXL_HYDRA_DSS = 0,
   MXL_HYDRA_DVBS,
   MXL_HYDRA_DVBS2,
 } MXL_HYDRA_BCAST_STD_E;
@@ -324,30 +324,30 @@ typedef enum
   MXL_HYDRA_FEC_1_2,
   MXL_HYDRA_FEC_3_5,
   MXL_HYDRA_FEC_2_3,
-  MXL_HYDRA_FEC_3_4, 
+  MXL_HYDRA_FEC_3_4,
   MXL_HYDRA_FEC_4_5,
   MXL_HYDRA_FEC_5_6,
-  MXL_HYDRA_FEC_6_7, 
+  MXL_HYDRA_FEC_6_7,
   MXL_HYDRA_FEC_7_8,
   MXL_HYDRA_FEC_8_9,
   MXL_HYDRA_FEC_9_10,
 } MXL_HYDRA_FEC_E;
 
-typedef enum 
+typedef enum
 {
   MXL_HYDRA_MOD_AUTO = 0,
   MXL_HYDRA_MOD_QPSK,
   MXL_HYDRA_MOD_8PSK
 } MXL_HYDRA_MODULATION_E;
 
-typedef enum 
+typedef enum
 {
   MXL_HYDRA_SPECTRUM_AUTO = 0,
   MXL_HYDRA_SPECTRUM_INVERTED,
   MXL_HYDRA_SPECTRUM_NON_INVERTED,
 } MXL_HYDRA_SPECTRUM_E;
 
-typedef enum 
+typedef enum
 {
   MXL_HYDRA_ROLLOFF_AUTO  = 0,
   MXL_HYDRA_ROLLOFF_0_20,
@@ -355,7 +355,7 @@ typedef enum
   MXL_HYDRA_ROLLOFF_0_35
 } MXL_HYDRA_ROLLOFF_E;
 
-typedef enum 
+typedef enum
 {
   MXL_HYDRA_PILOTS_OFF  = 0,
   MXL_HYDRA_PILOTS_ON,
@@ -368,7 +368,7 @@ typedef enum
   MXL_HYDRA_LEGACY_FEC,
   MXL_HYDRA_FREQ_RECOVERY,
   MXL_HYDRA_NBC,
-  MXL_HYDRA_CTL, 
+  MXL_HYDRA_CTL,
   MXL_HYDRA_EQ,
 } MXL_HYDRA_CONSTELLATION_SRC_E;
 
@@ -378,7 +378,7 @@ typedef struct
   int fecLock;     // Demod FEC block lock info
 } MXL_HYDRA_DEMOD_LOCK_T;
 
-typedef struct 
+typedef struct
 {
   u32 rsErrors;          // RS decoder err counter
   u32 berWindow;         // Ber Windows
@@ -387,18 +387,18 @@ typedef struct
   u32 berCount_Iter1;    // BER count - post viterbi
 } MXL_HYDRA_DEMOD_STATUS_DVBS_T;
 
-typedef struct 
+typedef struct
 {
   u32 rsErrors;    // RS decoder err counter
   u32 berWindow;   // Ber Windows
   u32 berCount;    // BER count
 } MXL_HYDRA_DEMOD_STATUS_DSS_T;
 
-typedef struct 
+typedef struct
 {
   u32 crcErrors;         // CRC error counter
-  u32 packetErrorCount;  // Number of packet errors 
-  u32 totalPackets;      // Total packets   
+  u32 packetErrorCount;  // Number of packet errors
+  u32 totalPackets;      // Total packets
 } MXL_HYDRA_DEMOD_STATUS_DVBS2_T;
 
 typedef struct
@@ -417,26 +417,26 @@ typedef struct
 typedef struct
 {
   s32 carrierOffsetInHz;       // CRL offset info
-  s32 symbolOffsetInSymbol;    // SRL offset info 
+  s32 symbolOffsetInSymbol;    // SRL offset info
 } MXL_HYDRA_DEMOD_SIG_OFFSET_INFO_T;
 
 typedef struct
 {
   u8 scrambleSequence[MXL_DEMOD_SCRAMBLE_SEQ_LEN];   // scramble sequence
-  u32 scrambleCode;                                  // scramble gold code 
+  u32 scrambleCode;                                  // scramble gold code
 } MXL_HYDRA_DEMOD_SCRAMBLE_INFO_T;
 
 typedef enum
 {
-  MXL_HYDRA_STEP_SIZE_24_XTAL_102_05KHZ,  // 102.05 KHz for 24 MHz XTAL 
-  MXL_HYDRA_STEP_SIZE_24_XTAL_204_10KHZ,  // 204.10 KHz for 24 MHz XTAL 
-  MXL_HYDRA_STEP_SIZE_24_XTAL_306_15KHZ,  // 306.15 KHz for 24 MHz XTAL 
-  MXL_HYDRA_STEP_SIZE_24_XTAL_408_20KHZ,  // 408.20 KHz for 24 MHz XTAL 
+  MXL_HYDRA_STEP_SIZE_24_XTAL_102_05KHZ,  // 102.05 KHz for 24 MHz XTAL
+  MXL_HYDRA_STEP_SIZE_24_XTAL_204_10KHZ,  // 204.10 KHz for 24 MHz XTAL
+  MXL_HYDRA_STEP_SIZE_24_XTAL_306_15KHZ,  // 306.15 KHz for 24 MHz XTAL
+  MXL_HYDRA_STEP_SIZE_24_XTAL_408_20KHZ,  // 408.20 KHz for 24 MHz XTAL
 
-  MXL_HYDRA_STEP_SIZE_27_XTAL_102_05KHZ,  // 102.05 KHz for 27 MHz XTAL 
-  MXL_HYDRA_STEP_SIZE_27_XTAL_204_35KHZ,  // 204.35 KHz for 27 MHz XTAL 
-  MXL_HYDRA_STEP_SIZE_27_XTAL_306_52KHZ,  // 306.52 KHz for 27 MHz XTAL 
-  MXL_HYDRA_STEP_SIZE_27_XTAL_408_69KHZ,  // 408.69 KHz for 27 MHz XTAL 
+  MXL_HYDRA_STEP_SIZE_27_XTAL_102_05KHZ,  // 102.05 KHz for 27 MHz XTAL
+  MXL_HYDRA_STEP_SIZE_27_XTAL_204_35KHZ,  // 204.35 KHz for 27 MHz XTAL
+  MXL_HYDRA_STEP_SIZE_27_XTAL_306_52KHZ,  // 306.52 KHz for 27 MHz XTAL
+  MXL_HYDRA_STEP_SIZE_27_XTAL_408_69KHZ,  // 408.69 KHz for 27 MHz XTAL
 
 } MXL_HYDRA_SPECTRUM_STEP_SIZE_E;
 
@@ -456,13 +456,13 @@ typedef enum
     MXL_SPECTRUM_BW_CANNOT_BE_COVERED,
     MXL_SPECTRUM_DEMOD_BUSY,
     MXL_SPECTRUM_TUNER_NOT_ENABLED,
- 
+
 } MXL_HYDRA_SPECTRUM_ERROR_CODE_E;
 
 typedef struct
 {
-  u32 tunerIndex;        // TUNER Ctrl: one of MXL58x_TUNER_ID_E 
-  u32 demodIndex;        // DEMOD Ctrl: one of MXL58x_DEMOD_ID_E  
+  u32 tunerIndex;        // TUNER Ctrl: one of MXL58x_TUNER_ID_E
+  u32 demodIndex;        // DEMOD Ctrl: one of MXL58x_DEMOD_ID_E
   MXL_HYDRA_SPECTRUM_STEP_SIZE_E stepSizeInKHz;
   u32 startingFreqInkHz;
   u32 totalSteps;
@@ -509,8 +509,8 @@ typedef enum
 
 typedef enum
 {
-  MXL_HYDRA_TS_MUX_PID_REMAP = 0,   
-  MXL_HYDRA_TS_MUX_PREFIX_EXTRA_HEADER = 1,   
+  MXL_HYDRA_TS_MUX_PID_REMAP = 0,
+  MXL_HYDRA_TS_MUX_PREFIX_EXTRA_HEADER = 1,
 } MXL_HYDRA_TS_MUX_MODE_E;
 
 typedef enum
@@ -535,7 +535,7 @@ typedef enum
 } MXL_HYDRA_TS_PID_FLT_CTRL_E;
 
 typedef enum
-{ 
+{
   MXL_HYDRA_TS_PID_FIXED = 0,
   MXL_HYDRA_TS_PID_REGULAR,
 } MXL_HYDRA_TS_PID_TYPE_E;
@@ -552,7 +552,7 @@ typedef struct
 } MXL_HYDRA_TS_PID_T;
 
 typedef struct
-{  
+{
   MXL_BOOL_E enable;
   u8 numByte;
   u8 header[12];
@@ -568,7 +568,7 @@ typedef enum
 {
   MXL_HYDRA_MPEG_SERIAL_MSB_1ST = 0,
   MXL_HYDRA_MPEG_SERIAL_LSB_1ST,
-  
+
   MXL_HYDRA_MPEG_SYNC_WIDTH_BIT = 0,
   MXL_HYDRA_MPEG_SYNC_WIDTH_BYTE
 } MXL_HYDRA_MPEG_DATA_FMT_E;
@@ -576,7 +576,7 @@ typedef enum
 typedef enum
 {
   MXL_HYDRA_MPEG_MODE_SERIAL_4_WIRE = 0,   // MPEG 4 Wire serial mode
-  MXL_HYDRA_MPEG_MODE_SERIAL_3_WIRE,       // MPEG 3 Wire serial mode  
+  MXL_HYDRA_MPEG_MODE_SERIAL_3_WIRE,       // MPEG 3 Wire serial mode
   MXL_HYDRA_MPEG_MODE_SERIAL_2_WIRE,       // MPEG 2 Wire serial mode
   MXL_HYDRA_MPEG_MODE_PARALLEL             // MPEG parallel mode - valid only for MxL581
 } MXL_HYDRA_MPEG_MODE_E;
@@ -599,32 +599,32 @@ typedef enum
   MXL_HYDRA_MPEG_CLK_INVERTED,
 } MXL_HYDRA_MPEG_CLK_FMT_E;
 
-typedef enum  
+typedef enum
 {
-  MXL_HYDRA_MPEG_CLK_PHASE_SHIFT_0_DEG = 0,       
+  MXL_HYDRA_MPEG_CLK_PHASE_SHIFT_0_DEG = 0,
   MXL_HYDRA_MPEG_CLK_PHASE_SHIFT_90_DEG,
   MXL_HYDRA_MPEG_CLK_PHASE_SHIFT_180_DEG,
   MXL_HYDRA_MPEG_CLK_PHASE_SHIFT_270_DEG
 } MXL_HYDRA_MPEG_CLK_PHASE_E;
 
-typedef enum  
+typedef enum
 {
-  MXL_HYDRA_MPEG_ERR_REPLACE_SYNC = 0,       
-  MXL_HYDRA_MPEG_ERR_REPLACE_VALID,       
+  MXL_HYDRA_MPEG_ERR_REPLACE_SYNC = 0,
+  MXL_HYDRA_MPEG_ERR_REPLACE_VALID,
   MXL_HYDRA_MPEG_ERR_INDICATION_DISABLED
 } MXL_HYDRA_MPEG_ERR_INDICATION_E;
 
 typedef struct
-{ 
+{
   int                        enable;               // Enable or Disable MPEG OUT
   MXL_HYDRA_MPEG_CLK_TYPE_E         mpegClkType;          // Continuous or gapped
   MXL_HYDRA_MPEG_CLK_FMT_E          mpegClkPol;           // MPEG Clk polarity
-  u8                             maxMpegClkRate;       // Max MPEG Clk rate (0  104 MHz, 139 MHz) 
-  MXL_HYDRA_MPEG_CLK_PHASE_E        mpegClkPhase;         // MPEG Clk phase 
+  u8                             maxMpegClkRate;       // Max MPEG Clk rate (0  104 MHz, 139 MHz)
+  MXL_HYDRA_MPEG_CLK_PHASE_E        mpegClkPhase;         // MPEG Clk phase
   MXL_HYDRA_MPEG_DATA_FMT_E         lsbOrMsbFirst;        // LSB first or MSB first in TS transmission
-  MXL_HYDRA_MPEG_DATA_FMT_E         mpegSyncPulseWidth;   // MPEG SYNC pulse width (1-bit or 1-byte)  
+  MXL_HYDRA_MPEG_DATA_FMT_E         mpegSyncPulseWidth;   // MPEG SYNC pulse width (1-bit or 1-byte)
   MXL_HYDRA_MPEG_CLK_FMT_E          mpegValidPol;         // MPEG VALID polarity
-  MXL_HYDRA_MPEG_CLK_FMT_E          mpegSyncPol;          // MPEG SYNC polarity 
+  MXL_HYDRA_MPEG_CLK_FMT_E          mpegSyncPol;          // MPEG SYNC polarity
   MXL_HYDRA_MPEG_MODE_E             mpegMode;             // config 4/3/2-wire serial or parallel TS out
   MXL_HYDRA_MPEG_ERR_INDICATION_E   mpegErrorIndication;  // Enable or Disable MPEG error indication
 } MXL_HYDRA_MPEGOUT_PARAM_T;
@@ -653,7 +653,7 @@ typedef  enum
 
 } MXL_HYDRA_TS_OUT_ID_E;
 
-typedef  enum 
+typedef  enum
 {
   MXL_HYDRA_TS_DRIVE_STRENGTH_1x = 0,
   MXL_HYDRA_TS_DRIVE_STRENGTH_2x,
@@ -688,7 +688,7 @@ typedef enum
 // Demod IQ data
 typedef struct
 {
-  u32 demodId;       
+  u32 demodId;
   u32 sourceOfIQ;                  // ==0, it means I/Q comes from Formatter
                                       // ==1, Legacy FEC
                                       // ==2, Frequency Recovery
@@ -715,13 +715,13 @@ typedef struct
   u32 tunerIndex;
   u32 demodIndex;
   u32 frequencyInHz;     // Frequency
-  u32 standard;          // one of MXL_HYDRA_BCAST_STD_E 
+  u32 standard;          // one of MXL_HYDRA_BCAST_STD_E
   u32 spectrumInversion; // Input : Spectrum inversion.
   u32 rollOff;           /* rollOff (alpha) factor */
   u32 symbolRateInHz;    /* Symbol rate */
   u32 pilots;            /* TRUE = pilots enabled */
-  u32 modulationScheme;  // Input : Modulation Scheme is one of MXL_HYDRA_MODULATION_E 
-  u32 fecCodeRate;       // Input : Forward error correction rate. Is one of MXL_HYDRA_FEC_E 
+  u32 modulationScheme;  // Input : Modulation Scheme is one of MXL_HYDRA_MODULATION_E
+  u32 fecCodeRate;       // Input : Forward error correction rate. Is one of MXL_HYDRA_FEC_E
   u32 maxCarrierOffsetInMHz; // Maximum carrier freq offset in MHz. Same as freqSearchRangeKHz, but in unit of MHz.
 } MXL_HYDRA_DEMOD_PARAM_T;
 
@@ -729,17 +729,17 @@ typedef struct
 {
 	u32 demodIndex;
 	u8 scrambleSequence[12];       // scramble sequence
-	u32 scrambleCode;              // scramble gold code 
+	u32 scrambleCode;              // scramble gold code
 } MXL_HYDRA_DEMOD_SCRAMBLE_CODE_T;
 
 typedef struct
 {
-  u32  intrType;  
+  u32  intrType;
   u32  intrDurationInNanoSecs;
   u32  intrMask;
 } MXL_INTR_CFG_T;
 
-typedef struct 
+typedef struct
 {
    u8 powerMode;       // enumeration values are defined in MXL_HYDRA_PWR_MODE_E (device API.h)
 } MxL_HYDRA_POWER_MODE_CMD;
@@ -750,7 +750,7 @@ typedef struct
   u32  timeIntervalInSeconds; // in seconds
   u32  tunerIndex;
   s32  rssiThreshold;
-    
+
 } MXL_HYDRA_RF_WAKEUP_PARAM_T;
 
 typedef struct
@@ -768,37 +768,37 @@ typedef enum
 
 
 typedef enum
-{ 
-  MXL_HYDRA_DISEQC_ENVELOPE_MODE = 0, 
-  MXL_HYDRA_DISEQC_TONE_MODE,         
+{
+  MXL_HYDRA_DISEQC_ENVELOPE_MODE = 0,
+  MXL_HYDRA_DISEQC_TONE_MODE,
 } MXL_HYDRA_DISEQC_OPMODE_E;
 
 typedef enum
 {
   MXL_HYDRA_DISEQC_1_X = 0,    // Config DiSEqC 1.x mode
-  MXL_HYDRA_DISEQC_2_X,        // Config DiSEqC 2.x mode                          
-  MXL_HYDRA_DISEQC_DISABLE     // Disable DiSEqC 
+  MXL_HYDRA_DISEQC_2_X,        // Config DiSEqC 2.x mode
+  MXL_HYDRA_DISEQC_DISABLE     // Disable DiSEqC
 } MXL_HYDRA_DISEQC_VER_E;
 
 typedef enum
 {
   MXL_HYDRA_DISEQC_CARRIER_FREQ_22KHZ= 0,   // DiSEqC signal frequency of 22 KHz
-  MXL_HYDRA_DISEQC_CARRIER_FREQ_33KHZ,      // DiSEqC signal frequency of 33 KHz                            
-  MXL_HYDRA_DISEQC_CARRIER_FREQ_44KHZ       // DiSEqC signal frequency of 44 KHz 
+  MXL_HYDRA_DISEQC_CARRIER_FREQ_33KHZ,      // DiSEqC signal frequency of 33 KHz
+  MXL_HYDRA_DISEQC_CARRIER_FREQ_44KHZ       // DiSEqC signal frequency of 44 KHz
 } MXL_HYDRA_DISEQC_CARRIER_FREQ_E;
 
-typedef enum 
+typedef enum
 {
   MXL_HYDRA_DISEQC_ID_0 = 0,
-  MXL_HYDRA_DISEQC_ID_1, 
+  MXL_HYDRA_DISEQC_ID_1,
   MXL_HYDRA_DISEQC_ID_2,
   MXL_HYDRA_DISEQC_ID_3
 } MXL_HYDRA_DISEQC_ID_E;
 
 typedef enum
 {
-  MXL_HYDRA_FSK_CFG_TYPE_39KPBS = 0,    // 39.0kbps  
-  MXL_HYDRA_FSK_CFG_TYPE_39_017KPBS,    // 39.017kbps  
+  MXL_HYDRA_FSK_CFG_TYPE_39KPBS = 0,    // 39.0kbps
+  MXL_HYDRA_FSK_CFG_TYPE_39_017KPBS,    // 39.017kbps
   MXL_HYDRA_FSK_CFG_TYPE_115_2KPBS      // 115.2kbps
 } MXL_HYDRA_FSK_OP_MODE_E;
 
@@ -812,8 +812,7 @@ typedef struct
 }MXL58x_DSQ_OP_MODE_T;
 
 typedef struct
-{  
+{
 	u32 diseqcId;
 	u32 contToneFlag;  // 1: Enable , 0: Disable
 } MXL_HYDRA_DISEQC_CFG_CONT_TONE_T;
-
