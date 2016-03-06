@@ -191,7 +191,13 @@ static int ddb_probe(struct pci_dev *pdev,
 			goto fail0;
 	}
 	ddbwritel(dev, 0, DMA_BASE_READ);
-	ddbwritel(dev, 0, DMA_BASE_WRITE);
+	if (dev->link[0].info->type != DDB_MOD)
+		ddbwritel(dev, 0, DMA_BASE_WRITE);
+
+	if (dev->link[0].info->type == DDB_MOD) {
+		if  (ddbreadl(dev, 0x1c) == 4)
+			dev->link[0].info->port_num = 4;
+	}
 
 	/*ddbwritel(dev, 0xffffffff, INTERRUPT_ACK);*/
 	if (dev->msi == 2) {
@@ -244,6 +250,9 @@ static struct ddb_regset octopus_i2c_buf = {
 static struct ddb_regmap octopus_map = {
 	.i2c = &octopus_i2c,
 	.i2c_buf = &octopus_i2c_buf,
+};
+
+static struct ddb_regmap octopus_mod_map = {
 };
 
 
@@ -400,6 +409,14 @@ static struct ddb_info ddb_ct_8 = {
 	.ts_quirks = TS_QUIRK_SERIAL,
 };
 
+static struct ddb_info ddb_mod = {
+	.type     = DDB_MOD,
+	.name     = "Digital Devices DVB-C modulator",
+	.regmap   = &octopus_mod_map,
+	.port_num = 10,
+	.temp_num = 1,
+};
+
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
@@ -435,6 +452,8 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0041, ddb_cis),
 	DDB_ID(DDVID, 0x0012, DDVID, 0x0042, ddb_ci),
 	DDB_ID(DDVID, 0x0013, DDVID, 0x0043, ddb_ci_s2_pro),
+	DDB_ID(DDVID, 0x0201, DDVID, 0x0001, ddb_mod),
+	DDB_ID(DDVID, 0x0201, DDVID, 0x0002, ddb_mod),
 	/* in case sub-ids got deleted in flash */
 	DDB_ID(DDVID, 0x0003, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0005, PCI_ANY_ID, PCI_ANY_ID, ddb_none),

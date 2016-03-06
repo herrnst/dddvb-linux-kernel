@@ -104,6 +104,35 @@
 #define INTMASK_TSOUTPUT3   (0x00040000)
 #define INTMASK_TSOUTPUT4   (0x00080000)
 
+
+
+/* Modulator registers */
+
+/*  Clock Generator ( Sil598 @ 0xAA I2c ) */
+#define CLOCKGEN_BASE       (0x80)
+#define CLOCKGEN_CONTROL    (CLOCKGEN_BASE + 0x00)
+#define CLOCKGEN_INDEX      (CLOCKGEN_BASE + 0x04)
+#define CLOCKGEN_WRITEDATA  (CLOCKGEN_BASE + 0x08)
+#define CLOCKGEN_READDATA   (CLOCKGEN_BASE + 0x0C)
+
+/* DAC ( AD9781/AD9783 SPI ) */
+#define DAC_BASE            (0x090)
+#define DAC_CONTROL         (DAC_BASE)
+#define DAC_WRITE_DATA      (DAC_BASE+4)
+#define DAC_READ_DATA       (DAC_BASE+8)
+
+#define DAC_CONTROL_INSTRUCTION_REG (0xFF)
+#define DAC_CONTROL_STARTIO         (0x100)
+#define DAC_CONTROL_RESET           (0x200)
+
+/* Temperature Monitor ( 2x LM75A @ 0x90,0x92 I2c ) */
+#define TEMPMON_BASE        (0xA0)
+#define TEMPMON_CONTROL    (TEMPMON_BASE + 0x00)
+/* SHORT Temperature in °C x 256 */
+#define TEMPMON_CORE       (TEMPMON_BASE + 0x04)
+#define TEMPMON_SENSOR1    (TEMPMON_BASE + 0x08)
+#define TEMPMON_SENSOR2    (TEMPMON_BASE + 0x0C)
+
 /* ------------------------------------------------------------------------- */
 /* I2C Master Controller */
 
@@ -312,3 +341,56 @@
 #define IQOUTPUT_CONTROL_RESET_PEAK         (0x00000004)
 #define IQOUTPUT_CONTROL_ENABLE_PEAK        (0x00000008)
 #define IQOUTPUT_CONTROL_BYPASS_EQUALIZER   (0x00000010)
+
+
+/* Modulator Base */
+
+#define MODULATOR_BASE          (0x200)
+#define MODULATOR_CONTROL         (MODULATOR_BASE)
+#define MODULATOR_IQTABLE_END     (MODULATOR_BASE+4)
+#define MODULATOR_IQTABLE_INDEX   (MODULATOR_BASE+8)
+#define MODULATOR_IQTABLE_DATA    (MODULATOR_BASE+12)
+
+#define MODULATOR_IQTABLE_INDEX_CHANNEL_MASK  (0x000F0000)
+#define MODULATOR_IQTABLE_INDEX_IQ_MASK       (0x00008000)
+#define MODULATOR_IQTABLE_INDEX_ADDRESS_MASK  (0x000007FF)
+#define MODULATOR_IQTABLE_INDEX_SEL_I         (0x00000000)
+#define MODULATOR_IQTABLE_INDEX_SEL_Q     (MODULATOR_IQTABLE_INDEX_IQ_MASK)
+#define MODULATOR_IQTABLE_SIZE    (2048)
+
+
+/* Modulator Channels */
+
+#define CHANNEL_BASE                (0x400)
+#define CHANNEL_CONTROL(i)          (CHANNEL_BASE + (i) * 64 + 0x00)
+#define CHANNEL_SETTINGS(i)         (CHANNEL_BASE + (i) * 64 + 0x04)
+#define CHANNEL_RATE_INCR(i)        (CHANNEL_BASE + (i) * 64 + 0x0C)
+#define CHANNEL_PCR_ADJUST_OUTL(i)  (CHANNEL_BASE + (i) * 64 + 0x10)
+#define CHANNEL_PCR_ADJUST_OUTH(i)  (CHANNEL_BASE + (i) * 64 + 0x14)
+#define CHANNEL_PCR_ADJUST_INL(i)   (CHANNEL_BASE + (i) * 64 + 0x18)
+#define CHANNEL_PCR_ADJUST_INH(i)   (CHANNEL_BASE + (i) * 64 + 0x1C)
+#define CHANNEL_PCR_ADJUST_ACCUL(i) (CHANNEL_BASE + (i) * 64 + 0x20)
+#define CHANNEL_PCR_ADJUST_ACCUH(i) (CHANNEL_BASE + (i) * 64 + 0x24)
+#define CHANNEL_PKT_COUNT_OUT(i)    (CHANNEL_BASE + (i) * 64 + 0x28)
+#define CHANNEL_PKT_COUNT_IN(i)     (CHANNEL_BASE + (i) * 64 + 0x2C)
+
+#define CHANNEL_CONTROL_RESET               (0x00000001)
+#define CHANNEL_CONTROL_ENABLE_DVB          (0x00000002)
+#define CHANNEL_CONTROL_ENABLE_IQ           (0x00000004)
+#define CHANNEL_CONTROL_ENABLE_SOURCE       (0x00000008)
+#define CHANNEL_CONTROL_ENABLE_PCRADJUST    (0x00000010)
+#define CHANNEL_CONTROL_FREEZE_STATUS       (0x00000100)
+
+#define CHANNEL_CONTROL_RESET_ERROR         (0x00010000)
+#define CHANNEL_CONTROL_BUSY                (0x01000000)
+#define CHANNEL_CONTROL_ERROR_SYNC          (0x20000000)
+#define CHANNEL_CONTROL_ERROR_UNDERRUN      (0x40000000)
+#define CHANNEL_CONTROL_ERROR_FATAL         (0x80000000)
+
+#define CHANNEL_SETTINGS_QAM_MASK           (0x00000007)
+#define CHANNEL_SETTINGS_QAM16              (0x00000000)
+#define CHANNEL_SETTINGS_QAM32              (0x00000001)
+#define CHANNEL_SETTINGS_QAM64              (0x00000002)
+#define CHANNEL_SETTINGS_QAM128             (0x00000003)
+#define CHANNEL_SETTINGS_QAM256             (0x00000004)
+

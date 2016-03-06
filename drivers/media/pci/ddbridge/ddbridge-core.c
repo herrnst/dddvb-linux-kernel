@@ -51,6 +51,7 @@ static struct ddb *ddbs[DDB_MAX_ADAPTER];
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+#include "ddbridge-mod.c"
 #include "ddbridge-i2c.c"
 
 
@@ -290,6 +291,12 @@ static int ddb_buffers_alloc(struct ddb *dev)
 				if (dma_alloc(dev->pdev, port->input[0]->dma, 0)
 					< 0)
 					return -1;
+		case DDB_PORT_MOD:
+			if (port->output->dma)
+				if (dma_alloc(dev->pdev, port->output->dma, 1)
+					< 0)
+					return -1;
+			break;
 		default:
 			break;
 		}
@@ -330,13 +337,15 @@ static void ddb_output_start(struct ddb_output *output)
 		output->dma->stat = 0;
 		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
 	}
-
-	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(dev, 0x3c, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(dev, con2, TS_OUTPUT_CONTROL2(output->nr));
-
+	if (output->port->class == DDB_PORT_MOD)
+		ddbridge_mod_output_start(output);
+	else {
+		ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
+		ddbwritel(dev, 2, TS_OUTPUT_CONTROL(output->nr));
+		ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
+		ddbwritel(dev, 0x3c, TS_OUTPUT_CONTROL(output->nr));
+		ddbwritel(dev, con2, TS_OUTPUT_CONTROL2(output->nr));
+	}
 	if (output->dma) {
 		ddbwritel(dev, output->dma->bufreg,
 			  DMA_BUFFER_SIZE(output->dma->nr));
@@ -344,11 +353,13 @@ static void ddb_output_start(struct ddb_output *output)
 		ddbwritel(dev, 1, DMA_BASE_READ);
 		ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->dma->nr));
 	}
-	if (output->port->input[0]->port->class == DDB_PORT_LOOP)
-		ddbwritel(dev, (1 << 13) | 0x15,
-			  TS_OUTPUT_CONTROL(output->nr));
-	else
-		ddbwritel(dev, 0x11d, TS_OUTPUT_CONTROL(output->nr));
+	if (output->port->class != DDB_PORT_MOD) {
+		if (output->port->input[0]->port->class == DDB_PORT_LOOP)
+			ddbwritel(dev, (1 << 13) | 0x15,
+				  TS_OUTPUT_CONTROL(output->nr));
+		else
+			ddbwritel(dev, 0x11d, TS_OUTPUT_CONTROL(output->nr));
+	}
 	if (output->dma) {
 		output->dma->running = 1;
 		spin_unlock_irq(&output->dma->lock);
@@ -361,9 +372,10 @@ static void ddb_output_stop(struct ddb_output *output)
 
 	if (output->dma)
 		spin_lock_irq(&output->dma->lock);
-
-	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
-
+	if (output->port->class == DDB_PORT_MOD)
+		ddbridge_mod_output_stop(output);
+	else
+		ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
 	if (output->dma) {
 		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
 		output->dma->running = 0;
@@ -711,6 +723,36 @@ static int ts_open(struct inode *inode, struct file *file)
 	return err;
 }
 
+static int mod_release(struct inode *inode, struct file *file)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ddb_output *output = dvbdev->priv;
+
+	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
+		if (!output)
+			return -EINVAL;
+		ddb_output_stop(output);
+	}
+	return dvb_generic_release(inode, file);
+}
+
+static int mod_open(struct inode *inode, struct file *file)
+{
+	int err;
+	struct dvb_device *dvbdev = file->private_data;
+	struct ddb_output *output = dvbdev->priv;
+
+	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
+		if (!output)
+			return -EINVAL;
+	}
+	err = dvb_generic_open(inode, file);
+	if (err < 0)
+		return err;
+	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
+		ddb_output_start(output);
+	return err;
+}
 static const struct file_operations ci_fops = {
 	.owner   = THIS_MODULE,
 	.read    = ts_read,
@@ -732,6 +774,32 @@ static struct dvb_device dvbdev_ci = {
 
 /****************************************************************************/
 /****************************************************************************/
+
+static long mod_ioctl(struct file *file,
+		      unsigned int cmd, unsigned long arg)
+{
+	return dvb_usercopy(file, cmd, arg, ddbridge_mod_do_ioctl);
+}
+
+static const struct file_operations mod_fops = {
+	.owner   = THIS_MODULE,
+	.read    = ts_read,
+	.write   = ts_write,
+	.open    = mod_open,
+	.release = mod_release,
+	.poll    = ts_poll,
+	.mmap    = 0,
+	.unlocked_ioctl = mod_ioctl,
+};
+
+static struct dvb_device dvbdev_mod = {
+	.priv    = 0,
+	.readers = 1,
+	.writers = 1,
+	.users   = 2,
+	.fops    = &mod_fops,
+};
+
 
 static int locked_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
@@ -1551,7 +1619,7 @@ static int dvb_register_adapters(struct ddb *dev)
 	struct ddb_port *port;
 	struct dvb_adapter *adap;
 
-	if (adapter_alloc == 3) {
+	if (adapter_alloc == 3 || dev->link[0].info->type == DDB_MOD) {
 		port = &dev->port[0];
 		adap = port->dvb[0].adap;
 		ret = dvb_register_adapter(adap, "DDBridge", THIS_MODULE,
@@ -2013,6 +2081,12 @@ static void ddb_port_probe(struct ddb_port *port)
 		if (port->i2c)
 			ddbwritel(dev, I2C_SPEED_400,
 				  port->i2c->regs + I2C_TIMING);
+		return;
+	}
+
+	if (dev->link[l].info->type == DDB_MOD) {
+		port->name = "MOD";
+		port->class = DDB_PORT_MOD;
 		return;
 	}
 
@@ -2483,6 +2557,12 @@ static int ddb_port_attach(struct ddb_port *port)
 					  &dvbdev_ci, (void *) port->output,
 					  DVB_DEVICE_CI, 0);
 		break;
+	case DDB_PORT_MOD:
+		ret = dvb_register_device(port->dvb[0].adap,
+					  &port->dvb[0].dev,
+					  &dvbdev_mod, (void *) port->output,
+					  DVB_DEVICE_MOD, 0);
+		break;
 	default:
 		break;
 	}
@@ -2532,6 +2612,10 @@ static void ddb_ports_detach(struct ddb *dev)
 				kfree(port->en);
 				port->en = NULL;
 			}
+			break;
+		case DDB_PORT_MOD:
+			if (port->dvb[0].dev)
+				dvb_unregister_device(port->dvb[0].dev);
 			break;
 		}
 	}
@@ -2738,11 +2822,13 @@ static void ddb_output_init(struct ddb_port *port, int nr, int dma_nr)
 		output->dma = &dev->dma[dma_nr];
 		ddb_dma_init(output->dma, dma_nr, (void *) output, 1);
 	}
-
-	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
-	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(nr));
-	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
-
+	if (output->port->class == DDB_PORT_MOD) {
+		/*ddbwritel(dev, 0, CHANNEL_CONTROL(output->nr));*/
+	} else {
+		ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
+		ddbwritel(dev, 2, TS_OUTPUT_CONTROL(nr));
+		ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
+	}
 	if (output->dma)
 		ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
 }
@@ -2849,6 +2935,12 @@ static void ddb_ports_init(struct ddb *dev)
 				ddb_input_init(port, 2 * i, 0, 2 * i, 2 * p);
 				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1,
 					2 * p + 1);
+				break;
+			case DDB_MOD:
+				ddb_output_init(port, i, i);
+				dev->handler[i + 18] = ddbridge_mod_rate_handler;
+				dev->handler_data[i + 18] =
+					(unsigned long) &dev->output[i];
 				break;
 			default:
 				break;
@@ -3466,6 +3558,10 @@ static ssize_t i2c_irq_show(struct device *device,
 	return sprintf(buf, "%d\n", dev->i2c_irq);
 }
 
+static char *class_name[] = {
+	"NONE", "CI", "TUNER", "LOOP", "MOD"
+};
+
 static ssize_t fan_show(struct device *device,
 			struct device_attribute *attr, char *buf)
 {
@@ -3494,9 +3590,27 @@ static ssize_t temp_show(struct device *device,
 {
 	struct ddb *dev = dev_get_drvdata(device);
 	struct i2c_adapter *adap;
-	int temp, temp2;
+	int temp, temp2, temp3, i;
 	u8 tmp[2];
 
+	if (dev->link[0].info->type == DDB_MOD) {
+		ddbwritel(dev, 1, TEMPMON_CONTROL);
+		for (i = 0; i < 10; i++) {
+			if (0 == (1 & ddbreadl(dev, TEMPMON_CONTROL)))
+				break;
+			usleep_range(1000, 2000);
+		}
+		temp = ddbreadl(dev, TEMPMON_SENSOR1);
+		temp2 = ddbreadl(dev, TEMPMON_SENSOR2);
+		temp = (temp * 1000) >> 8;
+		temp2 = (temp2 * 1000) >> 8;
+		if (ddbreadl(dev, TEMPMON_CONTROL) & 0x8000) {
+			temp3 = ddbreadl(dev, TEMPMON_CORE);
+			temp3 = (temp3 * 1000) >> 8;
+			return sprintf(buf, "%d %d %d\n", temp, temp2, temp3);
+		}
+		return sprintf(buf, "%d %d\n", temp, temp2);
+	}
 	if (!dev->link[0].info->temp_num)
 		return sprintf(buf, "no sensor\n");
 	adap = &dev->i2c[dev->link[0].info->temp_bus].adap;
@@ -3531,6 +3645,17 @@ static ssize_t ctemp_show(struct device *device,
 			return sprintf(buf, "no sensor\n");
 	temp = tmp[0] * 1000;
 	return sprintf(buf, "%d\n", temp);
+}
+
+static ssize_t mod_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+
+	return sprintf(buf, "%s:%s\n",
+		       class_name[dev->port[num].class],
+		       dev->port[num].type_name);
 }
 
 static ssize_t led_show(struct device *device,
@@ -3798,6 +3923,19 @@ static struct device_attribute ddb_attrs_temp[] = {
 	__ATTR_RO(temp),
 };
 
+static struct device_attribute ddb_attrs_mod[] = {
+	__ATTR_MRO(mod0, mod_show),
+	__ATTR_MRO(mod1, mod_show),
+	__ATTR_MRO(mod2, mod_show),
+	__ATTR_MRO(mod3, mod_show),
+	__ATTR_MRO(mod4, mod_show),
+	__ATTR_MRO(mod5, mod_show),
+	__ATTR_MRO(mod6, mod_show),
+	__ATTR_MRO(mod7, mod_show),
+	__ATTR_MRO(mod8, mod_show),
+	__ATTR_MRO(mod9, mod_show),
+};
+
 static struct device_attribute ddb_attrs_fan[] = {
 	__ATTR(fan, 0664, fan_show, fan_store),
 };
@@ -3851,6 +3989,8 @@ static void ddb_device_attrs_del(struct ddb *dev)
 
 	for (i = 0; i < dev->link[0].info->temp_num; i++)
 		device_remove_file(dev->ddb_dev, &ddb_attrs_temp[i]);
+	for (i = 0; i < dev->link[0].info->port_num; i++)
+		device_remove_file(dev->ddb_dev, &ddb_attrs_mod[i]);
 	for (i = 0; i < dev->link[0].info->fan_num; i++)
 		device_remove_file(dev->ddb_dev, &ddb_attrs_fan[i]);
 	for (i = 0; i < dev->i2c_num && i < 4; i++) {
@@ -3872,6 +4012,9 @@ static int ddb_device_attrs_add(struct ddb *dev)
 			goto fail;
 	for (i = 0; i < dev->link[0].info->temp_num; i++)
 		if (device_create_file(dev->ddb_dev, &ddb_attrs_temp[i]))
+			goto fail;
+	for (i = 0; i < dev->link[0].info->port_num; i++)
+		if (device_create_file(dev->ddb_dev, &ddb_attrs_mod[i]))
 			goto fail;
 	for (i = 0; i < dev->link[0].info->fan_num; i++)
 		if (device_create_file(dev->ddb_dev, &ddb_attrs_fan[i]))
@@ -4159,6 +4302,8 @@ static int ddb_init(struct ddb *dev)
 		ddbwritel(dev, 1, GPIO_DIRECTION);
 		ddbwritel(dev, 1, GPIO_OUTPUT);
 	}
+	if (dev->link[0].info->type == DDB_MOD)
+		ddbridge_mod_init(dev);
 	return 0;
 
 fail2:
