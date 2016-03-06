@@ -1,10 +1,10 @@
 /*
  * ddbridge.c: Digital Devices PCIe bridge driver
  *
- * Copyright (C) 2010-2015 Digital Devices GmbH  
+ * Copyright (C) 2010-2015 Digital Devices GmbH
  *                         Ralph Metzler <rjkm@metzlerbros.de>
  *                         Marcus Metzler <mocm@metzlerbros.de>
- *                         
+ *
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@ MODULE_PARM_DESC(adapter_alloc,
 		 "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
 
 #ifdef CONFIG_PCI_MSI
+#define DDB_USE_MSI_IRQHANDLERS
 static int msi = 1;
 module_param(msi, int, 0444);
 MODULE_PARM_DESC(msi,
@@ -149,7 +150,8 @@ static int ddb_probe(struct pci_dev *pdev,
 		stat = pci_enable_msi_range(dev->pdev, 1, 2);
 		if (stat >= 1) {
 			dev->msi = stat;
-			pr_info("DDBridge: using %d MSI interrupt(s)\n", dev->msi);
+			pr_info("DDBridge: using %d MSI interrupt(s)\n",
+				dev->msi);
 			irq_flag = 0;
 		} else
 			pr_info("DDBridge: MSI not available.\n");
@@ -193,7 +195,7 @@ static int ddb_probe(struct pci_dev *pdev,
 	}
 	if (ddb_init(dev) == 0)
 		return 0;
-	
+
 	ddbwritel(dev, 0, INTERRUPT_ENABLE);
 	ddbwritel(dev, 0, MSI1_ENABLE);
 	free_irq(dev->pdev->irq, dev);

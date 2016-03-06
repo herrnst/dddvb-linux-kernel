@@ -58,9 +58,9 @@
 /* ------------------------------------------------------------------------- */
 
 /* Interrupt controller
-   How many MSI's are available depends on HW (Min 2 max 8)
-   How many are usable also depends on Host platform
-*/
+ * How many MSI's are available depends on HW (Min 2 max 8)
+ * How many are usable also depends on Host platform
+ */
 
 #define INTERRUPT_BASE   (0x40)
 
@@ -266,10 +266,10 @@
 
 #define RF_ATTENUATOR   (0xD8)
 /*  0x00 =  0 dB
-    0x01 =  1 dB
-      ...
-    0x1F = 31 dB
-*/
+ *  0x01 =  1 dB
+ *    ...
+ *  0x1F = 31 dB
+ */
 
 #define RF_POWER        (0xE0)
 #define RF_POWER_BASE       (0xE0)
@@ -283,8 +283,8 @@
 
 
 /* --------------------------------------------------------------------------
-   Output control
-*/
+ * Output control
+ */
 
 #define IQOUTPUT_BASE           (0x240)
 #define IQOUTPUT_CONTROL        (IQOUTPUT_BASE + 0x00)
@@ -312,4 +312,3 @@
 #define IQOUTPUT_CONTROL_RESET_PEAK         (0x00000004)
 #define IQOUTPUT_CONTROL_ENABLE_PEAK        (0x00000008)
 #define IQOUTPUT_CONTROL_BYPASS_EQUALIZER   (0x00000010)
-
