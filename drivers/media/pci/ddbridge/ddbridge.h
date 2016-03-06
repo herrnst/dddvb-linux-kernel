@@ -76,6 +76,7 @@
 #include "stv0910.h"
 #include "stv6111.h"
 #include "lnbh25.h"
+#include "mxl5xx.h"
 
 #define DDB_MAX_I2C    32
 #define DDB_MAX_PORT   32
@@ -129,6 +130,7 @@ struct ddb_info {
 #define DDB_NONE         0
 #define DDB_OCTOPUS      1
 #define DDB_OCTOPUS_CI   2
+#define DDB_OCTOPUS_MAX  5
 #define DDB_OCTOPUS_MAX_CT  6
 	char *name;
 	u32   i2c_mask;
@@ -313,6 +315,15 @@ struct ddb_port {
 
 #define TS_CAPTURE_LEN  (4096)
 
+struct ddb_lnb {
+	struct mutex           lock;
+	u32                    tone;
+	enum fe_sec_voltage    oldvoltage[4];
+	u32                    voltage[4];
+	u32                    voltages;
+	u32                    fmode;
+};
+
 struct ddb_link {
 	struct ddb            *dev;
 	struct ddb_info       *info;
@@ -320,6 +331,7 @@ struct ddb_link {
 	u32                    regs;
 	spinlock_t             lock;
 	struct mutex           flash_mutex;
+	struct ddb_lnb         lnb;
 	struct tasklet_struct  tasklet;
 	struct ddb_ids         ids;
 
