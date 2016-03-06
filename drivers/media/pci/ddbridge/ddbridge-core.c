@@ -50,6 +50,14 @@ static int stv0910_single;
 module_param(stv0910_single, int, 0444);
 MODULE_PARM_DESC(stv0910_single, "use stv0910 cards as single demods");
 
+static int fmode;
+module_param(fmode, int, 0444);
+MODULE_PARM_DESC(fmode, "frontend emulation mode");
+
+static int old_quattro;
+module_param(old_quattro, int, 0444);
+MODULE_PARM_DESC(old_quattro, "old quattro LNB input order ");
+
 #define DDB_MAX_ADAPTER 64
 static struct ddb *ddbs[DDB_MAX_ADAPTER];
 
@@ -128,6 +136,7 @@ static struct ddb_regmap octopus_map = {
 /****************************************************************************/
 
 static struct ddb_info ddb_c2t2_8;
+static struct ddb_info ddb_s2_48;
 
 /****************************************************************************/
 /****************************************************************************/
@@ -1253,6 +1262,341 @@ static int tuner_attach_stv6111(struct ddb_input *input, int type)
 	return 0;
 }
 
+static int lnb_command(struct ddb *dev, u32 link, u32 lnb, u32 cmd)
+{
+	u32 c, v = 0, tag = DDB_LINK_TAG(link);
+
+	v = LNB_TONE & (dev->link[link].lnb.tone << (15 - lnb));
+	ddbwritel(dev, cmd | v, tag | LNB_CONTROL(lnb));
+	for (c = 0; c < 10; c++) {
+		v = ddbreadl(dev, tag | LNB_CONTROL(lnb));
+		if ((v & LNB_BUSY) == 0)
+			break;
+		msleep(20);
+	}
+	if (c == 10)
+		pr_info("lnb_command lnb = %08x  cmd = %08x\n", lnb, cmd);
+	return 0;
+}
+
+static int max_send_master_cmd(struct dvb_frontend *fe,
+			       struct dvb_diseqc_master_cmd *cmd)
+{
+	struct ddb_input *input = fe->sec_priv;
+	struct ddb_port *port = input->port;
+	struct ddb *dev = port->dev;
+	struct ddb_dvb *dvb = &port->dvb[input->nr & 1];
+	u32 tag = DDB_LINK_TAG(port->lnr);
+	int i;
+	u32 fmode = dev->link[port->lnr].lnb.fmode;
+
+	if (fmode == 2 || fmode == 1)
+		return 0;
+	if (dvb->diseqc_send_master_cmd)
+		dvb->diseqc_send_master_cmd(fe, cmd);
+
+	mutex_lock(&dev->link[port->lnr].lnb.lock);
+	ddbwritel(dev, 0, tag | LNB_BUF_LEVEL(dvb->input));
+	for (i = 0; i < cmd->msg_len; i++)
+		ddbwritel(dev, cmd->msg[i], tag | LNB_BUF_WRITE(dvb->input));
+	lnb_command(dev, port->lnr, dvb->input, LNB_CMD_DISEQC);
+	mutex_unlock(&dev->link[port->lnr].lnb.lock);
+	return 0;
+}
+
+static int lnb_set_tone(struct ddb *dev, u32 link, u32 input,
+	enum fe_sec_tone_mode tone)
+{
+	int s = 0;
+	u32 mask = (1ULL << input);
+
+	switch (tone) {
+	case SEC_TONE_OFF:
+		if (!(dev->link[link].lnb.tone & mask))
+			return 0;
+		dev->link[link].lnb.tone &= ~(1ULL << input);
+		break;
+	case SEC_TONE_ON:
+		if (dev->link[link].lnb.tone & mask)
+			return 0;
+		dev->link[link].lnb.tone |= (1ULL << input);
+		break;
+	default:
+		s = -EINVAL;
+		break;
+	};
+	if (!s)
+		s = lnb_command(dev, link, input, LNB_CMD_NOP);
+	return s;
+}
+
+static int lnb_set_voltage(struct ddb *dev, u32 link, u32 input,
+	enum fe_sec_voltage voltage)
+{
+	int s = 0;
+
+	if (dev->link[link].lnb.oldvoltage[input] == voltage)
+		return 0;
+	switch (voltage) {
+	case SEC_VOLTAGE_OFF:
+		if (dev->link[link].lnb.voltage[input])
+			return 0;
+		lnb_command(dev, link, input, LNB_CMD_OFF);
+		break;
+	case SEC_VOLTAGE_13:
+		lnb_command(dev, link, input, LNB_CMD_LOW);
+		break;
+	case SEC_VOLTAGE_18:
+		lnb_command(dev, link, input, LNB_CMD_HIGH);
+		break;
+	default:
+		s = -EINVAL;
+		break;
+	};
+	dev->link[link].lnb.oldvoltage[input] = voltage;
+	return s;
+}
+
+static int max_set_input_unlocked(struct dvb_frontend *fe, int in)
+{
+	struct ddb_input *input = fe->sec_priv;
+	struct ddb_port *port = input->port;
+	struct ddb *dev = port->dev;
+	struct ddb_dvb *dvb = &port->dvb[input->nr & 1];
+	int res = 0;
+
+	if (in > 3)
+		return -EINVAL;
+	if (dvb->input != in) {
+		u32 bit = (1ULL << input->nr);
+		u32 obit = dev->link[port->lnr].lnb.voltage[dvb->input] & bit;
+
+		dev->link[port->lnr].lnb.voltage[dvb->input] &= ~bit;
+		dvb->input = in;
+		dev->link[port->lnr].lnb.voltage[dvb->input] |= obit;
+	}
+	res = dvb->set_input(fe, in);
+	return res;
+}
+
+static int max_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
+{
+	struct ddb_input *input = fe->sec_priv;
+	struct ddb_port *port = input->port;
+	struct ddb *dev = port->dev;
+	struct ddb_dvb *dvb = &port->dvb[input->nr & 1];
+	int tuner = 0;
+	int res = 0;
+	u32 fmode = dev->link[port->lnr].lnb.fmode;
+
+	mutex_lock(&dev->link[port->lnr].lnb.lock);
+	dvb->tone = tone;
+	switch (fmode) {
+	default:
+	case 0:
+	case 3:
+		res = lnb_set_tone(dev, port->lnr, dvb->input, tone);
+		break;
+	case 1:
+	case 2:
+		if (old_quattro) {
+			if (dvb->tone == SEC_TONE_ON)
+				tuner |= 2;
+			if (dvb->voltage == SEC_VOLTAGE_18)
+				tuner |= 1;
+		} else {
+			if (dvb->tone == SEC_TONE_ON)
+				tuner |= 1;
+			if (dvb->voltage == SEC_VOLTAGE_18)
+				tuner |= 2;
+		}
+		res = max_set_input_unlocked(fe, tuner);
+		break;
+	}
+	mutex_unlock(&dev->link[port->lnr].lnb.lock);
+	return res;
+}
+
+static int max_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
+{
+	struct ddb_input *input = fe->sec_priv;
+	struct ddb_port *port = input->port;
+	struct ddb *dev = port->dev;
+	struct ddb_dvb *dvb = &port->dvb[input->nr & 1];
+	int tuner = 0;
+	u32 nv, ov = dev->link[port->lnr].lnb.voltages;
+	int res = 0;
+	u32 fmode = dev->link[port->lnr].lnb.fmode;
+
+	mutex_lock(&dev->link[port->lnr].lnb.lock);
+	dvb->voltage = voltage;
+
+	switch (fmode) {
+	case 3:
+	default:
+	case 0:
+		if (fmode == 3)
+			max_set_input_unlocked(fe, 0);
+		if (voltage == SEC_VOLTAGE_OFF)
+			dev->link[port->lnr].lnb.voltage[dvb->input] &= ~(1ULL << input->nr);
+		else
+			dev->link[port->lnr].lnb.voltage[dvb->input] |= (1ULL << input->nr);
+
+		res = lnb_set_voltage(dev, port->lnr, dvb->input, voltage);
+		break;
+	case 1:
+	case 2:
+		if (voltage == SEC_VOLTAGE_OFF)
+			dev->link[port->lnr].lnb.voltages &= ~(1ULL << input->nr);
+		else
+			dev->link[port->lnr].lnb.voltages |= (1ULL << input->nr);
+		nv = dev->link[port->lnr].lnb.voltages;
+
+		if (old_quattro) {
+			if (dvb->tone == SEC_TONE_ON)
+				tuner |= 2;
+			if (dvb->voltage == SEC_VOLTAGE_18)
+				tuner |= 1;
+		} else {
+			if (dvb->tone == SEC_TONE_ON)
+				tuner |= 1;
+			if (dvb->voltage == SEC_VOLTAGE_18)
+				tuner |= 2;
+		}
+		res = max_set_input_unlocked(fe, tuner);
+
+		if (nv != ov) {
+			if (nv) {
+				lnb_set_voltage(dev, port->lnr, 0, SEC_VOLTAGE_13);
+				if (fmode == 1) {
+					lnb_set_voltage(dev, port->lnr, 0, SEC_VOLTAGE_13);
+					if (old_quattro) {
+						lnb_set_voltage(dev, port->lnr, 1, SEC_VOLTAGE_18);
+						lnb_set_voltage(dev, port->lnr, 2, SEC_VOLTAGE_13);
+					} else {
+						lnb_set_voltage(dev, port->lnr, 1, SEC_VOLTAGE_13);
+						lnb_set_voltage(dev, port->lnr, 2, SEC_VOLTAGE_18);
+					}
+					lnb_set_voltage(dev, port->lnr, 3, SEC_VOLTAGE_18);
+				}
+			} else {
+				lnb_set_voltage(dev, port->lnr, 0, SEC_VOLTAGE_OFF);
+				if (fmode == 1) {
+					lnb_set_voltage(dev, port->lnr, 1, SEC_VOLTAGE_OFF);
+					lnb_set_voltage(dev, port->lnr, 2, SEC_VOLTAGE_OFF);
+					lnb_set_voltage(dev, port->lnr, 3, SEC_VOLTAGE_OFF);
+				}
+			}
+		}
+		break;
+	}
+	mutex_unlock(&dev->link[port->lnr].lnb.lock);
+	return res;
+}
+
+static int max_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
+{
+
+	return 0;
+}
+
+static int max_send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
+{
+	return 0;
+}
+
+static int mxl_fw_read(void *priv, u8 *buf, u32 len)
+{
+	struct ddb_link *link = priv;
+	struct ddb *dev = link->dev;
+
+	pr_info("Read mxl_fw from link %u\n", link->nr);
+
+	return ddbridge_flashread(dev, link->nr, buf, 0xc0000, len);
+}
+
+static int lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm)
+{
+	u32 l = link->nr;
+
+	if (link->lnb.fmode == fm)
+		return 0;
+	pr_info("Set fmode link %u = %u\n", l, fm);
+	mutex_lock(&link->lnb.lock);
+	if (fm == 2 || fm == 1) {
+		lnb_set_tone(dev, l, 0, SEC_TONE_OFF);
+		if (old_quattro) {
+			lnb_set_tone(dev, l, 1, SEC_TONE_OFF);
+			lnb_set_tone(dev, l, 2, SEC_TONE_ON);
+		} else {
+			lnb_set_tone(dev, l, 1, SEC_TONE_ON);
+			lnb_set_tone(dev, l, 2, SEC_TONE_OFF);
+		}
+		lnb_set_tone(dev, l, 3, SEC_TONE_ON);
+	}
+	link->lnb.fmode = fm;
+	mutex_unlock(&link->lnb.lock);
+	return 0;
+}
+
+static struct mxl5xx_cfg mxl5xx = {
+	.adr      = 0x60,
+	.type     = 0x01,
+	.clk      = 27000000,
+	.ts_clk   = 139,
+	.cap      = 12,
+	.fw_read  = mxl_fw_read,
+};
+
+static int fe_attach_mxl5xx(struct ddb_input *input)
+{
+	struct ddb *dev = input->port->dev;
+	struct i2c_adapter *i2c = &input->port->i2c->adap;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
+	struct ddb_port *port = input->port;
+	struct ddb_link *link = &dev->link[port->lnr];
+	struct mxl5xx_cfg cfg;
+	int demod, tuner;
+
+	cfg = mxl5xx;
+	cfg.fw_priv = link;
+	dvb->set_input = NULL;
+
+	demod = input->nr;
+	tuner = demod & 3;
+	if (fmode == 3)
+		tuner = 0;
+
+	dvb->fe = dvb_attach(mxl5xx_attach, i2c, &cfg,
+		demod, tuner, &dvb->set_input);
+
+	if (!dvb->fe) {
+		pr_err("No MXL5XX found!\n");
+		return -ENODEV;
+	}
+
+	if (!dvb->set_input) {
+		pr_err("No mxl5xx_set_input function pointer!\n");
+		return -ENODEV;
+	}
+
+	if (input->nr < 4) {
+		lnb_command(dev, port->lnr, input->nr, LNB_CMD_INIT);
+		lnb_set_voltage(dev, port->lnr, input->nr, SEC_VOLTAGE_OFF);
+	}
+	lnb_init_fmode(dev, link, fmode);
+
+	dvb->fe->ops.set_voltage = max_set_voltage;
+	dvb->fe->ops.enable_high_lnb_voltage = max_enable_high_lnb_voltage;
+	dvb->fe->ops.set_tone = max_set_tone;
+	dvb->diseqc_send_master_cmd = dvb->fe->ops.diseqc_send_master_cmd;
+	dvb->fe->ops.diseqc_send_master_cmd = max_send_master_cmd;
+	dvb->fe->ops.diseqc_send_burst = max_send_burst;
+	dvb->fe->sec_priv = input;
+	dvb->input = tuner;
+	return 0;
+}
+
 static int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
 				   int (*start_feed)(struct dvb_demux_feed *),
 				   int (*stop_feed)(struct dvb_demux_feed *),
@@ -1496,8 +1840,9 @@ static int dvb_input_attach(struct ddb_input *input)
 	dvb->fe = dvb->fe2 = NULL;
 	switch (port->type) {
 	case DDB_TUNER_MXL5XX:
-		dev_notice(port->dev->dev, "MaxLinear MxL5xx not supported\n");
-		return -ENODEV;
+		if (fe_attach_mxl5xx(input) < 0)
+			return -ENODEV;
+		break;
 	case DDB_TUNER_DVBS_ST:
 		if (demod_attach_stv0900(input, 0) < 0)
 			return -ENODEV;
@@ -1838,6 +2183,17 @@ static void ddb_port_probe(struct ddb_port *port)
 	    dev->link[l].info->i2c_mask == 1) {
 		port->name = "NO TAB";
 		port->class = DDB_PORT_NONE;
+		return;
+	}
+
+	if (dev->link[l].info->type == DDB_OCTOPUS_MAX) {
+		port->name = "DUAL DVB-S2 MAX";
+		port->type_name = "MXL5XX";
+		port->class = DDB_PORT_TUNER;
+		port->type = DDB_TUNER_MXL5XX;
+		if (port->i2c)
+			ddbwritel(dev, I2C_SPEED_400,
+				  port->i2c->regs + I2C_TIMING);
 		return;
 	}
 
@@ -2621,6 +2977,20 @@ static int ddb_port_match_i2c(struct ddb_port *port)
 	return 0;
 }
 
+static int ddb_port_match_link_i2c(struct ddb_port *port)
+{
+	struct ddb *dev = port->dev;
+	u32 i;
+
+	for (i = 0; i < dev->i2c_num; i++) {
+		if (dev->i2c[i].link == port->lnr) {
+			port->i2c = &dev->i2c[i];
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void ddb_ports_init(struct ddb *dev)
 {
 	u32 i, l, p;
@@ -2646,7 +3016,11 @@ static void ddb_ports_init(struct ddb *dev)
 			port->obr = ci_bitrate;
 			mutex_init(&port->i2c_gate_lock);
 
-			portmatch = ddb_port_match_i2c(port);
+			if (!ddb_port_match_i2c(port)) {
+				if (info->type == DDB_OCTOPUS_MAX)
+					portmatch = ddb_port_match_link_i2c(port);
+			}
+
 			ddb_port_probe(port);
 
 			port->dvb[0].adap = &dev->adap[2 * p];
@@ -2694,6 +3068,7 @@ static void ddb_ports_init(struct ddb *dev)
 				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1);
 				ddb_output_init(port, i);
 				break;
+			case DDB_OCTOPUS_MAX:
 			case DDB_OCTOPUS_MAX_CT:
 				ddb_input_init(port, 2 * i, 0, 2 * p);
 				ddb_input_init(port, 2 * i + 1, 1, 2 * p + 1);
@@ -3594,6 +3969,15 @@ static ssize_t regmap_show(struct device *device,
 	return sprintf(buf, "0x%08X\n", dev->link[0].ids.regmapid);
 }
 
+static ssize_t fmode_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	int num = attr->attr.name[5] - 0x30;
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%u\n", dev->link[num].lnb.fmode);
+}
+
 static ssize_t devid_show(struct device *device,
 			  struct device_attribute *attr, char *buf)
 {
@@ -3601,6 +3985,21 @@ static ssize_t devid_show(struct device *device,
 	struct ddb *dev = dev_get_drvdata(device);
 
 	return sprintf(buf, "%08x\n", dev->link[num].ids.devid);
+}
+
+static ssize_t fmode_store(struct device *device, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[5] - 0x30;
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+	if (val > 3)
+		return -EINVAL;
+	lnb_init_fmode(dev, &dev->link[num], val);
+	return count;
 }
 
 static struct device_attribute ddb_attrs[] = {
@@ -3612,6 +4011,10 @@ static struct device_attribute ddb_attrs[] = {
 	__ATTR(gap1, 0664, gap_show, gap_store),
 	__ATTR(gap2, 0664, gap_show, gap_store),
 	__ATTR(gap3, 0664, gap_show, gap_store),
+	__ATTR(fmode0, 0664, fmode_show, fmode_store),
+	__ATTR(fmode1, 0664, fmode_show, fmode_store),
+	__ATTR(fmode2, 0664, fmode_show, fmode_store),
+	__ATTR(fmode3, 0664, fmode_show, fmode_store),
 	__ATTR_MRO(devid0, devid_show),
 	__ATTR_MRO(devid1, devid_show),
 	__ATTR_MRO(devid2, devid_show),
@@ -3835,6 +4238,8 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	pr_info("Checking GT link %u: regs = %08x\n", l, regs);
 
 	spin_lock_init(&link->lock);
+	mutex_init(&link->lnb.lock);
+	link->lnb.fmode = 0xffffffff;
 	mutex_init(&link->flash_mutex);
 
 	link->nr = l;
@@ -3860,6 +4265,9 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	subid = ddbreadl(dev, DDB_LINK_TAG(l) | 12);
 
 	switch (id) {
+	case 0x0007dd01:
+		link->info = &ddb_s2_48;
+		break;
 	case 0x0008dd01:
 		link->info = &ddb_c2t2_8;
 		break;
@@ -4032,6 +4440,7 @@ static int ddb_init_boards(struct ddb *dev)
 
 static int ddb_init(struct ddb *dev)
 {
+	mutex_init(&dev->link[0].lnb.lock);
 	mutex_init(&dev->link[0].flash_mutex);
 	if (no_init) {
 		ddb_device_create(dev);
