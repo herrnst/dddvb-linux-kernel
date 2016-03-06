@@ -3,7 +3,7 @@
 #
 
 ddbridge-objs := ddbridge-main.o ddbridge-core.o ddbridge-hw.o \
-		ddbridge-i2c.o ddbridge-irq.o
+		ddbridge-i2c.o ddbridge-irq.o ddbridge-maxs8.o
 
 obj-$(CONFIG_DVB_DDBRIDGE) += ddbridge.o
 
