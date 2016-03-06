@@ -73,9 +73,12 @@ static void ddb_remove(struct pci_dev *pdev)
 	struct ddb *dev = (struct ddb *) pci_get_drvdata(pdev);
 
 	ddb_device_destroy(dev);
+	ddb_nsd_detach(dev);
 	ddb_ports_detach(dev);
 	ddb_i2c_release(dev);
 
+	if (dev->link[0].info->ns_num)
+		ddbwritel(dev, 0, ETHER_CONTROL);
 	ddbwritel(dev, 0, INTERRUPT_ENABLE);
 
 	ddbwritel(dev, 0, MSI1_ENABLE);
@@ -144,6 +147,14 @@ static int ddb_probe(struct pci_dev *pdev,
 	pr_info("DDBridge: HW %08x REGMAP %08x\n",
 		dev->link[0].ids.hwid, dev->link[0].ids.regmapid);
 
+	if (dev->link[0].info->ns_num) {
+		int i;
+
+		ddbwritel(dev, 0, ETHER_CONTROL);
+		for (i = 0; i < 16; i++)
+			ddbwritel(dev, 0x00, TS_OUTPUT_CONTROL(i));
+		usleep_range(5000, 6000);
+	}
 	ddbwritel(dev, 0x00000000, INTERRUPT_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI2_ENABLE);
@@ -248,6 +259,11 @@ static struct ddb_regset octopus_i2c_buf = {
 
 
 static struct ddb_regmap octopus_map = {
+	.i2c = &octopus_i2c,
+	.i2c_buf = &octopus_i2c_buf,
+};
+
+static struct ddb_regmap octopus_net_map = {
 	.i2c = &octopus_i2c,
 	.i2c_buf = &octopus_i2c_buf,
 };
@@ -417,6 +433,16 @@ static struct ddb_info ddb_mod = {
 	.temp_num = 1,
 };
 
+static struct ddb_info ddb_octopus_net = {
+	.type     = DDB_OCTONET,
+	.name     = "Digital Devices OctopusNet network DVB adapter",
+	.regmap   = &octopus_net_map,
+	.port_num = 10,
+	.i2c_mask = 0x3ff,
+	.ns_num   = 12,
+	.mdio_num = 1,
+};
+
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
@@ -454,6 +480,7 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0013, DDVID, 0x0043, ddb_ci_s2_pro),
 	DDB_ID(DDVID, 0x0201, DDVID, 0x0001, ddb_mod),
 	DDB_ID(DDVID, 0x0201, DDVID, 0x0002, ddb_mod),
+	DDB_ID(DDVID, 0x0320, PCI_ANY_ID, PCI_ANY_ID, ddb_octopus_net),
 	/* in case sub-ids got deleted in flash */
 	DDB_ID(DDVID, 0x0003, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0005, PCI_ANY_ID, PCI_ANY_ID, ddb_none),

@@ -394,3 +394,39 @@
 #define CHANNEL_SETTINGS_QAM128             (0x00000003)
 #define CHANNEL_SETTINGS_QAM256             (0x00000004)
 
+
+/* OCTONET */
+
+#define ETHER_BASE       (0x100)
+#define ETHER_CONTROL    (ETHER_BASE + 0x00)
+#define ETHER_LENGTH     (ETHER_BASE + 0x04)
+
+#define RTP_MASTER_BASE      (0x120)
+#define RTP_MASTER_CONTROL          (RTP_MASTER_BASE + 0x00)
+#define RTP_RTCP_INTERRUPT          (RTP_MASTER_BASE + 0x04)
+#define RTP_MASTER_RTCP_SETTINGS    (RTP_MASTER_BASE + 0x0c)
+
+#define STREAM_BASE       (0x400)
+#define STREAM_CONTROL(i)        (STREAM_BASE + (i) * 0x20 + 0x00)
+#define STREAM_RTP_PACKET(i)        (STREAM_BASE + (i) * 0x20 + 0x04)
+#define STREAM_RTCP_PACKET(i)       (STREAM_BASE + (i) * 0x20 + 0x08)
+#define STREAM_RTP_SETTINGS(i)      (STREAM_BASE + (i) * 0x20 + 0x0c)
+#define STREAM_INSERT_PACKET(i)     (STREAM_BASE + (i) * 0x20 + 0x10)
+
+#define STREAM_PACKET_OFF(i) ((i) * 0x200)
+#define STREAM_PACKET_ADR(i) (0x2000 + (STREAM_PACKET_OFF(i)))
+
+#define STREAM_PIDS(i) (0x4000 + (i) * 0x400)
+
+#define TS_CAPTURE_BASE (0x0140)
+#define TS_CAPTURE_CONTROL       (TS_CAPTURE_BASE + 0x00)
+#define TS_CAPTURE_PID           (TS_CAPTURE_BASE + 0x04)
+#define TS_CAPTURE_RECEIVED      (TS_CAPTURE_BASE + 0x08)
+#define TS_CAPTURE_TIMEOUT       (TS_CAPTURE_BASE + 0x0c)
+#define TS_CAPTURE_TABLESECTION  (TS_CAPTURE_BASE + 0x10)
+
+#define TS_CAPTURE_MEMORY (0x7000)
+
+#define PID_FILTER_BASE       (0x800)
+#define PID_FILTER_SYSTEM_PIDS(i)     (PID_FILTER_BASE + (i) * 0x20)
+#define PID_FILTER_PID(i, j)     (PID_FILTER_BASE + (i) * 0x20 + (j) * 4)
