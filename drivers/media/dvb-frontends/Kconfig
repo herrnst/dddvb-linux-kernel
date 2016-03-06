@@ -50,6 +50,14 @@ config DVB_STV6111
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+config DVB_MXL5XX
+	tristate "Maxlinear MX58x based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Maxlinear MX58x family of tuners/demods.
+	  Say Y when you want to support these frontends.
+
 config DVB_M88DS3103
 	tristate "Montage Technology M88DS3103"
 	depends on DVB_CORE && I2C && I2C_MUX
