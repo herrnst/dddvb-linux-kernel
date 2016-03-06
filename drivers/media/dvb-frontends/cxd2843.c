@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 #include <asm/div64.h>
 
@@ -1512,38 +1511,6 @@ static s32 Log10x100(u32 x)
 	return y;
 }
 
-#if 0
-static void GetPLPIds(struct cxd_state *state, u32 nValues,
-		      u8 *Values, u32 *Returned)
-{
-	u8 nPids = 0;
-
-	*Returned = 0;
-	if (state->state != ActiveT2)
-		return;
-	if (state->last_status != 0x1f)
-		return;
-
-	freeze_regst(state);
-	readregst_unlocked(state, 0x22, 0x7F, &nPids, 1);
-
-	Values[0] = nPids;
-	if (nPids >= nValues)
-		nPids = nValues - 1;
-
-	readregst_unlocked(state, 0x22, 0x80, &Values[1],
-			   nPids > 128 ? 128 : nPids);
-
-	if (nPids > 128)
-		readregst_unlocked(state, 0x23, 0x10, &Values[129],
-				   nPids - 128);
-
-	*Returned = nPids + 1;
-
-	unfreeze_regst(state);
-}
-#endif
-
 static void GetSignalToNoiseIT(struct cxd_state *state, u32 *SignalToNoise)
 {
 	u8 Data[2];
@@ -1747,9 +1714,9 @@ static int get_fe_t(struct cxd_state *state)
 	read_tps(state, tps);
 
 /*  TPSData[0] [7:6]  CNST[1:0]
-    TPSData[0] [5:3]  HIER[2:0]
-    TPSData[0] [2:0]  HRATE[2:0]
-*/
+ *  TPSData[0] [5:3]  HIER[2:0]
+ *  TPSData[0] [2:0]  HRATE[2:0]
+ */
 	switch ((tps[0] >> 6) & 0x03) {
 	case 0:
 		p->modulation = QPSK;
@@ -1794,9 +1761,9 @@ static int get_fe_t(struct cxd_state *state)
 	}
 
 /*  TPSData[1] [7:5]  LRATE[2:0]
-    TPSData[1] [4:3]  GI[1:0]
-    TPSData[1] [2:1]  MODE[1:0]
-*/
+ *  TPSData[1] [4:3]  GI[1:0]
+ *  TPSData[1] [2:1]  MODE[1:0]
+ */
 	switch ((tps[1] >> 5) & 0x07) {
 	case 0:
 		p->code_rate_LP = FEC_1_2;
@@ -1891,8 +1858,8 @@ static struct dvb_frontend_ops common_ops_2843 = {
 		.symbol_rate_min = 870000,
 		.symbol_rate_max = 11700000,
 		.caps = FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_32 |
-		        FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256 |
-		        FE_CAN_QAM_AUTO | 
+			FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256 |
+			FE_CAN_QAM_AUTO |
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_4_5 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
@@ -1929,8 +1896,8 @@ static struct dvb_frontend_ops common_ops_2837 = {
 		.symbol_rate_min = 870000,
 		.symbol_rate_max = 11700000,
 		.caps = FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_32 |
-		        FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256 |
-		        FE_CAN_QAM_AUTO | 
+			FE_CAN_QAM_64 | FE_CAN_QAM_128 | FE_CAN_QAM_256 |
+			FE_CAN_QAM_AUTO |
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_4_5 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
@@ -1966,9 +1933,9 @@ static struct dvb_frontend_ops common_ops_2838 = {
 		.frequency_max = 865000000,
 		.symbol_rate_min = 870000,
 		.symbol_rate_max = 11700000,
-		.caps = FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |
-			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-			FE_CAN_FEC_4_5 |
+		.caps = FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_AUTO | FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
+			FE_CAN_FEC_3_4 | FE_CAN_FEC_4_5 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_TRANSMISSION_MODE_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
