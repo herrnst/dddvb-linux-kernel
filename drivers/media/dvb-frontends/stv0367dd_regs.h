@@ -1,17 +1,16 @@
-// @DVB-C/DVB-T STMicroelectronics STV0367 register defintions
-// Author Manfred Völkel, Februar 2011
-// (c) 2010 DigitalDevices GmbH Germany.  All rights reserved
-
-// $Id: DD_STV0367Register.h 357 2011-04-27 02:39:13Z manfred $
-
-/*	=======================================================================
-    -- Registers Declaration
-    -- -------------------------
-    -- Each register (R367_XXXXX) is defined by its address (2 bytes).	 						    
-    --
-    -- Each field (F367_XXXXX)is defined as follow: 
-    -- [register address -- 2bytes][field sign -- 1byte][field mask -- 1byte]
-	    =======================================================================  */
+/* @DVB-C/DVB-T STMicroelectronics STV0367 register defintions
+ * Author Manfred Voelkel, Februar 2011
+ * (c) 2010 DigitalDevices GmbH Germany.  All rights reserved
+ *
+ * ======================================================================
+ *  -- Registers Declaration
+ *  -- -------------------------
+ *  -- Each register (R367_XXXXX) is defined by its address (2 bytes).
+ *  --
+ *  -- Each field (F367_XXXXX)is defined as follow:
+ *  -- [register address -- 2bytes][field sign -- 1byte][field mask -- 1byte]
+ * ======================================================================
+ */
 
 /* ID */
 #define	R367_ID		0xF000
@@ -1825,7 +1824,7 @@
 	/*	SELOUT */
 #define	R367_OFDM_SELOUT				0xF252
 #define	F367_OFDM_EN_SYNC			0xF2520080
-#define	F367_OFDM_EN_TBUSDEMAP       0xF2520040 
+#define	F367_OFDM_EN_TBUSDEMAP       0xF2520040
 #define	F367_OFDM_SELOUT_5			0xF2520020
 #define	F367_OFDM_SELOUT_4			0xF2520010
 #define	F367_OFDM_TSTSYNCHRO_MODE    0xF2520002
@@ -1862,7 +1861,7 @@
 #define R367_OFDM_TSTSFERR			0xF256
 #define F367_OFDM_TSTSTERR_7			0xF2560080
 #define F367_OFDM_TSTSTERR_6			0xF2560040
-#define F367_OFDM_TSTSTERR_5 		0xF2560020
+#define F367_OFDM_TSTSTERR_5		0xF2560020
 #define F367_OFDM_TSTSTERR_4			0xF2560010
 #define F367_OFDM_SFECTRACEBACK_MODE	0xF2560008
 #define F367_OFDM_SFEC_NCONVPROG		0xF2560004
@@ -1881,7 +1880,7 @@
 #define F367_OFDM_DILSF_DBBHEADER	0xF2590080
 #define F367_OFDM_TSTTSSF_DISBUG		0xF2590040
 #define F367_OFDM_TSTTSSF_NOBADSTART	0xF2590020
-#define F367_OFDM_TSTTSSF_SELECT 	0xF259001F
+#define F367_OFDM_TSTTSSF_SELECT	0xF259001F
 
 	/*	TSTTSSF3 */
 #define R367_OFDM_TSTTSSF3			0xF25A
@@ -1904,14 +1903,14 @@
 #define F367_OFDM_TSTTS_FRFORCEPKT	0xF25C0004
 #define F367_OFDM_DESCR_NOTAUTO		0xF25C0002
 #define F367_OFDM_TSTTSEN			0xF25C0001
-		    
+
 	/*	TSTTS2 */
 #define R367_OFDM_TSTTS2				0xF25D
 #define F367_OFDM_DIL_DBBHEADER		0xF25D0080
 #define F367_OFDM_TSTTS_NOBADXXX		0xF25D0040
 #define F367_OFDM_TSFIFO_DELSPEEDUP	0xF25D0020
 #define F367_OFDM_TSTTS_SELECT		0xF25D001F
-		    
+
 	/*	TSTTS3 */
 #define R367_OFDM_TSTTS3				0xF25E
 #define F367_OFDM_TSTTS_NOPKTGAIN	0xF25E0080
@@ -3428,4 +3427,3 @@
 /* T_O_ID_3 */
 #define	R367_QAM_T_O_ID_3		0xF4D3
 #define	F367_QAM_TS_ID_I_H		0xF4D300FF
-
