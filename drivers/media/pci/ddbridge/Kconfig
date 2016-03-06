@@ -14,6 +14,7 @@ config DVB_DDBRIDGE
 	select DVB_TDA18271C2DD if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0367DD if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_CXD2843 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MXL5XX if MEDIA_SUBDRV_AUTOSELECT
 	---help---
 	  Support for cards with the Digital Devices PCI express bridge:
 	  - Octopus PCIe Bridge
@@ -24,5 +25,6 @@ config DVB_DDBRIDGE
 	  - cineS2(v6.x)
 	  - cineCT(v6.x, v7)
 	  - Max A8 C2/T2
+	  - Max S8
 
 	  Say Y if you own such a card and want to use it.
