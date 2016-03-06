@@ -2,7 +2,7 @@
 # Makefile for the ddbridge device driver
 #
 
-obj-$(CONFIG_DVB_DDBRIDGE) += ddbridge.o
+obj-$(CONFIG_DVB_DDBRIDGE) += ddbridge.o octonet.o
 
 ccflags-y += -Idrivers/media/dvb-core/
 ccflags-y += -Idrivers/media/dvb-frontends/

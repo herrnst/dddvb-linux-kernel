@@ -34,6 +34,10 @@ static int ts_loop = -1;
 module_param(ts_loop, int, 0444);
 MODULE_PARM_DESC(ts_loop, "TS in/out test loop on port ts_loop");
 
+static int vlan;
+module_param(vlan, int, 0444);
+MODULE_PARM_DESC(vlan, "VLAN and QoS IDs enabled");
+
 static int tt;
 module_param(tt, int, 0444);
 MODULE_PARM_DESC(tt, "");
@@ -53,6 +57,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #include "ddbridge-mod.c"
 #include "ddbridge-i2c.c"
+#include "ddbridge-ns.c"
 
 
 static void ddb_set_dma_table(struct ddb *dev, struct ddb_dma *dma)
@@ -423,15 +428,37 @@ static void ddb_input_start(struct ddb_input *input)
 		ddbwritel(dev, 1, DMA_BASE_WRITE);
 		ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->dma->nr));
 	}
-
-	ddbwritel(dev, 0x09, tag | TS_INPUT_CONTROL(input->nr));
-
+	if (dev->link[0].info->type == DDB_OCTONET)
+		ddbwritel(dev, 0x01, tag | TS_INPUT_CONTROL(input->nr));
+	else
+		ddbwritel(dev, 0x09, tag | TS_INPUT_CONTROL(input->nr));
 	if (input->dma) {
 		input->dma->running = 1;
 		spin_unlock_irq(&input->dma->lock);
 	}
 }
 
+
+static int ddb_dvb_ns_input_start(struct ddb_input *input)
+{
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
+
+	if (!dvb->users)
+		ddb_input_start(input);
+
+	return ++dvb->users;
+}
+
+static int ddb_dvb_ns_input_stop(struct ddb_input *input)
+{
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
+
+	if (--dvb->users)
+		return dvb->users;
+
+	ddb_input_stop(input);
+	return 0;
+}
 
 static void ddb_input_start_all(struct ddb_input *input)
 {
@@ -1474,6 +1501,8 @@ static int fe_attach_mxl5xx(struct ddb_input *input)
 
 	cfg = mxl5xx;
 	cfg.fw_priv = link;
+	if (dev->link[0].info->type == DDB_OCTONET)
+		; /* cfg.ts_clk = 69; */
 
 	demod = input->nr;
 	tuner = demod & 3;
@@ -1593,6 +1622,10 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_frontend_detach(dvb->fe);
 		dvb->fe = dvb->fe2 = NULL;
 		/* fallthrough */
+	case 0x21:
+		if (input->port->dev->ns_num)
+			dvb_netstream_release(&dvb->dvbns);
+		/* fallthrough */
 	case 0x20:
 		dvb_net_release(&dvb->dvbnet);
 		/* fallthrough */
@@ -1619,7 +1652,8 @@ static int dvb_register_adapters(struct ddb *dev)
 	struct ddb_port *port;
 	struct dvb_adapter *adap;
 
-	if (adapter_alloc == 3 || dev->link[0].info->type == DDB_MOD) {
+	if (adapter_alloc == 3 || dev->link[0].info->type == DDB_MOD ||
+	     dev->link[0].info->type == DDB_OCTONET) {
 		port = &dev->port[0];
 		adap = port->dvb[0].adap;
 		ret = dvb_register_adapter(adap, "DDBridge", THIS_MODULE,
@@ -1743,6 +1777,12 @@ static int dvb_input_attach(struct ddb_input *input)
 		return ret;
 	dvb->attached = 0x20;
 
+	if (input->port->dev->ns_num) {
+		ret = netstream_init(input);
+		if (ret < 0)
+			return ret;
+		dvb->attached = 0x21;
+	}
 	dvb->fe = dvb->fe2 = NULL;
 	switch (port->type) {
 	case DDB_TUNER_MXL5XX:
@@ -2576,6 +2616,11 @@ static int ddb_ports_attach(struct ddb *dev)
 	int i, ret = 0;
 	struct ddb_port *port;
 
+	dev->ns_num = dev->link[0].info->ns_num;
+	for (i = 0; i < dev->ns_num; i++)
+		dev->ns[i].nr = i;
+	pr_info("%d netstream channels\n", dev->ns_num);
+
 	if (dev->port_num) {
 		ret = dvb_register_adapters(dev);
 		if (ret < 0) {
@@ -2924,6 +2969,7 @@ static void ddb_ports_init(struct ddb *dev)
 					ddb_output_init(port, i, i + 8);
 					break;
 				} /* fallthrough */
+			case DDB_OCTONET:
 			case DDB_OCTOPUS:
 				ddb_input_init(port, 2 * i, 0, 2 * i, 2 * i);
 				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1,
@@ -3106,6 +3152,194 @@ static irqreturn_t irq_thread(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 #endif
+
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
+static ssize_t nsd_read(struct file *file, char *buf,
+			size_t count, loff_t *ppos)
+{
+	return 0;
+}
+
+static unsigned int nsd_poll(struct file *file, poll_table *wait)
+{
+	return 0;
+}
+
+static int nsd_release(struct inode *inode, struct file *file)
+{
+	return dvb_generic_release(inode, file);
+}
+
+static int nsd_open(struct inode *inode, struct file *file)
+{
+	return dvb_generic_open(inode, file);
+}
+
+static struct ddb_input *plugtoinput(struct ddb *dev, u8 plug)
+{
+	int i, j;
+
+	for (i = j = 0; i < dev->port_num; i++) {
+		if (dev->port[i].class == DDB_PORT_TUNER) {
+			if (j == plug)
+				return dev->port[i].input[0];
+			if (j + 1 == plug)
+				return dev->port[i].input[1];
+			j += 2;
+		}
+	}
+	return 0;
+}
+
+static int nsd_do_ioctl(struct file *file, unsigned int cmd, void *parg)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ddb *dev = dvbdev->priv;
+
+	/* unsigned long arg = (unsigned long) parg; */
+	int ret = 0;
+
+	switch (cmd) {
+	case NSD_START_GET_TS:
+	{
+		struct dvb_nsd_ts *ts = parg;
+		struct ddb_input *input = plugtoinput(dev, ts->input);
+		u32 ctrl;
+		u32 to;
+
+		if (!input)
+			return -EINVAL;
+		ctrl = (input->port->lnr << 16) | ((input->nr & 7) << 8) |
+			((ts->filter_mask & 3) << 2);
+		if (ddbreadl(dev, TS_CAPTURE_CONTROL) & 1) {
+			pr_info("ts capture busy\n");
+			return -EBUSY;
+		}
+		ddb_dvb_ns_input_start(input);
+
+		ddbwritel(dev, ctrl, TS_CAPTURE_CONTROL);
+		ddbwritel(dev, ts->pid, TS_CAPTURE_PID);
+		ddbwritel(dev, (ts->section_id << 16) |
+			  (ts->table << 8) | ts->section,
+			  TS_CAPTURE_TABLESECTION);
+		/* 1024 ms default timeout if timeout set to 0 */
+		if (ts->timeout)
+			to = ts->timeout;
+		else
+			to = 1024;
+		/* 21 packets default if num set to 0 */
+		if (ts->num)
+			to |= ((u32) ts->num << 16);
+		else
+			to |= (21 << 16);
+		ddbwritel(dev, to, TS_CAPTURE_TIMEOUT);
+		if (ts->mode)
+			ctrl |= 2;
+		ddbwritel(dev, ctrl | 1, TS_CAPTURE_CONTROL);
+		break;
+	}
+	case NSD_POLL_GET_TS:
+	{
+		struct dvb_nsd_ts *ts = parg;
+		u32 ctrl = ddbreadl(dev, TS_CAPTURE_CONTROL);
+
+		if (ctrl & 1)
+			return -EBUSY;
+		if (ctrl & (1 << 14)) {
+			/*pr_info("ts capture timeout\n");*/
+			return -EAGAIN;
+		}
+		ddbcpyfrom(dev, dev->tsbuf, TS_CAPTURE_MEMORY,
+			   TS_CAPTURE_LEN);
+		ts->len = ddbreadl(dev, TS_CAPTURE_RECEIVED) & 0x1fff;
+		if (copy_to_user(ts->ts, dev->tsbuf, ts->len))
+			return -EIO;
+		break;
+	}
+	case NSD_CANCEL_GET_TS:
+	{
+		u32 ctrl = 0;
+
+		/*pr_info("cancel ts capture: 0x%x\n", ctrl);*/
+		ddbwritel(dev, ctrl, TS_CAPTURE_CONTROL);
+		ctrl = ddbreadl(dev, TS_CAPTURE_CONTROL);
+		/*pr_info("control register is 0x%x\n", ctrl);*/
+		break;
+	}
+	case NSD_STOP_GET_TS:
+	{
+		struct dvb_nsd_ts *ts = parg;
+		struct ddb_input *input = plugtoinput(dev, ts->input);
+		u32 ctrl = ddbreadl(dev, TS_CAPTURE_CONTROL);
+
+		if (!input)
+			return -EINVAL;
+		if (ctrl & 1) {
+			pr_info("cannot stop ts capture, while it was neither finished not canceled\n");
+			return -EBUSY;
+		}
+		/*pr_info("ts capture stopped\n");*/
+		ddb_dvb_ns_input_stop(input);
+		break;
+	}
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static long nsd_ioctl(struct file *file,
+		      unsigned int cmd, unsigned long arg)
+{
+	return dvb_usercopy(file, cmd, arg, nsd_do_ioctl);
+}
+
+static const struct file_operations nsd_fops = {
+	.owner   = THIS_MODULE,
+	.read    = nsd_read,
+	.open    = nsd_open,
+	.release = nsd_release,
+	.poll    = nsd_poll,
+	.unlocked_ioctl = nsd_ioctl,
+};
+
+static struct dvb_device dvbdev_nsd = {
+	.priv    = 0,
+	.readers = 1,
+	.writers = 1,
+	.users   = 1,
+	.fops    = &nsd_fops,
+};
+
+static int ddb_nsd_attach(struct ddb *dev)
+{
+	int ret;
+
+	if (!dev->link[0].info->ns_num)
+		return 0;
+	ret = dvb_register_device(&dev->adap[0],
+				  &dev->nsd_dev,
+				  &dvbdev_nsd, (void *) dev,
+				  DVB_DEVICE_NSD, 0);
+	return ret;
+}
+
+static void ddb_nsd_detach(struct ddb *dev)
+{
+	if (!dev->link[0].info->ns_num)
+		return;
+
+	if (dev->nsd_dev->users > 2) {
+		wait_event(dev->nsd_dev->wait_queue,
+			   dev->nsd_dev->users == 2);
+	}
+	dvb_unregister_device(dev->nsd_dev);
+}
+
 
 /****************************************************************************/
 /****************************************************************************/
@@ -3861,6 +4095,31 @@ static ssize_t regmap_show(struct device *device,
 	return sprintf(buf, "0x%08X\n", dev->link[0].ids.regmapid);
 }
 
+static ssize_t vlan_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%u\n", dev->vlan);
+}
+
+static ssize_t vlan_store(struct device *device, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+	if (val > 1)
+		return -EINVAL;
+	if (!dev->link[0].info->ns_num)
+		return -EINVAL;
+	ddbwritel(dev, 14 + (val ? 4 : 0), ETHER_LENGTH);
+	dev->vlan = val;
+	return count;
+}
+
 static ssize_t fmode_show(struct device *device,
 			 struct device_attribute *attr, char *buf)
 {
@@ -3903,6 +4162,7 @@ static struct device_attribute ddb_attrs[] = {
 	__ATTR(gap1, 0664, gap_show, gap_store),
 	__ATTR(gap2, 0664, gap_show, gap_store),
 	__ATTR(gap3, 0664, gap_show, gap_store),
+	__ATTR(vlan, 0664, vlan_show, vlan_store),
 	__ATTR(fmode0, 0664, fmode_show, fmode_store),
 	__ATTR(fmode1, 0664, fmode_show, fmode_store),
 	__ATTR(fmode2, 0664, fmode_show, fmode_store),
@@ -4279,6 +4539,12 @@ static int ddb_init_boards(struct ddb *dev)
 
 static int ddb_init(struct ddb *dev)
 {
+	if (dev->link[0].info->ns_num) {
+		ddbwritel(dev, 1, ETHER_CONTROL);
+		dev->vlan = vlan;
+		ddbwritel(dev, 14 + (dev->vlan ? 4 : 0), ETHER_LENGTH);
+	}
+
 	mutex_init(&dev->link[0].lnb.lock);
 	mutex_init(&dev->link[0].flash_mutex);
 
@@ -4295,6 +4561,8 @@ static int ddb_init(struct ddb *dev)
 		goto fail2;
 	}
 	ddb_ports_attach(dev);
+
+	ddb_nsd_attach(dev);
 
 	ddb_device_create(dev);
 

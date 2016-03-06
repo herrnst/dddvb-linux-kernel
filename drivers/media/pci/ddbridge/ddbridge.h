@@ -59,6 +59,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
+#include "dvb_netstream.h"
 #include "dmxdev.h"
 #include "dvbdev.h"
 #include "dvb_demux.h"
@@ -135,6 +136,7 @@ struct ddb_info {
 #define DDB_OCTOPUS      1
 #define DDB_OCTOPUS_CI   2
 #define DDB_MOD          3
+#define DDB_OCTONET      4
 #define DDB_OCTOPUS_MAX  5
 #define DDB_OCTOPUS_MAX_CT  6
 	char *name;
@@ -146,6 +148,7 @@ struct ddb_info {
 	u8    temp_bus;
 	u32   board_control;
 	u32   board_control_2;
+	u8    ns_num;
 	u8    mdio_num;
 	u8    con_clock; /* use a continuous clock */
 	u8    ts_quirks;
@@ -205,6 +208,7 @@ struct ddb_dvb {
 	struct dmxdev          dmxdev;
 	struct dvb_demux       demux;
 	struct dvb_net         dvbnet;
+	struct dvb_netstream   dvbns;
 	struct dmx_frontend    hw_frontend;
 	struct dmx_frontend    mem_frontend;
 	int                    users;
@@ -347,6 +351,21 @@ struct mod_state {
 
 #define TS_CAPTURE_LEN  (4096)
 
+/* net streaming hardware block */
+
+#define DDB_NS_MAX 15
+
+struct ddb_ns {
+	struct ddb_input      *input;
+	int                    nr;
+	struct ddb_input      *fe;
+	u32                    rtcp_udplen;
+	u32                    rtcp_len;
+	u32                    ts_offset;
+	u32                    udplen;
+	u8                     p[512];
+};
+
 struct ddb_lnb {
 	struct mutex           lock;
 	u32                    tone;
@@ -376,7 +395,7 @@ struct ddb {
 	int                    msi;
 	struct workqueue_struct *wq;
 	u32                    has_dma;
-
+	u32                    has_ns;
 	struct ddb_link        link[DDB_MAX_LINK];
 	unsigned char         *regs;
 	u32                    regs_len;
@@ -400,9 +419,13 @@ struct ddb {
 	u8                     leds;
 	u32                    ts_irq;
 	u32                    i2c_irq;
+	int                    ns_num;
 
+	struct ddb_ns          ns[DDB_NS_MAX];
+	int                    vlan;
 	struct mutex           mutex;
 
+	struct dvb_device     *nsd_dev;
 	u8                     tsbuf[TS_CAPTURE_LEN];
 
 	struct mod_base        mod_base;
