@@ -1057,13 +1057,11 @@ static int Start(struct cxd_state *state, u32 IntermediateFrequency)
 			return -EINVAL;
 		newDemodState = ActiveIT;
 		break;
-	/* TODO: uncomment after DVBC2 API is added
-	 * case SYS_DVBC2:
-	 *	if (state->type != CXD2843)
-	 *		return -EINVAL;
-	 *	newDemodState = ActiveC2;
-	 *	break;
-	 */
+	case SYS_DVBC2:
+		if (state->type != CXD2843)
+			return -EINVAL;
+		newDemodState = ActiveC2;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1161,9 +1159,9 @@ static int set_parameters(struct dvb_frontend *fe)
 	struct cxd_state *state = fe->demodulator_priv;
 	u32 IF;
 
-	/* TODO: add SYS_DVBC2 when available */
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC2:
 	case SYS_DVBT:
 	case SYS_DVBT2:
 	case SYS_ISDBT:
@@ -1902,8 +1900,7 @@ static int get_frontend(struct dvb_frontend *fe,
 }
 
 static struct dvb_frontend_ops common_ops_2843 = {
-	/* TODO: add DVB-C2 delivery system */
-	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBT, SYS_DVBT2 },
+	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBT, SYS_DVBT2, SYS_DVBC2 },
 	.info = {
 		.name = "CXD2843 DVB-C/C2 DVB-T/T2",
 		.frequency_stepsize = 166667,	/* DVB-T only */
