@@ -380,6 +380,7 @@ static struct tda18271_config kworld_ub435q_v2_config = {
 static struct tda18212_config kworld_ub435q_v3_config = {
 	.if_atsc_vsb	= 3600,
 	.if_atsc_qam	= 3600,
+	.init_flags	= 0,
 };
 
 static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {

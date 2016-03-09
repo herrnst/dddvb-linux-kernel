@@ -332,6 +332,7 @@ static struct tda18212_config anysee_tda18212_config = {
 	.if_dvbt_7 = 4150,
 	.if_dvbt_8 = 4150,
 	.if_dvbc = 5000,
+	.init_flags = 0,
 };
 
 static struct tda18212_config anysee_tda18212_config2 = {
@@ -342,6 +343,7 @@ static struct tda18212_config anysee_tda18212_config2 = {
 	.if_dvbt2_7 = 4000,
 	.if_dvbt2_8 = 4000,
 	.if_dvbc = 5000,
+	.init_flags = 0,
 };
 
 static struct cx24116_config anysee_cx24116_config = {
