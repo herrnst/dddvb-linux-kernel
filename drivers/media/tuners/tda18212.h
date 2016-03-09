@@ -24,6 +24,8 @@
 #include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
+#define TDA18212_INIT_RETRY	(1 << 0)
+
 struct tda18212_config {
 	u16 if_dvbt_6;
 	u16 if_dvbt_7;
@@ -35,6 +37,11 @@ struct tda18212_config {
 	u16 if_dvbc;
 	u16 if_atsc_vsb;
 	u16 if_atsc_qam;
+
+	/*
+	 * flags for tuner init control
+	 */
+	u32 init_flags;
 
 	/*
 	 * pointer to DVB frontend
