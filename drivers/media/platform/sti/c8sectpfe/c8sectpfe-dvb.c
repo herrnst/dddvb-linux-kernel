@@ -111,6 +111,7 @@ static struct tda18212_config tda18212_conf = {
 	.if_dvbt_7 = 4150,
 	.if_dvbt_8 = 4500,
 	.if_dvbc = 5000,
+	.init_flags = 0,
 };
 
 int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
