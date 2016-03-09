@@ -220,6 +220,11 @@ static int tda18212_probe(struct i2c_client *client,
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
 
 	ret = regmap_read(dev->regmap, 0x00, &chip_id);
+
+	/* retry probe if desired */
+	if (ret && (cfg->init_flags & TDA18212_INIT_RETRY))
+		ret = regmap_read(dev->regmap, 0x00, &chip_id);
+
 	dev_dbg(&dev->client->dev, "chip_id=%02x\n", chip_id);
 
 	if (fe->ops.i2c_gate_ctrl)
