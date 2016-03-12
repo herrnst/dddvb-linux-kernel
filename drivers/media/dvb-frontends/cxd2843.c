@@ -23,6 +23,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -34,7 +37,16 @@
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "cxd2843.h"
+
+#define FE_STATUS_FULL_LOCK (FE_HAS_SIGNAL \
+			| FE_HAS_CARRIER \
+			| FE_HAS_VITERBI \
+			| FE_HAS_SYNC \
+			| FE_HAS_LOCK)
+
+#define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
 
 #define USE_ALGO 1
 
@@ -42,8 +54,6 @@ enum demod_type { CXD2843, CXD2837, CXD2838 };
 enum demod_state { Unknown, Shutdown, Sleep, ActiveT,
 		   ActiveT2, ActiveC, ActiveC2, ActiveIT };
 enum t2_profile { T2P_Base, T2P_Lite };
-enum omode { OM_NONE, OM_DVBT, OM_DVBT2, OM_DVBC,
-	     OM_QAM_ITU_C, OM_DVBC2, OM_ISDBT };
 
 struct cxd_state {
 	struct dvb_frontend   frontend;
@@ -59,7 +69,7 @@ struct cxd_state {
 	enum demod_type  type;
 	enum demod_state state;
 	enum t2_profile T2Profile;
-	enum omode omode;
+	enum fe_delivery_system delsys;
 
 	u8    IF_FS;
 	int   ContinuousClock;
@@ -90,8 +100,8 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 		.addr = adr, .flags = 0, .buf = data, .len = len};
 
 	if (i2c_transfer(adap, &msg, 1) != 1) {
-		pr_err("cxd2843: i2c_write error\n");
-		return -1;
+		pr_err("i2c_write error\n");
+		return -EREMOTEIO;
 	}
 	return 0;
 }
@@ -121,8 +131,8 @@ static int i2c_read(struct i2c_adapter *adap,
 				   { .addr = adr, .flags = I2C_M_RD,
 				     .buf = answ, .len = alen } };
 	if (i2c_transfer(adap, msgs, 2) != 2) {
-		pr_err("cxd2843: i2c_read error\n");
-		return -1;
+		pr_err("i2c_read error\n");
+		return -EREMOTEIO;
 	}
 	return 0;
 }
@@ -327,7 +337,7 @@ static inline u32 MulDiv32(u32 a, u32 b, u32 c)
 
 static int read_tps(struct cxd_state *state, u8 *tps)
 {
-	if (state->last_status != 0x1f)
+	if (state->last_status != FE_STATUS_FULL_LOCK)
 		return 0;
 
 	freeze_regst(state);
@@ -1026,33 +1036,34 @@ static int Start(struct cxd_state *state, u32 IntermediateFrequency)
 
 	iffreq = MulDiv32(IntermediateFrequency, 16777216, 41000000);
 
-	switch (state->omode) {
-	case OM_DVBT:
+	switch (state->delsys) {
+	case SYS_DVBT:
 		if (state->type == CXD2838)
 			return -EINVAL;
 		newDemodState = ActiveT;
 		break;
-	case OM_DVBT2:
+	case SYS_DVBT2:
 		if (state->type == CXD2838)
 			return -EINVAL;
 		newDemodState = ActiveT2;
 		break;
-	case OM_DVBC:
-	case OM_QAM_ITU_C:
+	case SYS_DVBC_ANNEX_A:
 		if (state->type == CXD2838)
 			return -EINVAL;
 		newDemodState = ActiveC;
 		break;
-	case OM_DVBC2:
-		if (state->type != CXD2843)
-			return -EINVAL;
-		newDemodState = ActiveC2;
-		break;
-	case OM_ISDBT:
+	case SYS_ISDBT:
 		if (state->type != CXD2838)
 			return -EINVAL;
 		newDemodState = ActiveIT;
 		break;
+	/* TODO: uncomment after DVBC2 API is added
+	 * case SYS_DVBC2:
+	 *	if (state->type != CXD2843)
+	 *		return -EINVAL;
+	 *	newDemodState = ActiveC2;
+	 *	break;
+	 */
 	default:
 		return -EINVAL;
 	}
@@ -1150,19 +1161,13 @@ static int set_parameters(struct dvb_frontend *fe)
 	struct cxd_state *state = fe->demodulator_priv;
 	u32 IF;
 
-	/* TODO: map DVB-C2 delsys to OM_DVBC2 */
+	/* TODO: add SYS_DVBC2 when available */
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBC_ANNEX_A:
-		state->omode = OM_DVBC;
-		break;
 	case SYS_DVBT:
-		state->omode = OM_DVBT;
-		break;
 	case SYS_DVBT2:
-		state->omode = OM_DVBT2;
-		break;
 	case SYS_ISDBT:
-		state->omode = OM_ISDBT;
+		state->delsys = fe->dtv_property_cache.delivery_system;
 		break;
 	default:
 		return -EINVAL;
@@ -1191,8 +1196,8 @@ static void init(struct cxd_state *state)
 {
 	u8 data[2] = {0x00, 0x00}; /* 20.5 MHz */
 
-	state->omode = OM_NONE;
-	state->state   = Unknown;
+	state->delsys = SYS_UNDEFINED;
+	state->state  = Unknown;
 
 	writeregx(state, 0xFF, 0x02, 0x00);
 	usleep_range(4000, 5000);
@@ -1253,19 +1258,6 @@ static void init_state(struct cxd_state *state, struct cxd2843_cfg *cfg)
 	state->IF_FS = 0x50;
 }
 
-static int get_tune_settings(struct dvb_frontend *fe,
-			     struct dvb_frontend_tune_settings *sets)
-{
-	switch (fe->dtv_property_cache.delivery_system) {
-	case SYS_DVBC_ANNEX_A:
-	case SYS_DVBC_ANNEX_C:
-		/*return c_get_tune_settings(fe, sets);*/
-	default:
-		/* DVB-T: Use info.frequency_stepsize. */
-		return -EINVAL;
-	}
-}
-
 static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd_state *state = fe->demodulator_priv;
@@ -1278,10 +1270,16 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (rdata & 0x02)
 			break;
 		if (rdata & 0x01) {
-			*status |= 0x07;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI);
 			readregst(state, 0x40, 0x10, &rdata, 1);
 			if (rdata & 0x20)
-				*status |= 0x1f;
+				*status |= (FE_HAS_SIGNAL
+					| FE_HAS_CARRIER
+					| FE_HAS_VITERBI
+					| FE_HAS_SYNC
+					| FE_HAS_LOCK);
 		}
 		break;
 	case ActiveT:
@@ -1289,9 +1287,15 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (rdata & 0x10)
 			break;
 		if ((rdata & 0x07) == 0x06) {
-			*status |= 0x07;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI);
 			if (rdata & 0x20)
-				*status |= 0x1f;
+				*status |= (FE_HAS_SIGNAL
+					| FE_HAS_CARRIER
+					| FE_HAS_VITERBI
+					| FE_HAS_SYNC
+					| FE_HAS_LOCK);
 		}
 		break;
 	case ActiveT2:
@@ -1299,14 +1303,16 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (rdata & 0x10)
 			break;
 		if ((rdata & 0x07) == 0x06) {
-			*status |= 0x07;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI);
 			if (rdata & 0x20)
-				*status |= 0x08;
+				*status |= FE_HAS_SYNC;
 		}
 		if (*status & 0x08) {
 			readregst(state, 0x22, 0x12, &rdata, 1);
 			if (rdata & 0x01)
-				*status |= 0x10;
+				*status |= FE_HAS_LOCK;
 		}
 		break;
 	case ActiveC2:
@@ -1314,11 +1320,13 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (rdata & 0x10)
 			break;
 		if ((rdata & 0x07) == 0x06) {
-			*status |= 0x07;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI);
 			if (rdata & 0x20)
-				*status |= 0x18;
+				*status |= (FE_HAS_SYNC | FE_HAS_LOCK);
 		}
-		if ((*status & 0x10) && state->FirstTimeLock) {
+		if ((*status & FE_HAS_LOCK) && state->FirstTimeLock) {
 			u8 data;
 
 			/* Change1stTrial */
@@ -1335,9 +1343,11 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (rdata & 0x10)
 			break;
 		if (rdata & 0x02) {
-			*status |= 0x07;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI);
 			if (rdata & 0x01)
-				*status |= 0x18;
+				*status |= (FE_HAS_SYNC | FE_HAS_LOCK);
 		}
 		break;
 	default:
@@ -1424,94 +1434,65 @@ static int get_ber_it(struct cxd_state *state, u32 *n, u32 *d)
 	return 0;
 }
 
-static int read_ber(struct dvb_frontend *fe, u32 *ber)
+static int read_ber(struct dvb_frontend *fe, u32 *ber, u32 *n, u32 *d)
 {
 	struct cxd_state *state = fe->demodulator_priv;
-	u32 n, d;
 	int s = 0;
 
 	*ber = 0;
+	*n = 0;
+	*d = 1;
+
 	switch (state->state) {
 	case ActiveT:
-		s = get_ber_t(state, &n, &d);
+		s = get_ber_t(state, n, d);
 		break;
 	case ActiveT2:
-		s = get_ber_t2(state, &n, &d);
+		s = get_ber_t2(state, n, d);
 		break;
 	case ActiveC:
-		s = get_ber_c(state, &n, &d);
+		s = get_ber_c(state, n, d);
 		break;
 	case ActiveC2:
-		s = get_ber_c2(state, &n, &d);
+		s = get_ber_c2(state, n, d);
 		break;
 	case ActiveIT:
-		s = get_ber_it(state, &n, &d);
+		s = get_ber_it(state, n, d);
 		break;
 	default:
 		break;
 	}
+
 	if (s)
 		return s;
 
+	if (d)
+		*ber = (*n * 1000) / *d;
+
 	return 0;
 }
 
-static int read_signal_strength(struct dvb_frontend *fe, u16 *strength)
+static u32 snrreg_to_db_t_c2_it(u32 reg, u32 max, u32 offset)
 {
-	if (fe->ops.tuner_ops.get_rf_strength)
-		fe->ops.tuner_ops.get_rf_strength(fe, strength);
-	else
-		*strength = 0;
-	return 0;
-}
+	s32 snr;
 
-static s32 Log10x100(u32 x)
-{
-	static u32 LookupTable[100] = {
-		101157945, 103514217, 105925373, 108392691, 110917482,
-		113501082, 116144861, 118850223, 121618600, 124451461,
-		127350308, 130316678, 133352143, 136458314, 139636836,
-		142889396, 146217717, 149623566, 153108746, 156675107,
-		160324539, 164058977, 167880402, 171790839, 175792361,
-		179887092, 184077200, 188364909, 192752491, 197242274,
-		201836636, 206538016, 211348904, 216271852, 221309471,
-		226464431, 231739465, 237137371, 242661010, 248313311,
-		254097271, 260015956, 266072506, 272270131, 278612117,
-		285101827, 291742701, 298538262, 305492111, 312607937,
-		319889511, 327340695, 334965439, 342767787, 350751874,
-		358921935, 367282300, 375837404, 384591782, 393550075,
-		402717034, 412097519, 421696503, 431519077, 441570447,
-		451855944, 462381021, 473151259, 484172368, 495450191,
-		506990708, 518800039, 530884444, 543250331, 555904257,
-		568852931, 582103218, 595662144, 609536897, 623734835,
-		638263486, 653130553, 668343918, 683911647, 699841996,
-		716143410, 732824533, 749894209, 767361489, 785235635,
-		803526122, 822242650, 841395142, 860993752, 881048873,
-		901571138, 922571427, 944060876, 966050879, 988553095,
-	};
-	s32 y;
-	int i;
-
-	if (x == 0)
+	if (reg == 0)
 		return 0;
-	y = 800;
-	if (x >= 1000000000) {
-		x /= 10;
-		y += 100;
-	}
 
-	while (x < 100000000) {
-		x *= 10;
-		y -= 100;
-	}
-	i = 0;
-	while (i < 100 && x > LookupTable[i])
-		i += 1;
-	y += i;
-	return y;
+	snr = 100 * ((INTLOG10X100(reg) - INTLOG10X100(max - reg)) + offset);
+
+	if (snr < 0)
+		return 0;
+
+	return snr;
 }
 
-static void GetSignalToNoiseIT(struct cxd_state *state, u32 *SignalToNoise)
+static u32 snrreg_to_db_c(u32 reg, u32 max, u32 mult)
+{
+	return (reg != 0 ? ((max - INTLOG10X100(reg)) * mult + 500) / 10 : 0);
+}
+
+static int GetSignalToNoiseIT(struct cxd_state *state, u32 *snr)
 {
 	u8 Data[2];
 	u32 reg;
@@ -1521,19 +1502,25 @@ static void GetSignalToNoiseIT(struct cxd_state *state, u32 *SignalToNoise)
 	unfreeze_regst(state);
 
 	reg = (Data[0] << 8) | Data[1];
-	if (reg > 51441)
-		reg = 51441;
 
-	if (state->bw == 8) {
+	switch (state->bw) {
+	case 8:
 		if (reg > 1143)
 			reg = 1143;
-		*SignalToNoise = (Log10x100(reg) -
-				  Log10x100(1200 - reg)) + 220;
-	} else
-		*SignalToNoise = Log10x100(reg) - 90;
+		*snr = snrreg_to_db_t_c2_it(reg, 1200, 220);
+		break;
+	default:
+		if (reg > 51441)
+			reg = 51441;
+
+		*snr = (reg > 0 ? (INTLOG10X100(reg) - 90) : 0);
+		break;
+	}
+
+	return 0;
 }
 
-static void GetSignalToNoiseC2(struct cxd_state *state, u32 *SignalToNoise)
+static int GetSignalToNoiseC2(struct cxd_state *state, u32 *snr)
 {
 	u8 Data[2];
 	u32 reg;
@@ -1546,11 +1533,13 @@ static void GetSignalToNoiseC2(struct cxd_state *state, u32 *SignalToNoise)
 	if (reg > 51441)
 		reg = 51441;
 
-	*SignalToNoise = (Log10x100(reg) - Log10x100(55000 - reg)) + 384;
+	*snr = snrreg_to_db_t_c2_it(reg, 55000, 384);
+
+	return 0;
 }
 
 
-static void GetSignalToNoiseT2(struct cxd_state *state, u32 *SignalToNoise)
+static int GetSignalToNoiseT2(struct cxd_state *state, u32 *snr)
 {
 	u8 Data[2];
 	u32 reg;
@@ -1563,10 +1552,12 @@ static void GetSignalToNoiseT2(struct cxd_state *state, u32 *SignalToNoise)
 	if (reg > 10876)
 		reg = 10876;
 
-	*SignalToNoise = (Log10x100(reg) - Log10x100(12600 - reg)) + 320;
+	*snr = snrreg_to_db_t_c2_it(reg, 12600, 320);
+
+	return 0;
 }
 
-static void GetSignalToNoiseT(struct cxd_state *state, u32 *SignalToNoise)
+static int GetSignalToNoiseT(struct cxd_state *state, u32 *snr)
 {
 	u8 Data[2];
 	u32 reg;
@@ -1579,16 +1570,18 @@ static void GetSignalToNoiseT(struct cxd_state *state, u32 *SignalToNoise)
 	if (reg > 4996)
 		reg = 4996;
 
-	*SignalToNoise = (Log10x100(reg) - Log10x100(5350 - reg)) + 285;
+	*snr = snrreg_to_db_t_c2_it(reg, 5350, 285);
+
+	return 0;
 }
 
-static void GetSignalToNoiseC(struct cxd_state *state, u32 *SignalToNoise)
+static int GetSignalToNoiseC(struct cxd_state *state, u32 *snr)
 {
 	u8 Data[2];
 	u8 Constellation = 0;
 	u32 reg;
 
-	*SignalToNoise = 0;
+	*snr = 0;
 
 	freeze_regst(state);
 	readregst_unlocked(state, 0x40, 0x19, &Constellation, 1);
@@ -1597,7 +1590,7 @@ static void GetSignalToNoiseC(struct cxd_state *state, u32 *SignalToNoise)
 
 	reg = ((u32)(Data[0] & 0x1F) << 8) | (Data[1]);
 	if (reg == 0)
-		return;
+		return 0;
 
 	switch (Constellation & 0x07) {
 	case 0: /* QAM 16 */
@@ -1605,52 +1598,78 @@ static void GetSignalToNoiseC(struct cxd_state *state, u32 *SignalToNoise)
 	case 4: /* QAM 256 */
 		if (reg < 126)
 			reg = 126;
-		*SignalToNoise = ((439 - Log10x100(reg)) * 2134 + 500) / 1000;
+		*snr = snrreg_to_db_c(reg, 439, 2134);
 		break;
 	case 1: /* QAM 32 */
 	case 3: /* QAM 128 */
 		if (reg < 69)
 			reg = 69;
-		*SignalToNoise = ((432 - Log10x100(reg)) * 2015 + 500) / 1000;
+		*snr = snrreg_to_db_c(reg, 432, 2015);
 		break;
 	}
+
+	return 0;
 }
 
-static int read_snr(struct dvb_frontend *fe, u16 *snr)
+static u32 read_snr(struct dvb_frontend *fe, u16 *snr)
 {
+	u32 ret = 0;
 	struct cxd_state *state = fe->demodulator_priv;
-	u32 SNR = 0;
 
-	*snr = 0;
-	if (state->last_status != 0x1f)
+	if (state->last_status != FE_STATUS_FULL_LOCK)
 		return 0;
 
 	switch (state->state) {
 	case ActiveC:
-		GetSignalToNoiseC(state, &SNR);
+		GetSignalToNoiseC(state, &ret);
 		break;
 	case ActiveC2:
-		GetSignalToNoiseC2(state, &SNR);
+		GetSignalToNoiseC2(state, &ret);
 		break;
 	case ActiveT:
-		GetSignalToNoiseT(state, &SNR);
+		GetSignalToNoiseT(state, &ret);
 		break;
 	case ActiveT2:
-		GetSignalToNoiseT2(state, &SNR);
+		GetSignalToNoiseT2(state, &ret);
 		break;
 	case ActiveIT:
-		GetSignalToNoiseIT(state, &SNR);
+		GetSignalToNoiseIT(state, &ret);
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
-	*snr = SNR;
+
+	*snr = ret & 0xffff;
 	return 0;
 }
 
-static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int read_agc_gain_c_t_t2(struct dvb_frontend *fe, u16 *strength)
 {
-	*ucblocks = 0;
+	struct cxd_state *state = fe->demodulator_priv;
+	u8 data[2];
+	u8 regbank;
+
+	switch (state->state) {
+	case ActiveC:
+	case ActiveT:
+		regbank = 0x10;
+		break;
+	case ActiveT2:
+		regbank = 0x20;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	freeze_regst(state);
+	readregst_unlocked(state, regbank, 0x26, data, sizeof(data));
+	unfreeze_regst(state);
+
+	*strength = 65535 -
+		(((((u16)data[0] & 0x0F) << 8)
+		| (u16)(data[1] & 0xFF))
+		<< 4);
+
 	return 0;
 }
 
@@ -1816,7 +1835,7 @@ static int get_fe_c(struct cxd_state *state)
 	freeze_regst(state);
 	readregst_unlocked(state, 0x40, 0x19, &qam, 1);
 	unfreeze_regst(state);
-	p->modulation = qam & 0x07;
+	p->modulation = 1 + (qam & 0x07);
 	return 0;
 }
 
@@ -1824,26 +1843,61 @@ static int get_frontend(struct dvb_frontend *fe,
 			struct dtv_frontend_properties *p)
 {
 	struct cxd_state *state = fe->demodulator_priv;
+	enum fe_status status = 0;
+	int tmp;
+	u16 snr = 0, strength = 0;
+	u32 ber = 0, bernom = 0, berdenom = 1;
 
-	if (state->last_status != 0x1f)
+	tmp = read_status(fe, &status);
+
+	p->strength.len = 1;
+	p->cnr.len = 1;
+	p->pre_bit_error.len = 1;
+	p->pre_bit_count.len = 1;
+	p->post_bit_error.len = 1;
+
+	if (state->last_status != FE_STATUS_FULL_LOCK) {
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 		return 0;
-
-	switch (state->state) {
-	case ActiveT:
-		get_fe_t(state);
-		break;
-	case ActiveT2:
-		break;
-	case ActiveC:
-		get_fe_c(state);
-		break;
-	case ActiveC2:
-		break;
-	case ActiveIT:
-		break;
-	default:
-		break;
 	}
+
+	if (state->state == ActiveT)
+		get_fe_t(state);
+	else if (state->state == ActiveC)
+		get_fe_c(state);
+
+	if (read_agc_gain_c_t_t2(fe, &strength))
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	else {
+		p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		p->strength.stat[0].uvalue = strength;
+	}
+
+	if (read_snr(fe, &snr))
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	else {
+		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		p->cnr.stat[0].svalue = snr;
+	}
+
+	if (read_ber(fe, &ber, &bernom, &berdenom)) {
+		p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	} else {
+		p->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->pre_bit_error.stat[0].uvalue = bernom;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		p->pre_bit_count.stat[0].uvalue = berdenom;
+		p->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->post_bit_error.stat[0].uvalue = ber;
+	}
+
 	return 0;
 }
 
@@ -1872,12 +1926,7 @@ static struct dvb_frontend_ops common_ops_2843 = {
 	.i2c_gate_ctrl = gate_ctrl,
 	.set_frontend = set_parameters,
 
-	.get_tune_settings = get_tune_settings,
 	.read_status = read_status,
-	.read_ber = read_ber,
-	.read_signal_strength = read_signal_strength,
-	.read_snr = read_snr,
-	.read_ucblocks = read_ucblocks,
 	.get_frontend = get_frontend,
 #ifdef USE_ALGO
 	.get_frontend_algo = get_algo,
@@ -1910,12 +1959,7 @@ static struct dvb_frontend_ops common_ops_2837 = {
 	.i2c_gate_ctrl = gate_ctrl,
 	.set_frontend = set_parameters,
 
-	.get_tune_settings = get_tune_settings,
 	.read_status = read_status,
-	.read_ber = read_ber,
-	.read_signal_strength = read_signal_strength,
-	.read_snr = read_snr,
-	.read_ucblocks = read_ucblocks,
 	.get_frontend = get_frontend,
 #ifdef USE_ALGO
 	.get_frontend_algo = get_algo,
@@ -1946,12 +1990,7 @@ static struct dvb_frontend_ops common_ops_2838 = {
 	.i2c_gate_ctrl = gate_ctrl,
 	.set_frontend = set_parameters,
 
-	.get_tune_settings = get_tune_settings,
 	.read_status = read_status,
-	.read_ber = read_ber,
-	.read_signal_strength = read_signal_strength,
-	.read_snr = read_snr,
-	.read_ucblocks = read_ucblocks,
 #ifdef USE_ALGO
 	.get_frontend_algo = get_algo,
 	.search = search,
@@ -1989,8 +2028,13 @@ static int probe(struct cxd_state *state)
 		       sizeof(struct dvb_frontend_ops));
 		break;
 	default:
-		return -1;
+		return -ENODEV;
 	}
+
+	pr_info("%s with ChipID %02X found at adr %02X on %s\n",
+		state->frontend.ops.info.name, ChipID, state->adrt,
+		dev_name(&state->i2c->dev));
+
 	state->frontend.demodulator_priv = state;
 	return 0;
 }
@@ -2010,7 +2054,8 @@ struct dvb_frontend *cxd2843_attach(struct i2c_adapter *i2c,
 		init(state);
 		return &state->frontend;
 	}
-	pr_err("cxd2843: not found\n");
+	pr_err("No supported demodulator found at adr %02X on %s\n",
+		cfg->adr, dev_name(&i2c->dev));
 	kfree(state);
 	return NULL;
 }
