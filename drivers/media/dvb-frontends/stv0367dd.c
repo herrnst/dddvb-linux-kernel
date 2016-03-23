@@ -21,6 +21,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -31,10 +34,12 @@
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "stv0367dd.h"
 #include "stv0367dd_regs.h"
 
-enum omode { OM_NONE, OM_DVBT, OM_DVBC, OM_QAM_ITU_C };
+#define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
+
 enum {  QAM_MOD_QAM4 = 0,
 	QAM_MOD_QAM16,
 	QAM_MOD_QAM32,
@@ -74,7 +79,7 @@ struct stv_state {
 	u32 adc_clock;
 	u8 ID;
 	u8 I2CRPT;
-	u32 omode;
+	enum fe_delivery_system delsys;
 	u8  qam_inversion;
 
 	s32 IF;
@@ -721,9 +726,27 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 		.addr = adr, .flags = 0, .buf = data, .len = len };
 
 	if (i2c_transfer(adap, &msg, 1) != 1) {
-		pr_warn("stv0367: i2c_write error\n");
-		return -1;
+		pr_warn("i2c_write error ([%02x] %04x: %02x)\n",
+			adr, (data[0] << 8) | data[1],
+			(len > 2 ? data[2] : 0));
+		return -EREMOTEIO;
 	}
+	return 0;
+}
+
+static int i2c_read(struct i2c_adapter *adap, u8 adr, u16 reg, u8 *val, int count)
+{
+	u8 msg[2] = {reg >> 8, reg & 0xff};
+	struct i2c_msg msgs[2] = {
+		{.addr = adr, .flags = 0, .buf = msg, .len = 2 },
+		{.addr = adr, .flags = I2C_M_RD, .buf = val, .len = count } };
+
+	if (i2c_transfer(adap, msgs, 2) != 2) {
+		pr_warn("i2c_read error ([%02x] %04x)\n",
+			adr, reg);
+		return -EREMOTEIO;
+	}
+
 	return 0;
 }
 
@@ -736,22 +759,12 @@ static int writereg(struct stv_state *state, u16 reg, u8 dat)
 
 static int readreg(struct stv_state *state, u16 reg, u8 *val)
 {
-	u8 msg[2] = {reg >> 8, reg & 0xff};
-	struct i2c_msg msgs[2] = {{.addr = state->adr, .flags = 0,
-				.buf  = msg, .len = 2 },
-				  {.addr = state->adr, .flags = I2C_M_RD,
-				.buf  = val, .len = 1 } };
-	return (i2c_transfer(state->i2c, msgs, 2) == 2) ? 0 : -1;
+	return i2c_read(state->i2c, state->adr, reg, val, 1);
 }
 
 static int readregs(struct stv_state *state, u16 reg, u8 *val, int count)
 {
-	u8 msg[2] = {reg >> 8, reg & 0xff};
-	struct i2c_msg msgs[2] = {{.addr = state->adr, .flags = 0,
-				.buf  = msg, .len = 2 },
-				  {.addr = state->adr, .flags = I2C_M_RD,
-				.buf  = val, .len = count } };
-	return (i2c_transfer(state->i2c, msgs, 2) == 2) ? 0 : -1;
+	return i2c_read(state->i2c, state->adr, reg, val, count);
 }
 
 static int write_init_table(struct stv_state *state, struct init_table *tab)
@@ -760,9 +773,10 @@ static int write_init_table(struct stv_state *state, struct init_table *tab)
 		if (!tab->adr)
 			break;
 		if (writereg(state, tab->adr, tab->data) < 0)
-			return -1;
+			return -EREMOTEIO;
 		tab++;
 	}
+
 	return 0;
 }
 
@@ -1197,69 +1211,14 @@ static int OFDM_Start(struct stv_state *state, s32 offsetFreq,
 	return status;
 }
 
-static s32 Log10x100(u32 x)
-{
-	static u32 LookupTable[100] = {
-		/* 800.5 - 809.5 */
-		101157945, 103514217, 105925373, 108392691, 110917482,
-		113501082, 116144861, 118850223, 121618600, 124451461,
-		/* 810.5 - 819.5 */
-		127350308, 130316678, 133352143, 136458314, 139636836,
-		142889396, 146217717, 149623566, 153108746, 156675107,
-		/* 820.5 - 829.5 */
-		160324539, 164058977, 167880402, 171790839, 175792361,
-		179887092, 184077200, 188364909, 192752491, 197242274,
-		/* 830.5 - 839.5 */
-		201836636, 206538016, 211348904, 216271852, 221309471,
-		226464431, 231739465, 237137371, 242661010, 248313311,
-		/* 840.5 - 849.5 */
-		254097271, 260015956, 266072506, 272270131, 278612117,
-		285101827, 291742701, 298538262, 305492111, 312607937,
-		/* 850.5 - 859.5 */
-		319889511, 327340695, 334965439, 342767787, 350751874,
-		358921935, 367282300, 375837404, 384591782, 393550075,
-		/* 860.5 - 869.5 */
-		402717034, 412097519, 421696503, 431519077, 441570447,
-		451855944, 462381021, 473151259, 484172368, 495450191,
-		/* 870.5 - 879.5 */
-		506990708, 518800039, 530884444, 543250331, 555904257,
-		568852931, 582103218, 595662144, 609536897, 623734835,
-		/* 880.5 - 889.5 */
-		638263486, 653130553, 668343918, 683911647, 699841996,
-		716143410, 732824533, 749894209, 767361489, 785235635,
-		/* 890.5 - 899.5 */
-		803526122, 822242650, 841395142, 860993752, 881048873,
-		901571138, 922571427, 944060876, 966050879, 988553095,
-	};
-	s32 y;
-	int i;
-
-	if (x == 0)
-		return 0;
-	y = 800;
-	if (x >= 1000000000) {
-		x /= 10;
-		y += 100;
-	}
-
-	while (x < 100000000) {
-		x *= 10;
-		y -= 100;
-	}
-	i = 0;
-	while (i < 100 && x > LookupTable[i])
-		i += 1;
-	y += i;
-	return y;
-}
-
-static int QAM_GetSignalToNoise(struct stv_state *state, s32 *pSignalToNoise)
+static int QAM_GetSignalToNoise(struct stv_state *state, u16 *snr)
 {
 	u32 RegValAvg = 0;
+	s32 snrval;
 	u8 RegVal[2];
-	int status = 0, i;
+	int i;
 
-	*pSignalToNoise = 0;
+	*snr = 0;
 	for (i = 0; i < 10; i += 1) {
 		readregs(state, R367_QAM_EQU_SNR_LO, RegVal, 2);
 		RegValAvg += RegVal[0] + 256 * RegVal[1];
@@ -1286,20 +1245,22 @@ static int QAM_GetSignalToNoise(struct stv_state *state, s32 *pSignalToNoise)
 		default:
 			break;
 		}
-		*pSignalToNoise = Log10x100((Power * 320) / RegValAvg);
+		snrval = INTLOG10X100((Power * 320) / RegValAvg);
 	} else {
-		*pSignalToNoise = 380;
+		snrval = 380;
 	}
-	return status;
+
+	*snr = 0xffff & (snrval * 100);
+	return 0;
 }
 
-static int OFDM_GetSignalToNoise(struct stv_state *state, s32 *pSignalToNoise)
+static int OFDM_GetSignalToNoise(struct stv_state *state, u16 *snr)
 {
 	u8 CHC_SNR = 0;
 
-	int status = readreg(state, R367_OFDM_CHC_SNR, &CHC_SNR);
+	*snr = 0;
 
-	if (status >= 0) {
+	if (readreg(state, R367_OFDM_CHC_SNR, &CHC_SNR) >= 0) {
 		/* Note: very unclear documentation on this.
 		 * Datasheet states snr = CHC_SNR/4 dB  -> way to high values!
 		 * Software snr = ( 1000 * CHC_SNR ) / 8 / 32 / 10;
@@ -1308,9 +1269,10 @@ static int OFDM_GetSignalToNoise(struct stv_state *state, s32 *pSignalToNoise)
 		 *   ( 1000 * CHC_SNR ) / 4 / 32 / 10; for the 367
 		 * 361/362 Datasheet: snr = CHC_SNR/8 dB -> this looks best
 		 */
-		*pSignalToNoise = ((s32)CHC_SNR * 10) / 8;
+		*snr = ((u16)CHC_SNR * 1000) / 8;
+		return 0;
 	}
-	return status;
+	return -EINVAL;
 }
 
 static int attach_init(struct stv_state *state)
@@ -1320,7 +1282,10 @@ static int attach_init(struct stv_state *state)
 	stat = readreg(state, R367_ID, &state->ID);
 	if (stat < 0 || state->ID != 0x60)
 		return -ENODEV;
-	pr_info("stv0367 found\n");
+
+	pr_info("%s demod with ChipID %02X found at adr %02X on %s\n",
+		state->frontend.ops.info.name, state->ID, state->adr,
+		dev_name(&state->i2c->dev));
 
 	writereg(state, R367_TOPCTRL, 0x10);
 	write_init_table(state, base_init);
@@ -1404,7 +1369,7 @@ static void release(struct dvb_frontend *fe)
 {
 	struct stv_state *state = fe->demodulator_priv;
 
-	pr_info("%s\n", __func__);
+	pr_info("%s()\n", __func__);
 	kfree(state);
 }
 
@@ -1416,7 +1381,7 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	if (enable)
 		i2crpt |= 0x80;
 	if (writereg(state, R367_I2CRPT, i2crpt) < 0)
-		return -1;
+		return -EIO;
 	state->I2CRPT = i2crpt;
 	return 0;
 }
@@ -1438,7 +1403,7 @@ static int ofdm_lock(struct stv_state *state)
 	readreg(state, R367_OFDM_STATUS, &OFDM_Status);
 
 	if (!(OFDM_Status & 0x40))
-		return -1;
+		return -EIO;
 
 	readreg(state, R367_OFDM_SYR_STAT, &SYR_STAT);
 	FFTMode = (SYR_STAT & 0x0C) >> 2;
@@ -1521,7 +1486,7 @@ static int ofdm_lock(struct stv_state *state)
 	msleep(TSTimeOut);
 	readreg(state, R367_OFDM_TSSTATUS, &TSStatus);
 	if ((TSStatus & 0x80) != 0x80)
-		return -1;
+		return -EIO;
 
 	return status;
 }
@@ -1535,19 +1500,20 @@ static int set_parameters(struct dvb_frontend *fe)
 
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBC_ANNEX_A:
-		state->omode = OM_DVBC;
 		/* symbol rate 0 might cause an oops */
 		if (fe->dtv_property_cache.symbol_rate == 0) {
-			pr_err("stv0367dd: Invalid symbol rate\n");
+			pr_err("Invalid symbol rate\n");
 			return -EINVAL;
 		}
 		break;
 	case SYS_DVBT:
-		state->omode = OM_DVBT;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	state->delsys = fe->dtv_property_cache.delivery_system;
+
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
 	state->modulation = fe->dtv_property_cache.modulation;
@@ -1555,13 +1521,12 @@ static int set_parameters(struct dvb_frontend *fe)
 	state->bandwidth = fe->dtv_property_cache.bandwidth_hz;
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 
-	switch (state->omode) {
-	case OM_DVBT:
+	switch (state->delsys) {
+	case SYS_DVBT:
 		stat = OFDM_Start(state, OF, IF);
 		ofdm_lock(state);
 		break;
-	case OM_DVBC:
-	case OM_QAM_ITU_C:
+	case SYS_DVBC_ANNEX_A:
 		stat = QAM_Start(state, OF, IF);
 		break;
 	default:
@@ -1585,10 +1550,16 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		readreg(state, R367_QAM_FSM_STS, &QAM_Lock);
 		QAM_Lock &= 0x0F;
 		if (QAM_Lock > 10)
-			*status |= 0x07;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI);
 		readreg(state, R367_QAM_FEC_STATUS, &FEC_Lock);
 		if (FEC_Lock&2)
-			*status |= 0x1f;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI
+				| FE_HAS_SYNC
+				| FE_HAS_LOCK);
 		if (state->m_bFirstTimeLock) {
 			state->m_bFirstTimeLock = false;
 			/* QAM_AGC_ACCUMRSTSEL to Tracking */
@@ -1609,10 +1580,17 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 			*status |= FE_HAS_SIGNAL;
 
 		if ((OFDM_Status & 0x98) == 0x98)
-			*status |= 0x0f;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI
+				| FE_HAS_SYNC);
 
 		if (TSStatus & 0x80)
-			*status |= 0x1f;
+			*status |= (FE_HAS_SIGNAL
+				| FE_HAS_CARRIER
+				| FE_HAS_VITERBI
+				| FE_HAS_SYNC
+				| FE_HAS_LOCK);
 		break;
 	}
 	default:
@@ -1686,20 +1664,19 @@ static int read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 static int read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct stv_state *state = fe->demodulator_priv;
-	s32 snr2 = 0;
+
+	*snr = 0;
 
 	switch (state->demod_state) {
 	case QAMStarted:
-		QAM_GetSignalToNoise(state, &snr2);
-		break;
+		return QAM_GetSignalToNoise(state, snr);
 	case OFDMStarted:
-		OFDM_GetSignalToNoise(state, &snr2);
-		break;
+		return OFDM_GetSignalToNoise(state, snr);
 	default:
 		break;
 	}
-	*snr = snr2 & 0xffff;
-	return 0;
+
+	return -EINVAL;
 }
 
 static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
@@ -1753,6 +1730,62 @@ static int get_tune_settings(struct dvb_frontend *fe,
 	}
 }
 
+static int get_frontend(struct dvb_frontend *fe,
+			struct dtv_frontend_properties *p)
+{
+	//struct stv_state *state = fe->demodulator_priv;
+	enum fe_status status = 0;
+	int tmp;
+	u16 snr = 0, strength = 0;
+	u32 ber = 0, ucblocks = 0;
+
+	tmp = read_status(fe, &status);
+
+	p->strength.len = 1;
+	p->cnr.len = 1;
+	p->post_bit_error.len = 1;
+	p->block_error.len = 1;
+
+	if (!(status & FE_HAS_LOCK)) {
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return 0;
+	}
+
+	if (read_snr(fe, &snr))
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	else {
+		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		p->cnr.stat[0].svalue = snr;
+	}
+
+	if (read_signal_strength(fe, &strength))
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	else {
+		p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		p->strength.stat[0].svalue = strength;
+	}
+
+	if (read_ber(fe, &ber))
+		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	else {
+		p->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->post_bit_error.stat[0].uvalue = ber;
+	}
+
+	if (read_ucblocks(fe, &ucblocks))
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	else {
+		p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->block_error.stat[0].uvalue = ucblocks;
+	}
+
+	return 0;
+}
+
+
 static struct dvb_frontend_ops common_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBT },
 	.info = {
@@ -1780,12 +1813,9 @@ static struct dvb_frontend_ops common_ops = {
 	.get_tune_settings = get_tune_settings,
 
 	.set_frontend = set_parameters,
+	.get_frontend = get_frontend,
 
 	.read_status = read_status,
-	.read_ber = read_ber,
-	.read_signal_strength = read_signal_strength,
-	.read_snr = read_snr,
-	.read_ucblocks = read_ucblocks,
 };
 
 
@@ -1794,7 +1824,7 @@ static void init_state(struct stv_state *state, struct stv0367dd_cfg *cfg)
 	u32 ulENARPTLEVEL = 5;
 	u32 ulQAMInversion = 2;
 
-	state->omode = OM_NONE;
+	state->delsys = SYS_UNDEFINED;
 	state->adr = cfg->adr;
 	state->cont_clock = cfg->cont_clock;
 
@@ -1830,7 +1860,9 @@ struct dvb_frontend *stv0367dd_attach(struct i2c_adapter *i2c,
 	return &state->frontend;
 
 error:
-	pr_err("stv0367: not found\n");
+	pr_err("No supported demodulator found at adr %02X on %s\n",
+		cfg->adr, dev_name(&i2c->dev));
+
 	kfree(state);
 	return NULL;
 }
