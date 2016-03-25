@@ -980,7 +980,7 @@ static int tuner_attach_tda18212(struct ddb_input *input)
 		.if_dvbt2_7 = 4000,
 		.if_dvbt2_8 = 4000,
 		.if_dvbc = 5000,
-		.init_flags = TDA18212_INIT_RETRY,
+		.init_flags = TDA18212_INIT_RETRY | TDA18212_INIT_DDSTV,
 	};
 	struct i2c_board_info board_info = {
 		.type = "tda18212",
