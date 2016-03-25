@@ -21,13 +21,60 @@
 #include "tda18212.h"
 #include <linux/regmap.h>
 
+#define TDA18212_REG_ID_1		0x00
+#define TDA18212_REG_POWER_STATE_1	0x05
+#define TDA18212_REG_POWER_STATE_2	0x06
+#define TDA18212_REG_IRQ_STATUS		0x08
+#define TDA18212_REG_IRQ_CLEAR		0x0A
+#define TDA18212_REG_AGC1_1		0x0C
+#define TDA18212_REG_AGCK_1		0x0E
+#define TDA18212_REG_AGC5_1		0x11
+#define TDA18212_REG_REFERENCE		0x14
+#define TDA18212_REG_MSM_1		0x19
+#define TDA18212_REG_MSM_2		0x1A
+#define TDA18212_REG_PSM_1		0x1B
+#define TDA18212_REG_FLO_MAX		0x1D
+#define TDA18212_REG_AGC1_2		0x24
+#define TDA18212_REG_RF_FILTER_3	0x2E
+#define TDA18212_REG_CP_CURRENT		0x30
+#define TDA18212_REG_POWER_2		0x36
+#define TDA18212_REG_RFCAL_LOG_1	0x38
+#define TDA18212_REG_RFCAL_LOG_12	0x43
+
+#define TDA18212_MST_PSM_AGC1		0
+#define TDA18212_MST_AGC1_6_15DB	1
+
+#define TDA18212_SLV_PSM_AGC1		1
+#define TDA18212_SLV_AGC1_6_15DB	0
+
+#define TDA18212_NUMREGS		0x44
+
 struct tda18212_dev {
 	struct tda18212_config cfg;
 	struct i2c_client *client;
 	struct regmap *regmap;
 
 	u32 if_frequency;
+
+	u16 tda_id;
+	bool is_master;
+	unsigned int regs[TDA18212_NUMREGS];
 };
+
+static int tda18212_read_regs(struct tda18212_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < TDA18212_NUMREGS; i++)
+		regmap_read(dev->regmap, i, &dev->regs[i]);
+
+	return 0;
+}
+
+static int tda18212_updatereg(struct tda18212_dev *dev, u32 reg)
+{
+	return regmap_write(dev->regmap, reg, dev->regs[reg]);
+}
 
 static int tda18212_set_params(struct dvb_frontend *fe)
 {
@@ -173,6 +220,198 @@ static int tda18212_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
+static int tda18212_wakeup(struct tda18212_dev *dev)
+{
+	dev->regs[TDA18212_REG_POWER_STATE_2] &= ~0x0F;
+	tda18212_updatereg(dev, TDA18212_REG_POWER_STATE_2);
+
+	dev->regs[TDA18212_REG_REFERENCE] |= 0x40;
+	tda18212_updatereg(dev, TDA18212_REG_REFERENCE);
+
+	return 0;
+}
+
+static int tda18212_standby(struct tda18212_dev *dev)
+{
+	tda18212_read_regs(dev);
+
+	dev->regs[TDA18212_REG_REFERENCE] &= ~0x40;
+	if (tda18212_updatereg(dev, TDA18212_REG_REFERENCE))
+		return -EIO;
+
+	dev->regs[TDA18212_REG_POWER_STATE_2] &= ~0x0F;
+	dev->regs[TDA18212_REG_POWER_STATE_2] |=
+		dev->is_master ? 0x08 : 0x0E;
+	if (tda18212_updatereg(dev, TDA18212_REG_POWER_STATE_2))
+		return -EIO;
+
+	return 0;
+}
+
+static int tda18212_sleep(struct dvb_frontend *fe)
+{
+	struct tda18212_dev *dev = fe->tuner_priv;
+
+	if (dev->cfg.init_flags & TDA18212_INIT_DDSTV) {
+		dev_dbg(&dev->client->dev, "standby");
+		tda18212_standby(dev);
+	}
+
+	return 0;
+}
+
+static int tda18212_waitirq(struct tda18212_dev *dev, int timeout, u8 flags)
+{
+	unsigned int irqstatus = 0;
+	int remain = timeout;
+
+	while (remain > 0) {
+		regmap_read(dev->regmap,
+			TDA18212_REG_IRQ_STATUS, &irqstatus);
+		if (irqstatus & flags)
+			return 0;
+
+		remain--;
+		usleep_range(10000, 12000);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int tda18212_startcalibrate(struct tda18212_dev *dev)
+{
+	/* RSSI CK = 31.25 kHz */
+	dev->regs[TDA18212_REG_POWER_2] &= ~0x02;
+	if (tda18212_updatereg(dev, TDA18212_REG_POWER_2))
+		return -EIO;
+
+	/* AGC1 Do Step = 2 */
+	dev->regs[TDA18212_REG_AGC1_2] =
+		(dev->regs[TDA18212_REG_AGC1_2] & ~0x60) | 0x40;
+	if (tda18212_updatereg(dev, TDA18212_REG_AGC1_2))
+		return -EIO;
+
+	/* AGC2 Do Step = 1 */
+	dev->regs[TDA18212_REG_RF_FILTER_3] =
+		(dev->regs[TDA18212_REG_RF_FILTER_3] & ~0xC0) | 0x40;
+	if (tda18212_updatereg(dev, TDA18212_REG_RF_FILTER_3))
+		return -EIO;
+
+	/* AGCs Assym Up Step = 3 */
+	dev->regs[TDA18212_REG_AGCK_1] |= 0xC0;
+	if (tda18212_updatereg(dev, TDA18212_REG_AGCK_1))
+		return -EIO;
+
+	/* AGCs Assym Do Step = 2 */
+	dev->regs[TDA18212_REG_AGC5_1] =
+		(dev->regs[TDA18212_REG_AGC5_1] & ~0x60) | 0x40;
+	if (tda18212_updatereg(dev, TDA18212_REG_AGC5_1))
+		return -EIO;
+
+	/* Reset IRQ */
+	dev->regs[TDA18212_REG_IRQ_CLEAR] |= 0x80;
+	if (tda18212_updatereg(dev, TDA18212_REG_IRQ_CLEAR))
+		return -EIO;
+
+	/* Set Calibration, start MSM */
+	dev->regs[TDA18212_REG_MSM_1] = 0x3B;
+	dev->regs[TDA18212_REG_MSM_2] = 0x01;
+	if (tda18212_updatereg(dev, TDA18212_REG_MSM_1))
+		return -EIO;
+	if (tda18212_updatereg(dev, TDA18212_REG_MSM_2))
+		return -EIO;
+
+	dev->regs[TDA18212_REG_MSM_2] = 0x00;
+
+	return 0;
+}
+
+static int tda18212_finishcalibrate(struct tda18212_dev *dev)
+{
+	int ret = 0;
+	int i;
+
+	ret = tda18212_waitirq(dev, 150, 0x80);
+	if(ret)
+		return ret;
+
+	dev->regs[TDA18212_REG_FLO_MAX] = 0x0A;
+	if (tda18212_updatereg(dev, TDA18212_REG_FLO_MAX))
+		return -EIO;
+
+	dev->regs[TDA18212_REG_AGC1_1] &= ~0xC0;
+	/* LTEnable */
+	if (dev->is_master)
+		dev->regs[TDA18212_REG_AGC1_1] |= 0x80;
+	dev->regs[TDA18212_REG_AGC1_1] |=
+		(dev->is_master ? TDA18212_MST_AGC1_6_15DB
+		: TDA18212_SLV_AGC1_6_15DB) << 6;
+	if (tda18212_updatereg(dev, TDA18212_REG_AGC1_1))
+		return -EIO;
+
+	dev->regs[TDA18212_REG_PSM_1] &= ~0xC0;
+	dev->regs[TDA18212_REG_PSM_1] |=
+		(dev->is_master ? TDA18212_MST_PSM_AGC1
+		: TDA18212_SLV_PSM_AGC1) << 6;
+	if (tda18212_updatereg(dev, TDA18212_REG_PSM_1))
+		return -EIO;
+
+	/* XTOUT = 3 */
+	dev->regs[TDA18212_REG_REFERENCE] |= 0x03;
+	if (tda18212_updatereg(dev, TDA18212_REG_REFERENCE))
+		return -EIO;
+
+	/* read out RFCAL_LOG regs */
+	for (i = TDA18212_REG_RFCAL_LOG_1;
+			i <= TDA18212_REG_RFCAL_LOG_12; i++)
+		regmap_read(dev->regmap, i, &dev->regs[i]);
+
+	return ret;
+}
+
+static int tda18212_read_chipid(struct regmap *regmap, u32 initflags,
+		u8 *chipid)
+{
+	unsigned int id;
+	int ret;
+
+	if (initflags & TDA18212_INIT_DDSTV)
+		return regmap_raw_read(regmap, TDA18212_REG_ID_1, chipid, 2);
+
+	ret = regmap_read(regmap, TDA18212_REG_ID_1, &id);
+	chipid[0] = id & 0xff;
+	return ret;
+}
+
+static int tda18212_init_extended(struct tda18212_dev *dev)
+{
+	unsigned int powerstate = 0;
+	int ret = 0;
+
+	ret = regmap_read(dev->regmap, TDA18212_REG_POWER_STATE_1,
+		&powerstate);
+	if (ret < 0)
+		return ret;
+
+	if (dev->is_master) {
+		if (powerstate & 0x02)
+			ret = tda18212_waitirq(dev, 10, 0x20);
+
+	} else {
+		regmap_write(dev->regmap, TDA18212_REG_FLO_MAX, 0x00);
+		regmap_write(dev->regmap, TDA18212_REG_CP_CURRENT, 0x68);
+	}
+
+	tda18212_read_regs(dev);
+
+	tda18212_wakeup(dev);
+	tda18212_startcalibrate(dev);
+	tda18212_finishcalibrate(dev);
+	tda18212_standby(dev);
+
+	return ret;
+}
+
 static const struct dvb_tuner_ops tda18212_tuner_ops = {
 	.info = {
 		.name           = "NXP TDA18212",
@@ -182,19 +421,18 @@ static const struct dvb_tuner_ops tda18212_tuner_ops = {
 		.frequency_step =      1000,
 	},
 
-	.set_params    = tda18212_set_params,
-	.get_if_frequency = tda18212_get_if_frequency,
+	.sleep			= tda18212_sleep,
+	.set_params		= tda18212_set_params,
+	.get_if_frequency	= tda18212_get_if_frequency,
 };
 
-static int tda18212_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int tda18212_probe_do(struct i2c_client *client,
+	const struct i2c_device_id *id, struct tda18212_config *cfg,
+	struct dvb_frontend *fe)
 {
-	struct tda18212_config *cfg = client->dev.platform_data;
-	struct dvb_frontend *fe = cfg->fe;
 	struct tda18212_dev *dev;
 	int ret;
-	unsigned int chip_id;
-	char *version;
+	u8 chipid[2] = { 0, 0 };
 	static const struct regmap_config regmap_config = {
 		.reg_bits = 8,
 		.val_bits = 8,
@@ -215,38 +453,34 @@ static int tda18212_probe(struct i2c_client *client,
 		goto err;
 	}
 
-	/* check if the tuner is there */
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
-
-	ret = regmap_read(dev->regmap, 0x00, &chip_id);
+	ret = tda18212_read_chipid(dev->regmap, cfg->init_flags, chipid);
 
 	/* retry probe if desired */
 	if (ret && (cfg->init_flags & TDA18212_INIT_RETRY))
-		ret = regmap_read(dev->regmap, 0x00, &chip_id);
+		ret = tda18212_read_chipid(dev->regmap, cfg->init_flags, chipid);
 
-	dev_dbg(&dev->client->dev, "chip_id=%02x\n", chip_id);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
+	dev_dbg(&dev->client->dev, "chip_id=%02x\n", chipid[0]);
 
 	if (ret)
 		goto err;
 
-	switch (chip_id) {
-	case 0xc7:
-		version = "M"; /* master */
-		break;
-	case 0x47:
-		version = "S"; /* slave */
-		break;
-	default:
+	dev->tda_id = ((chipid[0] & 0x7f) << 8) | chipid[1];
+	dev->is_master = ((chipid[0] & 0x80) != 0);
+
+	if (!(dev->tda_id == 18212 || dev->tda_id == 18176)) {
 		ret = -ENODEV;
 		goto err;
 	}
 
+	if (cfg->init_flags & TDA18212_INIT_DDSTV) {
+		ret = tda18212_init_extended(dev);
+		if (ret)
+			goto err;
+	}
+
 	dev_info(&dev->client->dev,
-			"NXP TDA18212HN/%s successfully identified\n", version);
+			"NXP TDA18212HN/%s successfully identified\n",
+			(dev->is_master ? "M" : "S"));
 
 	fe->tuner_priv = dev;
 	memcpy(&fe->ops.tuner_ops, &tda18212_tuner_ops,
@@ -257,6 +491,25 @@ static int tda18212_probe(struct i2c_client *client,
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	kfree(dev);
+	return ret;
+}
+
+static int tda18212_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct tda18212_config *cfg = client->dev.platform_data;
+	struct dvb_frontend *fe = cfg->fe;
+	int ret;
+
+	/* check if the tuner is there */
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
+
+	ret = tda18212_probe_do(client, id, cfg, fe);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
+
 	return ret;
 }
 

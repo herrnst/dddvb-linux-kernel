@@ -24,6 +24,7 @@
 #include "dvb_frontend.h"
 
 #define TDA18212_INIT_RETRY	(1 << 0)
+#define TDA18212_INIT_DDSTV	(1 << 1)
 
 struct tda18212_config {
 	u16 if_dvbt_6;
