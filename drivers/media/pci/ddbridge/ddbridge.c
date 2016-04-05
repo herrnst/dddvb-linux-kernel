@@ -41,10 +41,18 @@ MODULE_PARM_DESC(adapter_alloc,
 
 #ifdef CONFIG_PCI_MSI
 #define DDB_USE_MSI_IRQHANDLERS
+#ifdef CONFIG_DVB_DDBRIDGE_MSIENABLE
 static int msi = 1;
+#else
+static int msi = 0;
+#endif
 module_param(msi, int, 0444);
 MODULE_PARM_DESC(msi,
+#ifdef CONFIG_DVB_DDBRIDGE_MSIENABLE
 		 " Control MSI interrupts: 0-disable, 1-enable (default)");
+#else
+		 " Control MSI interrupts: 0-disable (default), 1-enable");
+#endif
 #endif
 
 #include "ddbridge-core.c"
