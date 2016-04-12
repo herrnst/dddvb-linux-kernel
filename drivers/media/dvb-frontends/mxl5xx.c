@@ -222,6 +222,7 @@ static int send_command(struct mxl *state, u32 size, u8 *buf)
 		}
 		if (!count) {
 			pr_info("mxl5xx: send_command busy\n");
+			mutex_unlock(&state->base->i2c_lock);
 			return -EBUSY;
 		}
 	}
@@ -516,6 +517,8 @@ static int set_parameters(struct dvb_frontend *fe)
 	return stat;
 }
 
+static int get_stats(struct dvb_frontend *fe);
+
 static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mxl *state = fe->demodulator_priv;
@@ -532,7 +535,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	mutex_unlock(&state->base->status_lock);
 
 	*status = (regData == 1) ? 0x1f : 0;
-
+	get_stats(fe);
 	return stat;
 }
 
@@ -599,6 +602,7 @@ static int read_snr(struct dvb_frontend *fe, u16 *snr)
 	struct mxl *state = fe->demodulator_priv;
 	int stat;
 	u32 regData = 0;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
@@ -607,20 +611,70 @@ static int read_snr(struct dvb_frontend *fe, u16 *snr)
 			     &regData);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
-	*snr = (s16) (regData & 0xFFFF);
+	*snr = (s16) (regData & 0xFFFF); /* 100x dB */
+	p->cnr.len = 1;
+	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	p->cnr.stat[0].uvalue = 10 * (s64) *snr;
 	return stat;
 }
 
 static int read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct mxl *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 reg[8], reg2[4];
+	int stat;
 
+	*ber = 0;
+	mutex_lock(&state->base->status_lock);
+	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
+	stat = read_register_block(state,
+				   (HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
+				    HYDRA_DMD_STATUS_OFFSET(state->demod)),
+				   (7 * sizeof(u32)),
+				   (u8 *) &reg[0]);
+	stat = read_register_block(state,
+				   (HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET +
+				    HYDRA_DMD_STATUS_OFFSET(state->demod)),
+				   (4 * sizeof(u32)),
+				   (u8 *) &reg2[0]);
+	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
+	mutex_unlock(&state->base->status_lock);
+
+
+	switch (p->delivery_system) {
+	case SYS_DSS:
+		break;
+	case SYS_DVBS:
+		p->pre_bit_error.len = 1;
+		p->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->pre_bit_error.stat[0].uvalue = reg[5];
+		p->pre_bit_count.len = 1;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		p->pre_bit_count.stat[0].uvalue = reg[6] * 188 * 8;
+		break;
+	case SYS_DVBS2:
+		break;
+	default:
+		break;
+	}
+	pr_info("mxl5xx: ber %08x %08x %08x %08x %08x %08x %08x\n",
+		reg[0], reg[1], reg[2], reg[3], reg[4], reg[5], reg[6]);
+	pr_info("mxl5xx: ber2 %08x %08x %08x %08x\n",
+		reg[0], reg[1], reg[2], reg[3]);
+	/*
+	 * pre_bit_error, pre_bit_count
+	 * post_bit_error, post_bit_count;
+	 * block_error block_count;
+	 * reset_fec_counter(state);
+	 */
 	return 0;
 }
 
 static int read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct mxl *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int stat;
 	u32 regData = 0;
 
@@ -631,7 +685,10 @@ static int read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 			     &regData);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
-	*strength = (u16) (regData & 0xFFFF);
+	*strength = (u16) (regData & 0xFFFF); /* 10x dBm */
+	p->strength.len = 1;
+	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	p->strength.stat[0].uvalue = 10 * (s64) (s16) (regData & 0xFFFF);
 	return stat;
 }
 
@@ -640,17 +697,104 @@ static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static int get_stats(struct dvb_frontend *fe)
+{
+	u16 val;
+	u32 val32;
+
+	read_signal_strength(fe, &val);
+	read_snr(fe, &val);
+	read_ber(fe, &val32);
+	return 0;
+}
+
+static enum fe_code_rate conv_fec(MXL_HYDRA_FEC_E fec)
+{
+	enum fe_code_rate fec2fec[11] = {
+		FEC_NONE, FEC_1_2, FEC_3_5, FEC_2_3,
+		FEC_3_4, FEC_4_5, FEC_5_6, FEC_6_7,
+		FEC_7_8, FEC_8_9, FEC_9_10
+	};
+
+	if (fec > MXL_HYDRA_FEC_9_10)
+		return FEC_NONE;
+	return fec2fec[fec];
+}
+
 static int get_frontend(struct dvb_frontend *fe,
 			struct dtv_frontend_properties *p)
 {
-	//struct mxl *state = fe->demodulator_priv;
+	struct mxl *state = fe->demodulator_priv;
+	u32 regData[MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE];
+	u32 freq;
+	int stat;
 
+	mutex_lock(&state->base->status_lock);
+	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
+	stat = read_register_block(state,
+		(HYDRA_DMD_STANDARD_ADDR_OFFSET +
+		HYDRA_DMD_STATUS_OFFSET(state->demod)),
+		(MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE * 4), /* 25 * 4 bytes */
+		(u8 *) &regData[0]);
+	/* read demod channel parameters */
+	stat = read_register_block(state,
+		(HYDRA_DMD_STATUS_CENTER_FREQ_IN_KHZ_ADDR +
+		HYDRA_DMD_STATUS_OFFSET(state->demod)),
+		(4), /* 4 bytes */
+		(u8 *) &freq);
+	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
+	mutex_unlock(&state->base->status_lock);
+
+	pr_info("mxl5xx: freq=%u delsys=%u srate=%u\n",
+		freq * 1000, regData[DMD_STANDARD_ADDR],
+		regData[DMD_SYMBOL_RATE_ADDR]);
+	p->symbol_rate = regData[DMD_SYMBOL_RATE_ADDR];
+	p->frequency = freq;
+	/*
+	 * p->delivery_system = (MXL_HYDRA_BCAST_STD_E )regData[DMD_STANDARD_ADDR];
+	 * p->inversion = (MXL_HYDRA_SPECTRUM_E )regData[DMD_SPECTRUM_INVERSION_ADDR];
+	 * freqSearchRangeKHz = (regData[DMD_FREQ_SEARCH_RANGE_IN_KHZ_ADDR]);
+	 */
+
+	p->fec_inner = conv_fec(regData[DMD_FEC_CODE_RATE_ADDR]);
 	switch (p->delivery_system) {
 	case SYS_DSS:
 		break;
-	case SYS_DVBS:
-		break;
 	case SYS_DVBS2:
+		switch ((MXL_HYDRA_PILOTS_E) regData[DMD_DVBS2_PILOT_ON_OFF_ADDR]) {
+		case MXL_HYDRA_PILOTS_OFF:
+			p->pilot = PILOT_OFF;
+			break;
+		case MXL_HYDRA_PILOTS_ON:
+			p->pilot = PILOT_ON;
+			break;
+		default:
+			break;
+		}
+	case SYS_DVBS:
+		switch ((MXL_HYDRA_MODULATION_E) regData[DMD_MODULATION_SCHEME_ADDR]) {
+		case MXL_HYDRA_MOD_QPSK:
+			p->modulation = QPSK;
+			break;
+		case MXL_HYDRA_MOD_8PSK:
+			p->modulation = PSK_8;
+			break;
+		default:
+			break;
+		}
+		switch ((MXL_HYDRA_ROLLOFF_E) regData[DMD_SPECTRUM_ROLL_OFF_ADDR]) {
+		case MXL_HYDRA_ROLLOFF_0_20:
+			p->rolloff = ROLLOFF_20;
+			break;
+		case MXL_HYDRA_ROLLOFF_0_35:
+			p->rolloff = ROLLOFF_35;
+			break;
+		case MXL_HYDRA_ROLLOFF_0_25:
+			p->rolloff = ROLLOFF_25;
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
 		return -EINVAL;
