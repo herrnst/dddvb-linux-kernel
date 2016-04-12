@@ -1522,7 +1522,7 @@ static int get_frontend(struct dvb_frontend *fe,
 			APSK_32,
 		};
 		enum fe_code_rate modcod2fec[0x20] = {
-			FEC_NONE, FEC_NONE, FEC_NONE, FEC_2_5,
+			FEC_NONE, FEC_1_4, FEC_1_3, FEC_2_5,
 			FEC_1_2, FEC_3_5, FEC_2_3, FEC_3_4,
 			FEC_4_5, FEC_5_6, FEC_8_9, FEC_9_10,
 			FEC_3_5, FEC_2_3, FEC_3_4, FEC_5_6,
