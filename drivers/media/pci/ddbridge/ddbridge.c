@@ -81,7 +81,7 @@ static void ddb_remove(struct pci_dev *pdev)
 	ddb_buffers_free(dev);
 
 	ddb_unmap(dev);
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
@@ -207,7 +207,7 @@ fail:
 	pr_err("fail\n");
 
 	ddb_unmap(dev);
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	return -1;
 }
@@ -409,6 +409,8 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0032, ddb_ctv7),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0033, ddb_ctv7),
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0034, ddb_ct_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0035, ddb_ct_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0036, ddb_ct_8),
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0040, ddb_ci),
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0041, ddb_cis),
 	DDB_ID(DDVID, 0x0012, DDVID, 0x0042, ddb_ci),
@@ -418,6 +420,7 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0005, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0006, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0007, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
+	DDB_ID(DDVID, 0x0008, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0011, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0013, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0201, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
