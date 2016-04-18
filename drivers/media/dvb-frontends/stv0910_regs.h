@@ -1,17 +1,16 @@
-// @DVB-S/DVB-S2 STMicroelectronics STV0900 register defintions
-// Author Manfred Völkel, August 2013
-// (c) 2013 Digital Devices GmbH Germany.  All rights reserved
-
-// $Id: DD_STV0910Register.h 504 2013-09-02 23:02:14Z manfred $
-
-/*	=======================================================================
--- Registers Declaration (Internal ST, All Applications )
--- -------------------------
--- Each register (RSTV0910__XXXXX) is defined by its address (2 bytes).	 						    
---
--- Each field (FSTV0910__XXXXX)is defined as follow: 
--- [register address -- 2bytes][field sign -- 1byte][field mask -- 1byte]
-    =======================================================================  */
+/* @DVB-S/DVB-S2 STMicroelectronics STV0900 register defintions
+ * Author Manfred Voelkel, August 2013
+ * (c) 2013 Digital Devices GmbH Germany.  All rights reserved
+ *
+ * =======================================================================
+ * Registers Declaration (Internal ST, All Applications )
+ * -------------------------
+ * Each register (RSTV0910__XXXXX) is defined by its address (2 bytes).
+ *
+ * Each field (FSTV0910__XXXXX)is defined as follow:
+ * [register address -- 2bytes][field sign -- 1byte][field mask -- 1byte]
+ *  ======================================================================
+ */
 
 /*MID*/
 #define RSTV0910_MID  0xf100
