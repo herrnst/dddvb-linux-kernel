@@ -1213,7 +1213,7 @@ static int OFDM_Start(struct stv_state *state, s32 offsetFreq,
 
 static int QAM_GetSignalToNoise(struct stv_state *state, u16 *snr)
 {
-	u32 RegValAvg = 0;
+	u32 RegValAvg = 0, tmpval;
 	s32 snrval;
 	u8 RegVal[2];
 	int i;
@@ -1245,7 +1245,8 @@ static int QAM_GetSignalToNoise(struct stv_state *state, u16 *snr)
 		default:
 			break;
 		}
-		snrval = INTLOG10X100((Power * 320) / RegValAvg);
+		tmpval = (Power * 320) / RegValAvg;
+		snrval = ((tmpval != 0) ? INTLOG10X100(tmpval) : 0);
 	} else {
 		snrval = 380;
 	}
