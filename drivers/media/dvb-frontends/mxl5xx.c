@@ -450,53 +450,6 @@ static int set_parameters(struct dvb_frontend *fe)
 	return stat;
 }
 
-static int get_stats(struct dvb_frontend *fe);
-
-static int read_status(struct dvb_frontend *fe, enum fe_status *status)
-{
-	struct mxl *state = fe->demodulator_priv;
-
-	int stat;
-	u32 regData = 0;
-
-	mutex_lock(&state->base->status_lock);
-	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
-	stat = read_register(state, (HYDRA_DMD_LOCK_STATUS_ADDR_OFFSET +
-				     HYDRA_DMD_STATUS_OFFSET(state->demod)),
-			     &regData);
-	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
-	mutex_unlock(&state->base->status_lock);
-
-	*status = (regData == 1) ? 0x1f : 0;
-	get_stats(fe);
-	return stat;
-}
-
-static int tune(struct dvb_frontend *fe, bool re_tune,
-		unsigned int mode_flags,
-		unsigned int *delay, enum fe_status *status)
-{
-	struct mxl *state = fe->demodulator_priv;
-	int r = 0;
-
-	*delay = HZ / 2;
-	if (re_tune) {
-		r = set_parameters(fe);
-		if (r)
-			return r;
-		state->tune_time = jiffies;
-		return 0;
-	}
-	if (*status & FE_HAS_LOCK)
-		return 0;
-
-	r = read_status(fe, status);
-	if (r)
-		return r;
-
-	return 0;
-}
-
 static int enable_tuner(struct mxl *state, u32 tuner, u32 enable);
 
 static int sleep(struct dvb_frontend *fe)
@@ -533,10 +486,15 @@ static int read_snr(struct dvb_frontend *fe, u16 *snr)
 			     &regData);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
-	*snr = (s16) (regData & 0xFFFF); /* 100x dB */
+
 	p->cnr.len = 1;
 	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-	p->cnr.stat[0].uvalue = 10 * (s64) *snr;
+	p->cnr.stat[0].svalue = (s16)regData * 10;
+
+	if (regData > 2000)
+		regData = 2000;
+	*snr = (s16)(regData/10) * 328; /* 20dB = 100% */
+
 	return stat;
 }
 
@@ -544,52 +502,63 @@ static int read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct mxl *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	u32 reg[8], reg2[4];
-	int stat;
+	u32 reg[8];
 
-	*ber = 0;
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
-	stat = read_register_block(state,
-		(HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
-		 HYDRA_DMD_STATUS_OFFSET(state->demod)),
-		(7 * sizeof(u32)),
-		(u8 *) &reg[0]);
-	stat = read_register_block(state,
+	read_register_block(state,
 		(HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET +
 		 HYDRA_DMD_STATUS_OFFSET(state->demod)),
 		(4 * sizeof(u32)),
-		(u8 *) &reg2[0]);
+		(u8 *) &reg[0]);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
-	mutex_unlock(&state->base->status_lock);
-
 
 	switch (p->delivery_system) {
 	case SYS_DSS:
-		break;
 	case SYS_DVBS:
 		p->pre_bit_error.len = 1;
 		p->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
-		p->pre_bit_error.stat[0].uvalue = reg[5];
+		p->pre_bit_error.stat[0].uvalue = reg[2];
 		p->pre_bit_count.len = 1;
 		p->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
-		p->pre_bit_count.stat[0].uvalue = reg[6] * 188 * 8;
-		break;
-	case SYS_DVBS2:
+		p->pre_bit_count.stat[0].uvalue = reg[3];
 		break;
 	default:
 		break;
 	}
-	dev_dbg(&state->i2cdev, "ber %08x %08x %08x %08x %08x %08x %08x\n",
-		reg[0], reg[1], reg[2], reg[3], reg[4], reg[5], reg[6]);
-	dev_dbg(&state->i2cdev, "ber2 %08x %08x %08x %08x\n",
-		reg[0], reg[1], reg[2], reg[3]);
-	/*
-	 * pre_bit_error, pre_bit_count
-	 * post_bit_error, post_bit_count;
-	 * block_error block_count;
-	 * reset_fec_counter(state);
-	 */
+
+	read_register_block(state,
+		(HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
+		 HYDRA_DMD_STATUS_OFFSET(state->demod)),
+		(7 * sizeof(u32)),
+		(u8 *) &reg[0]);
+
+	switch (p->delivery_system) {
+	case SYS_DSS:
+	case SYS_DVBS:
+		p->post_bit_error.len = 1;
+		p->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->post_bit_error.stat[0].uvalue = reg[5];
+		p->post_bit_count.len = 1;
+		p->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		p->post_bit_count.stat[0].uvalue = reg[6];
+		break;
+	case SYS_DVBS2:
+		p->post_bit_error.len = 1;
+		p->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->post_bit_error.stat[0].uvalue = reg[1];
+		p->post_bit_count.len = 1;
+		p->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		p->post_bit_count.stat[0].uvalue = reg[2];
+		break;
+	default:
+		break;
+	}
+
+	*ber = p->post_bit_error.stat[0].uvalue;
+
+	mutex_unlock(&state->base->status_lock);
+
 	return 0;
 }
 
@@ -607,10 +576,12 @@ static int read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 			     &regData);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
-	*strength = (u16) (regData & 0xFFFF); /* 10x dBm */
+
 	p->strength.len = 1;
 	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
-	p->strength.stat[0].uvalue = 10 * (s64) (s16) (regData & 0xFFFF);
+	p->strength.stat[0].svalue = (s16) regData * 10;
+
+	*strength = (100 + (s16)regData/100) * 656;
 	return stat;
 }
 
@@ -619,14 +590,52 @@ static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int get_stats(struct dvb_frontend *fe)
+static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
+	struct mxl *state = fe->demodulator_priv;
+	u32 regData = 0;
 	u16 val;
-	u32 val32;
 
+	mutex_lock(&state->base->status_lock);
+	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
+	read_register(state, (HYDRA_DMD_LOCK_STATUS_ADDR_OFFSET +
+			     HYDRA_DMD_STATUS_OFFSET(state->demod)),
+			     &regData);
+	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
+	mutex_unlock(&state->base->status_lock);
+
+	*status = (regData == 1) ? 0x1f : 0;
 	read_signal_strength(fe, &val);
-	read_snr(fe, &val);
-	read_ber(fe, &val32);
+	if (*status) {
+		read_snr(fe, &val);
+		read_ber(fe, &regData);
+	}
+
+	return 0;
+}
+
+static int tune(struct dvb_frontend *fe, bool re_tune,
+		unsigned int mode_flags,
+		unsigned int *delay, enum fe_status *status)
+{
+	struct mxl *state = fe->demodulator_priv;
+	int r = 0;
+
+	*delay = HZ / 2;
+	if (re_tune) {
+		r = set_parameters(fe);
+		if (r)
+			return r;
+		state->tune_time = jiffies;
+		return 0;
+	}
+	if (*status & FE_HAS_LOCK)
+		return 0;
+
+	r = read_status(fe, status);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -649,17 +658,16 @@ static int get_frontend(struct dvb_frontend *fe,
 	struct mxl *state = fe->demodulator_priv;
 	u32 regData[MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE];
 	u32 freq;
-	int stat;
 
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
-	stat = read_register_block(state,
+	read_register_block(state,
 		(HYDRA_DMD_STANDARD_ADDR_OFFSET +
 		HYDRA_DMD_STATUS_OFFSET(state->demod)),
 		(MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE * 4), /* 25 * 4 bytes */
 		(u8 *) &regData[0]);
 	/* read demod channel parameters */
-	stat = read_register_block(state,
+	read_register_block(state,
 		(HYDRA_DMD_STATUS_CENTER_FREQ_IN_KHZ_ADDR +
 		HYDRA_DMD_STATUS_OFFSET(state->demod)),
 		(4), /* 4 bytes */
