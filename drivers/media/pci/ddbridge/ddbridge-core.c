@@ -2335,8 +2335,8 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr,
 	struct ddb_input *input = &dev->input[anr];
 
 	if (dev->has_dma) {
-		dev->handler[dma_nr + 8] = input_handler;
-		dev->handler_data[dma_nr + 8] = (unsigned long) input;
+		dev->handler[0][dma_nr + 8] = input_handler;
+		dev->handler_data[0][dma_nr + 8] = (unsigned long) input;
 	}
 	port->input[pnr] = input;
 	input->nr = nr;
@@ -2358,8 +2358,8 @@ static void ddb_output_init(struct ddb_port *port, int nr, int dma_nr)
 	struct ddb_output *output = &dev->output[nr];
 
 	if (dev->has_dma) {
-		dev->handler[dma_nr + 8] = output_handler;
-		dev->handler_data[dma_nr + 8] = (unsigned long) output;
+		dev->handler[0][dma_nr + 8] = output_handler;
+		dev->handler_data[0][dma_nr + 8] = (unsigned long) output;
 	}
 	port->output = output;
 	output->nr = nr;
@@ -2512,8 +2512,8 @@ static void ddb_ports_release(struct ddb *dev)
 /****************************************************************************/
 
 #define IRQ_HANDLE(_nr) \
-	do { if ((s & (1UL << _nr)) && dev->handler[_nr]) \
-		dev->handler[_nr](dev->handler_data[_nr]); } \
+	do { if ((s & (1UL << _nr)) && dev->handler[0][_nr]) \
+		dev->handler[0][_nr](dev->handler_data[0][_nr]); } \
 	while (0)
 
 static void irq_handle_msg(struct ddb *dev, u32 s)
@@ -3525,9 +3525,9 @@ static void ddb_device_destroy(struct ddb *dev)
 	device_destroy(&ddb_class, MKDEV(ddb_major, dev->nr));
 }
 
-#define LINK_IRQ_HANDLE(_nr)				  \
-	do { if ((s & (1UL << _nr)) && dev->handler[_nr + off]) \
-		dev->handler[_nr + off](dev->handler_data[_nr + off]); } \
+#define LINK_IRQ_HANDLE(_l, _nr)				  \
+	do { if ((s & (1UL << _nr)) && dev->handler[_l][_nr]) \
+		dev->handler[_l][_nr](dev->handler_data[_l][_nr]); } \
 	while (0)
 
 static void gtl_link_handler(unsigned long priv)
@@ -3543,7 +3543,9 @@ static void link_tasklet(unsigned long data)
 {
 	struct ddb_link *link = (struct ddb_link *) data;
 	struct ddb *dev = link->dev;
-	u32 s, off = 32 * link->nr, tag = DDB_LINK_TAG(link->nr);
+
+	u32 s, tag = DDB_LINK_TAG(link->nr);
+	u32 l = link->nr;
 
 	s = ddbreadl(dev, tag | INTERRUPT_STATUS);
 	pr_info("gtl_irq %08x = %08x\n", tag | INTERRUPT_STATUS, s);
@@ -3551,24 +3553,24 @@ static void link_tasklet(unsigned long data)
 	if (!s)
 		return;
 	ddbwritel(dev, s, tag | INTERRUPT_ACK);
-	LINK_IRQ_HANDLE(0);
-	LINK_IRQ_HANDLE(1);
-	LINK_IRQ_HANDLE(2);
-	LINK_IRQ_HANDLE(3);
+	LINK_IRQ_HANDLE(l, 0);
+	LINK_IRQ_HANDLE(l, 1);
+	LINK_IRQ_HANDLE(l, 2);
+	LINK_IRQ_HANDLE(l, 3);
 }
 
 static void gtl_irq_handler(unsigned long priv)
 {
 	struct ddb_link *link = (struct ddb_link *) priv;
 	struct ddb *dev = link->dev;
-	u32 s, off = 32 * link->nr, tag = DDB_LINK_TAG(link->nr);
+	u32 s, l = link->nr, tag = DDB_LINK_TAG(link->nr);
 
 	while ((s = ddbreadl(dev, tag | INTERRUPT_STATUS)))  {
 		ddbwritel(dev, s, tag | INTERRUPT_ACK);
-		LINK_IRQ_HANDLE(0);
-		LINK_IRQ_HANDLE(1);
-		LINK_IRQ_HANDLE(2);
-		LINK_IRQ_HANDLE(3);
+		LINK_IRQ_HANDLE(l, 0);
+		LINK_IRQ_HANDLE(l, 1);
+		LINK_IRQ_HANDLE(l, 2);
+		LINK_IRQ_HANDLE(l, 3);
 	}
 }
 
@@ -3645,8 +3647,8 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 
 	ddbwritel(dev, 1, 0x1a0);
 
-	dev->handler_data[11] = (unsigned long) link;
-	dev->handler[11] = gtl_irq_handler;
+	dev->handler_data[0][11] = (unsigned long) link;
+	dev->handler[0][11] = gtl_irq_handler;
 
 	pr_info("GTL %s\n", dev->link[l].info->name);
 	pr_info("GTL HW %08x REGMAP %08x\n",
@@ -3666,8 +3668,8 @@ static int ddb_gtl_init(struct ddb *dev)
 {
 	u32 l;
 
-	dev->handler_data[10] = (unsigned long) dev;
-	dev->handler[10] = gtl_link_handler;
+	dev->handler_data[0][10] = (unsigned long) dev;
+	dev->handler[0][10] = gtl_link_handler;
 
 	for (l = 1; l < dev->link[0].info->regmap->gtl->num + 1; l++)
 		ddb_gtl_init_link(dev, l);
