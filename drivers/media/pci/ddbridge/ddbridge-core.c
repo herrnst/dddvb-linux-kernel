@@ -2512,9 +2512,21 @@ static void ddb_ports_release(struct ddb *dev)
 /****************************************************************************/
 
 #define IRQ_HANDLE(_nr) \
-	do { if ((s & (1UL << _nr)) && dev->handler[0][_nr]) \
+	do { if ((s & (1UL << ((_nr) & 0x1f))) && dev->handler[0][_nr]) \
 		dev->handler[0][_nr](dev->handler_data[0][_nr]); } \
 	while (0)
+
+#define IRQ_HANDLE_BYTE(_n) \
+	if (s & (0x000000ff << ((_n) & 0x1f))) { \
+		IRQ_HANDLE(0 + _n); \
+		IRQ_HANDLE(1 + _n); \
+		IRQ_HANDLE(2 + _n); \
+		IRQ_HANDLE(3 + _n); \
+		IRQ_HANDLE(4 + _n); \
+		IRQ_HANDLE(5 + _n); \
+		IRQ_HANDLE(6 + _n); \
+		IRQ_HANDLE(7 + _n); \
+	}
 
 static void irq_handle_msg(struct ddb *dev, u32 s)
 {
@@ -2627,6 +2639,49 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 
 	return ret;
 }
+
+static irqreturn_t irq_handle_v2_n(struct ddb *dev, u32 n)
+{
+	u32 reg = INTERRUPT_V2_STATUS_1 + 4 * n;
+	u32 s = ddbreadl(dev, reg);
+	u32 off = n * 32;
+
+	if (!s)
+		return IRQ_NONE;
+	ddbwritel(dev, s, reg);
+
+	if ((s & 0x000000ff)) {
+		IRQ_HANDLE(0 + off);
+		IRQ_HANDLE(1 + off);
+		IRQ_HANDLE(2 + off);
+		IRQ_HANDLE(3 + off);
+		IRQ_HANDLE(4 + off);
+		IRQ_HANDLE(5 + off);
+		IRQ_HANDLE(6 + off);
+		IRQ_HANDLE(7 + off);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t irq_handler_v2(int irq, void *dev_id)
+{
+	struct ddb *dev = (struct ddb *) dev_id;
+	u32 s = 0xffff & ddbreadl(dev, INTERRUPT_V2_STATUS);
+	int ret = IRQ_HANDLED;
+
+	if (!s)
+		return IRQ_NONE;
+	do {
+		if (s & 0x80000000)
+			return IRQ_NONE;
+		if (s & 0x00000001)
+			irq_handle_v2_n(dev, 0);
+	} while ((s = 0xffff & ddbreadl(dev, INTERRUPT_V2_STATUS)));
+
+	return ret;
+}
+
 
 #ifdef DDB_TEST_THREADED
 static irqreturn_t irq_thread(int irq, void *dev_id)
