@@ -172,7 +172,7 @@ struct ddb_dma {
 	u32                    num;
 	u32                    size;
 	u32                    div;
-	u32                    bufreg;
+	u32                    bufval;
 
 #ifdef DDB_USE_WORK
 	struct work_struct     work;

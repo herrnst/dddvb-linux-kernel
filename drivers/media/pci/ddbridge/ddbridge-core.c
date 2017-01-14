@@ -71,7 +71,7 @@ static void ddb_set_dma_table(struct ddb *dev, struct ddb_dma *dma)
 		ddbwritel(dev, mem & 0xffffffff, base + i * 8);
 		ddbwritel(dev, mem >> 32, base + i * 8 + 4);
 	}
-	dma->bufreg = (dma->div << 16) |
+	dma->bufval = (dma->div << 16) |
 		((dma->num & 0x1f) << 11) |
 		((dma->size >> 7) & 0x7ff);
 }
@@ -98,7 +98,7 @@ static void ddb_redirect_dma(struct ddb *dev,
 	u32 i, base;
 	u64 mem;
 
-	sdma->bufreg = ddma->bufreg;
+	sdma->bufval = ddma->bufval;
 	base = DMA_BASE_ADDRESS_TABLE + sdma->nr * 0x100;
 	for (i = 0; i < ddma->num; i++) {
 		mem = ddma->pbuf[i];
@@ -327,7 +327,7 @@ static void ddb_output_start(struct ddb_output *output)
 	ddbwritel(dev, con2, TS_OUTPUT_CONTROL2(output->nr));
 
 	if (output->dma) {
-		ddbwritel(dev, output->dma->bufreg,
+		ddbwritel(dev, output->dma->bufval,
 			  DMA_BUFFER_SIZE(output->dma->nr));
 		ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
 		ddbwritel(dev, 1, DMA_BASE_READ);
@@ -388,13 +388,12 @@ static void ddb_input_start(struct ddb_input *input)
 		input->dma->stat = 0;
 		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
 	}
-	ddbwritel(dev, 0, tag | TS_INPUT_CONTROL2(input->nr));
 	ddbwritel(dev, 0, tag | TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 2, tag | TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 0, tag | TS_INPUT_CONTROL(input->nr));
 
 	if (input->dma) {
-		ddbwritel(dev, input->dma->bufreg,
+		ddbwritel(dev, input->dma->bufval,
 			  DMA_BUFFER_SIZE(input->dma->nr));
 		ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
 		ddbwritel(dev, 1, DMA_BASE_WRITE);
@@ -2398,7 +2397,7 @@ static int ddb_port_match_i2c(struct ddb_port *port)
 
 static void ddb_ports_init(struct ddb *dev)
 {
-	u32 i, l, p, li2c;
+	u32 i, l, p;
 	struct ddb_port *port;
 	struct ddb_info *info;
 	struct ddb_regmap *rm;
@@ -2411,9 +2410,6 @@ static void ddb_ports_init(struct ddb *dev)
 		rm = info->regmap;
 		if (!rm)
 			continue;
-		for (li2c = 0; li2c < dev->i2c_num; li2c++)
-			if (dev->i2c[li2c].link == l)
-				break;
 		for (i = 0; i < info->port_num; i++, p++) {
 			port = &dev->port[p];
 			port->dev = dev;
