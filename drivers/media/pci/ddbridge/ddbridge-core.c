@@ -46,6 +46,10 @@ static int alt_dma = 0;
 module_param(alt_dma, int, 0444);
 MODULE_PARM_DESC(alt_dma, "use alternative DMA buffer handling");
 
+static int no_init;
+module_param(no_init, int, 0444);
+MODULE_PARM_DESC(no_init, "do not initialize most devices");
+
 #define DDB_MAX_ADAPTER 64
 static struct ddb *ddbs[DDB_MAX_ADAPTER];
 
@@ -3758,6 +3762,10 @@ static int ddb_init_boards(struct ddb *dev)
 static int ddb_init(struct ddb *dev)
 {
 	mutex_init(&dev->link[0].flash_mutex);
+	if (no_init) {
+		ddb_device_create(dev);
+		return 0;
+	}
 
 	if (dev->link[0].info->regmap->gtl)
 		ddb_gtl_init(dev);
