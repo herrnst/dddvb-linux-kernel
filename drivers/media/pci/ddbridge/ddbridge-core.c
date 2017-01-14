@@ -38,6 +38,14 @@ static int xo2_speed = 2;
 module_param(xo2_speed, int, 0444);
 MODULE_PARM_DESC(xo2_speed, "default transfer speed for xo2 based duoflex, 0=55,1=75,2=90,3=104 MBit/s, default=2, use attribute to change for individual cards");
 
+#ifdef __arm__
+static int alt_dma = 1;
+#else
+static int alt_dma = 0;
+#endif
+module_param(alt_dma, int, 0444);
+MODULE_PARM_DESC(alt_dma, "use alternative DMA buffer handling");
+
 #define DDB_MAX_ADAPTER 64
 static struct ddb *ddbs[DDB_MAX_ADAPTER];
 
@@ -185,7 +193,6 @@ static int ddb_redirect(u32 i, u32 p)
 /****************************************************************************/
 /****************************************************************************/
 
-#ifdef DDB_ALT_DMA
 static void dma_free(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
 {
 	int i;
@@ -194,11 +201,18 @@ static void dma_free(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
 		return;
 	for (i = 0; i < dma->num; i++) {
 		if (dma->vbuf[i]) {
-			dma_unmap_single(&pdev->dev, dma->pbuf[i],
-					 dma->size,
-					 dir ? DMA_TO_DEVICE :
-					 DMA_FROM_DEVICE);
-			kfree(dma->vbuf[i]);
+			if (alt_dma) {
+				dma_unmap_single(&pdev->dev, dma->pbuf[i],
+						 dma->size,
+						 dir ? DMA_TO_DEVICE :
+						 DMA_FROM_DEVICE);
+				kfree(dma->vbuf[i]);
+				dma->vbuf[i] = NULL;
+			} else {
+				dma_free_coherent(&pdev->dev, dma->size,
+						  dma->vbuf[i], dma->pbuf[i]);
+			}
+
 			dma->vbuf[i] = NULL;
 		}
 	}
@@ -211,52 +225,31 @@ static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
 	if (!dma)
 		return 0;
 	for (i = 0; i < dma->num; i++) {
-		dma->vbuf[i] = kmalloc(dma->size, __GFP_REPEAT);
-		if (!dma->vbuf[i])
-			return -ENOMEM;
-		dma->pbuf[i] = dma_map_single(&pdev->dev, dma->vbuf[i],
-					      dma->size,
-					      dir ? DMA_TO_DEVICE :
-					      DMA_FROM_DEVICE);
-		if (dma_mapping_error(&pdev->dev, dma->pbuf[i])) {
-			kfree(dma->vbuf[i]);
-			return -ENOMEM;
+		if (alt_dma) {
+			dma->vbuf[i] = kmalloc(dma->size, __GFP_REPEAT);
+			if (!dma->vbuf[i])
+				return -ENOMEM;
+			dma->pbuf[i] = dma_map_single(&pdev->dev,
+						      dma->vbuf[i],
+						      dma->size,
+						      dir ? DMA_TO_DEVICE :
+						      DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, dma->pbuf[i])) {
+				kfree(dma->vbuf[i]);
+				dma->vbuf[i] = NULL;
+				return -ENOMEM;
+			}
+		} else {
+			dma->vbuf[i] = dma_alloc_coherent(&pdev->dev,
+							  dma->size,
+							  &dma->pbuf[i],
+							  GFP_KERNEL);
+			if (!dma->vbuf[i])
+				return -ENOMEM;
 		}
 	}
 	return 0;
 }
-#else
-
-static void dma_free(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
-{
-	int i;
-
-	if (!dma)
-		return;
-	for (i = 0; i < dma->num; i++) {
-		if (dma->vbuf[i]) {
-			dma_free_coherent(&pdev->dev, dma->size,
-					    dma->vbuf[i], dma->pbuf[i]);
-			dma->vbuf[i] = NULL;
-		}
-	}
-}
-
-static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
-{
-	int i;
-
-	if (!dma)
-		return 0;
-	for (i = 0; i < dma->num; i++) {
-		dma->vbuf[i] = dma_alloc_coherent(&pdev->dev, dma->size,
-						  &dma->pbuf[i], GFP_KERNEL);
-		if (!dma->vbuf[i])
-			return -ENOMEM;
-	}
-	return 0;
-}
-#endif
 
 static int ddb_buffers_alloc(struct ddb *dev)
 {
@@ -498,12 +491,11 @@ static ssize_t ddb_output_write(struct ddb_output *output,
 				   output->dma->coff,
 				   buf, len))
 			return -EIO;
-#ifdef DDB_ALT_DMA
-		dma_sync_single_for_device(dev->dev,
-					   output->dma->pbuf[
-						   output->dma->cbuf],
-					   output->dma->size, DMA_TO_DEVICE);
-#endif
+		if (alt_dma)
+			dma_sync_single_for_device(dev->dev,
+						   output->dma->pbuf[
+							   output->dma->cbuf],
+						   output->dma->size, DMA_TO_DEVICE);
 		left -= len;
 		buf += len;
 		output->dma->coff += len;
@@ -556,11 +548,10 @@ static size_t ddb_input_read(struct ddb_input *input,
 		free = input->dma->size - input->dma->coff;
 		if (free > left)
 			free = left;
-#ifdef DDB_ALT_DMA
-		dma_sync_single_for_cpu(dev->dev,
-					input->dma->pbuf[input->dma->cbuf],
-					input->dma->size, DMA_FROM_DEVICE);
-#endif
+		if (alt_dma)
+			dma_sync_single_for_cpu(dev->dev,
+						input->dma->pbuf[input->dma->cbuf],
+						input->dma->size, DMA_FROM_DEVICE);
 		ret = copy_to_user(buf, input->dma->vbuf[input->dma->cbuf] +
 				   input->dma->coff, free);
 		if (ret)
@@ -2219,10 +2210,9 @@ static void input_write_dvb(struct ddb_input *input,
 			/*pr_err("Overflow dma %d\n", dma->nr);*/
 			ack = 1;
 		}
-#ifdef DDB_ALT_DMA
-		dma_sync_single_for_cpu(dev->dev, dma2->pbuf[dma->cbuf],
-					dma2->size, DMA_FROM_DEVICE);
-#endif
+		if (alt_dma)
+			dma_sync_single_for_cpu(dev->dev, dma2->pbuf[dma->cbuf],
+						dma2->size, DMA_FROM_DEVICE);
 		dvb_dmx_swfilter_packets(&dvb->demux,
 					 dma2->vbuf[dma->cbuf],
 					 dma2->size / 188);

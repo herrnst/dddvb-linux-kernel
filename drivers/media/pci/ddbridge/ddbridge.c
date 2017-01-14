@@ -24,7 +24,6 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
-/*#define DDB_ALT_DMA*/
 #define DDB_USE_WORK
 /*#define DDB_TEST_THREADED*/
 
