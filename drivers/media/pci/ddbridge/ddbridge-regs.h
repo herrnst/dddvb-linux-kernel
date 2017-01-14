@@ -127,7 +127,6 @@
 #define I2C_TASKADDRESS (0x0C)     /* High read, low write */
 #define I2C_MONITOR     (0x1C)
 
-
 #define I2C_SPEED_666   (0x02010202)
 #define I2C_SPEED_400   (0x04030404)
 #define I2C_SPEED_200   (0x09080909)
@@ -156,27 +155,16 @@
 #define DMA_DIAG_WAITOVERFLOWCOUNTER    (0x38)
 #define DMA_DIAG_WAITCOUNTER            (0x3C)
 
-#define TS_INPUT_BASE       (0x200)
-#define TS_INPUT_CONTROL(i)         (TS_INPUT_BASE + (i) * 0x10 + 0x00)
-#define TS_INPUT_CONTROL2(i)        (TS_INPUT_BASE + (i) * 0x10 + 0x04)
-
-#define TS_OUTPUT_BASE       (0x280)
-#define TS_OUTPUT_CONTROL(i)        (TS_OUTPUT_BASE + (i) * 0x10 + 0x00)
-#define TS_OUTPUT_CONTROL2(i)       (TS_OUTPUT_BASE + (i) * 0x10 + 0x04)
+#define TS_CONTROL(_io)         (_io->regs + 0x00)
+#define TS_CONTROL2(_io)        (_io->regs + 0x04)
 
 /* ------------------------------------------------------------------------- */
 /* DMA  Buffer */
 
-#define DMA_BUFFER_BASE     (0x300)
-
-#define DMA_BUFFER_CONTROL(i)       (DMA_BUFFER_BASE + (i) * 0x10 + 0x00)
-#define DMA_BUFFER_ACK(i)           (DMA_BUFFER_BASE + (i) * 0x10 + 0x04)
-#define DMA_BUFFER_CURRENT(i)       (DMA_BUFFER_BASE + (i) * 0x10 + 0x08)
-#define DMA_BUFFER_SIZE(i)          (DMA_BUFFER_BASE + (i) * 0x10 + 0x0c)
-
-#define DMA_BASE_ADDRESS_TABLE  (0x2000)
-#define DMA_BASE_ADDRESS_TABLE_ENTRIES (512)
-
+#define DMA_BUFFER_CONTROL(_dma)       (_dma->regs + 0x00)
+#define DMA_BUFFER_ACK(_dma)           (_dma->regs + 0x04)
+#define DMA_BUFFER_CURRENT(_dma)       (_dma->regs + 0x08)
+#define DMA_BUFFER_SIZE(_dma)          (_dma->regs + 0x0c)
 
 /* ------------------------------------------------------------------------- */
 
