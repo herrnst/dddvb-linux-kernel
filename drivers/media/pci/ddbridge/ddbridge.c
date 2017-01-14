@@ -24,7 +24,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
-/*#define DDB_ALT_DMA*/
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DDB_USE_WORK
 /*#define DDB_TEST_THREADED*/
 
@@ -59,6 +61,34 @@ static void ddb_unmap(struct ddb *dev)
 	vfree(dev);
 }
 
+static void ddb_irq_disable(struct ddb *dev)
+{
+	if (dev->link[0].info->regmap->irq_version == 2) {
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_4);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_5);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_6);
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_7);
+	} else {
+		ddbwritel(dev, 0, INTERRUPT_ENABLE);
+		ddbwritel(dev, 0, MSI1_ENABLE);
+	}
+}
+
+static void ddb_irq_exit(struct ddb *dev)
+{
+	ddb_irq_disable(dev);
+	if (dev->msi == 2)
+		free_irq(dev->pdev->irq + 1, dev);
+	free_irq(dev->pdev->irq, dev);
+#ifdef CONFIG_PCI_MSI
+	if (dev->msi)
+		pci_disable_msi(dev->pdev);
+#endif
+}
 
 static void ddb_remove(struct pci_dev *pdev)
 {
@@ -68,16 +98,7 @@ static void ddb_remove(struct pci_dev *pdev)
 	ddb_ports_detach(dev);
 	ddb_i2c_release(dev);
 
-	ddbwritel(dev, 0, INTERRUPT_ENABLE);
-
-	ddbwritel(dev, 0, MSI1_ENABLE);
-	if (dev->msi == 2)
-		free_irq(dev->pdev->irq + 1, dev);
-	free_irq(dev->pdev->irq, dev);
-#ifdef CONFIG_PCI_MSI
-	if (dev->msi)
-		pci_disable_msi(dev->pdev);
-#endif
+	ddb_irq_exit(dev);
 	ddb_ports_release(dev);
 	ddb_buffers_free(dev);
 
@@ -86,15 +107,130 @@ static void ddb_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static int ddb_irq_msi(struct ddb *dev, int nr)
+{
+	int stat;
+
+#ifdef CONFIG_PCI_MSI
+	if (msi && pci_msi_enabled()) {
+		stat = pci_enable_msi_range(dev->pdev, 1, nr);
+		if (stat >= 1) {
+			dev->msi = stat;
+			pr_info("using %d MSI interrupt(s)\n",
+				dev->msi);
+		} else
+			pr_info("MSI not available.\n");
+	}
+	return stat;
+}
+
+static int ddb_irq_init2(struct ddb *dev)
+{
+	int stat;
+	int irq_flag = IRQF_SHARED;
+
+	pr_info("init type 2 IRQ hardware block\n");
+
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_4);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_5);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_6);
+	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_7);
+
+	ddb_irq_msi(dev, 1);
+	if (dev->msi)
+		irq_flag = 0;
+
+	stat = request_irq(dev->pdev->irq, irq_handler_v2,
+			   irq_flag, "ddbridge", (void *) dev);
+	if (stat < 0)
+		return stat;
+
+	ddbwritel(dev, 0x0000ff7f, INTERRUPT_V2_CONTROL);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_1);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_2);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_3);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_4);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_5);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_6);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_7);
+	return stat;
+}
+
+static int ddb_irq_init(struct ddb *dev)
+{
+	int stat;
+	int irq_flag = IRQF_SHARED;
+
+	if (dev->link[0].info->regmap->irq_version == 2)
+		return ddb_irq_init2(dev);
+
+	ddbwritel(dev, 0x00000000, INTERRUPT_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI2_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI3_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI4_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI5_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI6_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI7_ENABLE);
+
+	ddb_irq_msi(dev, 2);
+
+	if (dev->msi)
+		irq_flag = 0;
+	if (dev->msi == 2) {
+		stat = request_irq(dev->pdev->irq, irq_handler0,
+				   irq_flag, "ddbridge", (void *) dev);
+		if (stat < 0)
+			return stat;
+		stat = request_irq(dev->pdev->irq + 1, irq_handler1,
+				   irq_flag, "ddbridge", (void *) dev);
+		if (stat < 0) {
+			free_irq(dev->pdev->irq, dev);
+			return stat;
+		}
+	} else
+#endif
+	{
+#ifdef DDB_TEST_THREADED
+		stat = request_threaded_irq(dev->pdev->irq, irq_handler,
+					    irq_thread,
+					    irq_flag,
+					    "ddbridge", (void *) dev);
+#else
+		stat = request_irq(dev->pdev->irq, irq_handler,
+				   irq_flag, "ddbridge", (void *) dev);
+#endif
+		if (stat < 0)
+			return stat;
+	}
+	if (dev->msi == 2) {
+		ddbwritel(dev, 0x0fffff00, INTERRUPT_ENABLE);
+		ddbwritel(dev, 0x0000000f, MSI1_ENABLE);
+	} else {
+		ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
+		ddbwritel(dev, 0x00000000, MSI1_ENABLE);
+	}
+	return stat;
+}
+
 static int ddb_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
 	struct ddb *dev;
 	int stat = 0;
-	int irq_flag = IRQF_SHARED;
 
 	if (pci_enable_device(pdev) < 0)
 		return -ENODEV;
+
+	pci_set_master(pdev);
+
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
+			return -ENODEV;
 
 	dev = vzalloc(sizeof(struct ddb));
 	if (dev == NULL)
@@ -113,19 +249,19 @@ static int ddb_probe(struct pci_dev *pdev,
 
 	dev->link[0].dev = dev;
 	dev->link[0].info = (struct ddb_info *) id->driver_data;
-	pr_info("DDBridge driver detected: %s\n", dev->link[0].info->name);
+	pr_info("detected %s\n", dev->link[0].info->name);
 
 	dev->regs_len = pci_resource_len(dev->pdev, 0);
 	dev->regs = ioremap(pci_resource_start(dev->pdev, 0),
 			    pci_resource_len(dev->pdev, 0));
 
 	if (!dev->regs) {
-		pr_err("DDBridge: not enough memory for register map\n");
+		pr_err("not enough memory for register map\n");
 		stat = -ENOMEM;
 		goto fail;
 	}
 	if (ddbreadl(dev, 0) == 0xffffffff) {
-		pr_err("DDBridge: cannot read registers\n");
+		pr_err("cannot read registers\n");
 		stat = -ENODEV;
 		goto fail;
 	}
@@ -133,74 +269,20 @@ static int ddb_probe(struct pci_dev *pdev,
 	dev->link[0].ids.hwid = ddbreadl(dev, 0);
 	dev->link[0].ids.regmapid = ddbreadl(dev, 4);
 
-	pr_info("DDBridge: HW %08x REGMAP %08x\n",
+	pr_info("HW %08x REGMAP %08x\n",
 		dev->link[0].ids.hwid, dev->link[0].ids.regmapid);
 
-	ddbwritel(dev, 0x00000000, INTERRUPT_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI2_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI3_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI4_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI5_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI6_ENABLE);
-	ddbwritel(dev, 0x00000000, MSI7_ENABLE);
-
-#ifdef CONFIG_PCI_MSI
-	if (msi && pci_msi_enabled()) {
-		stat = pci_enable_msi_range(dev->pdev, 1, 2);
-		if (stat >= 1) {
-			dev->msi = stat;
-			pr_info("DDBridge: using %d MSI interrupt(s)\n",
-				dev->msi);
-			irq_flag = 0;
-		} else
-			pr_info("DDBridge: MSI not available.\n");
-	}
-	if (dev->msi == 2) {
-		stat = request_irq(dev->pdev->irq, irq_handler0,
-				   irq_flag, "ddbridge", (void *) dev);
-		if (stat < 0)
-			goto fail0;
-		stat = request_irq(dev->pdev->irq + 1, irq_handler1,
-				   irq_flag, "ddbridge", (void *) dev);
-		if (stat < 0) {
-			free_irq(dev->pdev->irq, dev);
-			goto fail0;
-		}
-	} else
-#endif
-	{
-#ifdef DDB_TEST_THREADED
-		stat = request_threaded_irq(dev->pdev->irq, irq_handler,
-					    irq_thread,
-					    irq_flag,
-					    "ddbridge", (void *) dev);
-#else
-		stat = request_irq(dev->pdev->irq, irq_handler,
-				   irq_flag, "ddbridge", (void *) dev);
-#endif
-		if (stat < 0)
-			goto fail0;
-	}
 	ddbwritel(dev, 0, DMA_BASE_READ);
 	ddbwritel(dev, 0, DMA_BASE_WRITE);
 
-	/*ddbwritel(dev, 0xffffffff, INTERRUPT_ACK);*/
-	if (dev->msi == 2) {
-		ddbwritel(dev, 0x0fffff00, INTERRUPT_ENABLE);
-		ddbwritel(dev, 0x0000000f, MSI1_ENABLE);
-	} else {
-		ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
-		ddbwritel(dev, 0x00000000, MSI1_ENABLE);
-	}
+	stat = ddb_irq_init(dev);
+	if (stat < 0)
+		goto fail0;
+
 	if (ddb_init(dev) == 0)
 		return 0;
 
-	ddbwritel(dev, 0, INTERRUPT_ENABLE);
-	ddbwritel(dev, 0, MSI1_ENABLE);
-	free_irq(dev->pdev->irq, dev);
-	if (dev->msi == 2)
-		free_irq(dev->pdev->irq + 1, dev);
+	ddb_irq_disable(dev);
 fail0:
 	pr_err("fail0\n");
 	if (dev->msi)
@@ -216,29 +298,6 @@ fail:
 
 /****************************************************************************/
 /****************************************************************************/
-/****************************************************************************/
-
-static struct ddb_regset octopus_i2c = {
-	.base = 0x80,
-	.num  = 0x04,
-	.size = 0x20,
-};
-
-static struct ddb_regset octopus_i2c_buf = {
-	.base = 0x1000,
-	.num  = 0x04,
-	.size = 0x200,
-};
-
-/****************************************************************************/
-
-
-static struct ddb_regmap octopus_map = {
-	.i2c = &octopus_i2c,
-	.i2c_buf = &octopus_i2c_buf,
-};
-
-
 /****************************************************************************/
 
 static const struct ddb_info ddb_none = {
@@ -372,15 +431,64 @@ static const struct ddb_info ddb_dvbct = {
 
 /****************************************************************************/
 
-static const struct ddb_info ddb_ct_8 = {
+static struct ddb_info ddb_ct2_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
-	.name     = "Digital Devices MAX CT8",
+	.name     = "Digital Devices MAX A8 CT2",
 	.regmap   = &octopus_map,
 	.port_num = 4,
 	.i2c_mask = 0x0f,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
 	.ts_quirks = TS_QUIRK_SERIAL,
+	.tempmon_irq = 24,
+};
+
+static struct ddb_info ddb_c2t2_8 = {
+	.type     = DDB_OCTOPUS_MAX_CT,
+	.name     = "Digital Devices MAX A8 C2T2",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x0f,
+	.board_control   = 0x0ff,
+	.board_control_2 = 0xf00,
+	.ts_quirks = TS_QUIRK_SERIAL,
+	.tempmon_irq = 24,
+};
+
+static struct ddb_info ddb_isdbt_8 = {
+	.type     = DDB_OCTOPUS_MAX_CT,
+	.name     = "Digital Devices MAX A8 ISDBT",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x0f,
+	.board_control   = 0x0ff,
+	.board_control_2 = 0xf00,
+	.ts_quirks = TS_QUIRK_SERIAL,
+	.tempmon_irq = 24,
+};
+
+static struct ddb_info ddb_c2t2i_v0_8 = {
+	.type     = DDB_OCTOPUS_MAX_CT,
+	.name     = "Digital Devices MAX A8 C2T2I V0",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x0f,
+	.board_control   = 0x0ff,
+	.board_control_2 = 0xf00,
+	.ts_quirks = TS_QUIRK_SERIAL | TS_QUIRK_ALT_OSC,
+	.tempmon_irq = 24,
+};
+
+static struct ddb_info ddb_c2t2i_8 = {
+	.type     = DDB_OCTOPUS_MAX_CT,
+	.name     = "Digital Devices MAX A8 C2T2I",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x0f,
+	.board_control   = 0x0ff,
+	.board_control_2 = 0xf00,
+	.ts_quirks = TS_QUIRK_SERIAL,
+	.tempmon_irq = 24,
 };
 
 /****************************************************************************/
@@ -410,9 +518,12 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0031, ddb_ctv7),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0032, ddb_ctv7),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0033, ddb_ctv7),
-	DDB_ID(DDVID, 0x0008, DDVID, 0x0034, ddb_ct_8),
-	DDB_ID(DDVID, 0x0008, DDVID, 0x0035, ddb_ct_8),
-	DDB_ID(DDVID, 0x0008, DDVID, 0x0036, ddb_ct_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0034, ddb_ct2_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0035, ddb_c2t2_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0036, ddb_isdbt_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0037, ddb_c2t2i_v0_8),
+	DDB_ID(DDVID, 0x0008, DDVID, 0x0038, ddb_c2t2i_8),
+	DDB_ID(DDVID, 0x0006, DDVID, 0x0039, ddb_ctv7),
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0040, ddb_ci),
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0041, ddb_cis),
 	DDB_ID(DDVID, 0x0012, DDVID, 0x0042, ddb_ci),
@@ -444,7 +555,7 @@ static __init int module_init_ddbridge(void)
 
 	pr_info("Digital Devices PCIE bridge driver "
 		DDBRIDGE_VERSION
-		", Copyright (C) 2010-15 Digital Devices GmbH\n");
+		", Copyright (C) 2010-16 Digital Devices GmbH\n");
 	if (ddb_class_create() < 0)
 		return -1;
 	ddb_wq = create_workqueue("ddbridge");

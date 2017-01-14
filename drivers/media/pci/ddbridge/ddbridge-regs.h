@@ -100,17 +100,46 @@
 #define INTMASK_TSOUTPUT3   (0x00040000)
 #define INTMASK_TSOUTPUT4   (0x00080000)
 
+#define INTERRUPT_V2_CONTROL  (INTERRUPT_BASE + 0x00)
+#define INTERRUPT_V2_ENABLE_1 (INTERRUPT_BASE + 0x04)
+#define INTERRUPT_V2_ENABLE_2 (INTERRUPT_BASE + 0x08)
+#define INTERRUPT_V2_ENABLE_3 (INTERRUPT_BASE + 0x0c)
+#define INTERRUPT_V2_ENABLE_4 (INTERRUPT_BASE + 0x10)
+#define INTERRUPT_V2_ENABLE_5 (INTERRUPT_BASE + 0x14)
+#define INTERRUPT_V2_ENABLE_6 (INTERRUPT_BASE + 0x18)
+#define INTERRUPT_V2_ENABLE_7 (INTERRUPT_BASE + 0x1c)
+
+#define INTERRUPT_V2_STATUS   (INTERRUPT_BASE + 0x20)
+#define INTERRUPT_V2_STATUS_1 (INTERRUPT_BASE + 0x24)
+#define INTERRUPT_V2_STATUS_2 (INTERRUPT_BASE + 0x28)
+#define INTERRUPT_V2_STATUS_3 (INTERRUPT_BASE + 0x2c)
+#define INTERRUPT_V2_STATUS_4 (INTERRUPT_BASE + 0x30)
+#define INTERRUPT_V2_STATUS_5 (INTERRUPT_BASE + 0x34)
+#define INTERRUPT_V2_STATUS_6 (INTERRUPT_BASE + 0x38)
+#define INTERRUPT_V2_STATUS_7 (INTERRUPT_BASE + 0x3c)
+
+/* Temperature Monitor ( 2x LM75A @ 0x90,0x92 I2c ) */
+#define TEMPMON_BASE			(0x1c0)
+#define TEMPMON_CONTROL			(TEMPMON_BASE + 0x00)
+
+#define TEMPMON_CONTROL_AUTOSCAN	(0x00000002)
+#define TEMPMON_CONTROL_INTENABLE	(0x00000004)
+#define TEMPMON_CONTROL_OVERTEMP	(0x00008000)
+
+/* SHORT Temperature in °C x 256 */
+#define TEMPMON_SENSOR0			(TEMPMON_BASE + 0x04)
+#define TEMPMON_SENSOR1			(TEMPMON_BASE + 0x08)
+
+#define TEMPMON_FANCONTROL		(TEMPMON_BASE + 0x10)
+
 /* ------------------------------------------------------------------------- */
 /* I2C Master Controller */
-
-#define I2C_BASE        (0x80)  /* Byte offset */
 
 #define I2C_COMMAND     (0x00)
 #define I2C_TIMING      (0x04)
 #define I2C_TASKLENGTH  (0x08)     /* High read, low write */
 #define I2C_TASKADDRESS (0x0C)     /* High read, low write */
 #define I2C_MONITOR     (0x1C)
-
 
 #define I2C_SPEED_666   (0x02010202)
 #define I2C_SPEED_400   (0x04030404)
@@ -140,27 +169,16 @@
 #define DMA_DIAG_WAITOVERFLOWCOUNTER    (0x38)
 #define DMA_DIAG_WAITCOUNTER            (0x3C)
 
-#define TS_INPUT_BASE       (0x200)
-#define TS_INPUT_CONTROL(i)         (TS_INPUT_BASE + (i) * 0x10 + 0x00)
-#define TS_INPUT_CONTROL2(i)        (TS_INPUT_BASE + (i) * 0x10 + 0x04)
-
-#define TS_OUTPUT_BASE       (0x280)
-#define TS_OUTPUT_CONTROL(i)        (TS_OUTPUT_BASE + (i) * 0x10 + 0x00)
-#define TS_OUTPUT_CONTROL2(i)       (TS_OUTPUT_BASE + (i) * 0x10 + 0x04)
+#define TS_CONTROL(_io)         (_io->regs + 0x00)
+#define TS_CONTROL2(_io)        (_io->regs + 0x04)
 
 /* ------------------------------------------------------------------------- */
 /* DMA  Buffer */
 
-#define DMA_BUFFER_BASE     (0x300)
-
-#define DMA_BUFFER_CONTROL(i)       (DMA_BUFFER_BASE + (i) * 0x10 + 0x00)
-#define DMA_BUFFER_ACK(i)           (DMA_BUFFER_BASE + (i) * 0x10 + 0x04)
-#define DMA_BUFFER_CURRENT(i)       (DMA_BUFFER_BASE + (i) * 0x10 + 0x08)
-#define DMA_BUFFER_SIZE(i)          (DMA_BUFFER_BASE + (i) * 0x10 + 0x0c)
-
-#define DMA_BASE_ADDRESS_TABLE  (0x2000)
-#define DMA_BASE_ADDRESS_TABLE_ENTRIES (512)
-
+#define DMA_BUFFER_CONTROL(_dma)       (_dma->regs + 0x00)
+#define DMA_BUFFER_ACK(_dma)           (_dma->regs + 0x04)
+#define DMA_BUFFER_CURRENT(_dma)       (_dma->regs + 0x08)
+#define DMA_BUFFER_SIZE(_dma)          (_dma->regs + 0x0c)
 
 /* ------------------------------------------------------------------------- */
 

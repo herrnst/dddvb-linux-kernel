@@ -115,7 +115,7 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 	stat = wait_for_completion_timeout(&i2c->completion, HZ);
 	val = ddbreadl(dev, i2c->regs + I2C_COMMAND);
 	if (stat == 0) {
-		pr_err("DDBridge I2C timeout, card %d, port %d, link %u\n",
+		pr_err("I2C timeout, card %d, port %d, link %u\n",
 		       dev->nr, i2c->nr, i2c->link);
 		{
 			u32 istat = ddbreadl(dev, INTERRUPT_STATUS);
@@ -245,7 +245,8 @@ static int ddb_i2c_add(struct ddb *dev, struct ddb_i2c *i2c,
 	adap->class = I2C_CLASS_TV_ANALOG;
 #endif
 #endif
-	strcpy(adap->name, "ddbridge");
+	snprintf(adap->name, I2C_NAME_SIZE, "ddbridge_%02x.%x.%x",
+		dev->nr, i2c->link, i);
 	adap->algo = &ddb_i2c_algo;
 	adap->algo_data = (void *)i2c;
 	adap->dev.parent = dev->dev;
@@ -255,7 +256,7 @@ static int ddb_i2c_add(struct ddb *dev, struct ddb_i2c *i2c,
 static int ddb_i2c_init(struct ddb *dev)
 {
 	int stat = 0;
-	u32 i, j, num = 0, l;
+	u32 i, j, num = 0, l, base;
 	struct ddb_i2c *i2c;
 	struct i2c_adapter *adap;
 	struct ddb_regmap *regmap;
@@ -266,12 +267,13 @@ static int ddb_i2c_init(struct ddb *dev)
 		regmap = dev->link[l].info->regmap;
 		if (!regmap || !regmap->i2c)
 			continue;
+		base = regmap->irq_base_i2c;
 		for (i = 0; i < regmap->i2c->num; i++) {
 			if (!(dev->link[l].info->i2c_mask & (1 << i)))
 				continue;
 			i2c = &dev->i2c[num];
-			dev->handler_data[i + l * 32] = (unsigned long) i2c;
-			dev->handler[i + l * 32] = i2c_handler;
+			dev->handler_data[l][i + base] = (unsigned long) i2c;
+			dev->handler[l][i + base] = i2c_handler;
 			stat = ddb_i2c_add(dev, i2c, regmap, l, i, num);
 			if (stat)
 				break;
