@@ -60,7 +60,8 @@ static void ddb_unmap(struct ddb *dev)
 
 static void ddb_irq_disable(struct ddb *dev)
 {
-	if ((dev->link[0].ids.regmapid & 0xffff0000) == 0x00020000) {
+	if (dev->link[0].info->regmap->irq_version == 2) {
+		ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
 		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
 		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
 		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
@@ -145,6 +146,7 @@ static int ddb_irq_init2(struct ddb *dev)
 	if (stat < 0)
 		return stat;
 
+	ddbwritel(dev, 0x0000ff7f, INTERRUPT_V2_CONTROL);
 	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_1);
 	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_2);
 	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_3);
@@ -160,7 +162,7 @@ static int ddb_irq_init(struct ddb *dev)
 	int stat;
 	int irq_flag = IRQF_SHARED;
 
-	if ((dev->link[0].ids.regmapid & 0xffff0000) == 0x00020000)
+	if (dev->link[0].info->regmap->irq_version == 2)
 		return ddb_irq_init2(dev);
 
 	ddbwritel(dev, 0x00000000, INTERRUPT_ENABLE);

@@ -2737,7 +2737,7 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 
 static irqreturn_t irq_handle_v2_n(struct ddb *dev, u32 n)
 {
-	u32 reg = INTERRUPT_V2_STATUS_1 + 4 * n;
+	u32 reg = INTERRUPT_V2_STATUS + 4 * n;
 	u32 s = ddbreadl(dev, reg);
 	u32 off = n * 32;
 
@@ -2755,6 +2755,36 @@ static irqreturn_t irq_handle_v2_n(struct ddb *dev, u32 n)
 		IRQ_HANDLE(6 + off);
 		IRQ_HANDLE(7 + off);
 	}
+	if ((s & 0x0000ff00)) {
+		IRQ_HANDLE(8 + off);
+		IRQ_HANDLE(9 + off);
+		IRQ_HANDLE(10 + off);
+		IRQ_HANDLE(11 + off);
+		IRQ_HANDLE(12 + off);
+		IRQ_HANDLE(13 + off);
+		IRQ_HANDLE(14 + off);
+		IRQ_HANDLE(15 + off);
+	}
+	if ((s & 0x00ff0000)) {
+		IRQ_HANDLE(16 + off);
+		IRQ_HANDLE(17 + off);
+		IRQ_HANDLE(18 + off);
+		IRQ_HANDLE(19 + off);
+		IRQ_HANDLE(20 + off);
+		IRQ_HANDLE(21 + off);
+		IRQ_HANDLE(22 + off);
+		IRQ_HANDLE(23 + off);
+	}
+	if ((s & 0xff000000)) {
+		IRQ_HANDLE(24 + off);
+		IRQ_HANDLE(25 + off);
+		IRQ_HANDLE(26 + off);
+		IRQ_HANDLE(27 + off);
+		IRQ_HANDLE(28 + off);
+		IRQ_HANDLE(29 + off);
+		IRQ_HANDLE(30 + off);
+		IRQ_HANDLE(31 + off);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2768,10 +2798,19 @@ static irqreturn_t irq_handler_v2(int irq, void *dev_id)
 	if (!s)
 		return IRQ_NONE;
 	do {
-		if (s & 0x80000000)
+		if (s & 0x80)
 			return IRQ_NONE;
+		ddbwritel(dev, s, INTERRUPT_V2_STATUS);
 		if (s & 0x00000001)
-			irq_handle_v2_n(dev, 0);
+			irq_handle_v2_n(dev, 1);
+		if (s & 0x00000002)
+			irq_handle_v2_n(dev, 2);
+		if (s & 0x00000004)
+			irq_handle_v2_n(dev, 3);
+		IRQ_HANDLE(8);
+		IRQ_HANDLE(9);
+		IRQ_HANDLE(10);
+		IRQ_HANDLE(11);
 	} while ((s = 0xffff & ddbreadl(dev, INTERRUPT_V2_STATUS)));
 
 	return ret;
