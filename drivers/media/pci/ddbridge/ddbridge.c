@@ -295,69 +295,6 @@ fail:
 /****************************************************************************/
 /****************************************************************************/
 
-static struct ddb_regset octopus_input = {
-	.base = 0x200,
-	.num  = 0x08,
-	.size = 0x10,
-};
-
-static struct ddb_regset octopus_output = {
-	.base = 0x280,
-	.num  = 0x08,
-	.size = 0x10,
-};
-
-static struct ddb_regset octopus_idma = {
-	.base = 0x300,
-	.num  = 0x08,
-	.size = 0x10,
-};
-
-static struct ddb_regset octopus_idma_buf = {
-	.base = 0x2000,
-	.num  = 0x08,
-	.size = 0x100,
-};
-
-static struct ddb_regset octopus_odma = {
-	.base = 0x380,
-	.num  = 0x04,
-	.size = 0x10,
-};
-
-static struct ddb_regset octopus_odma_buf = {
-	.base = 0x2800,
-	.num  = 0x04,
-	.size = 0x100,
-};
-
-static struct ddb_regset octopus_i2c = {
-	.base = 0x80,
-	.num  = 0x04,
-	.size = 0x20,
-};
-
-static struct ddb_regset octopus_i2c_buf = {
-	.base = 0x1000,
-	.num  = 0x04,
-	.size = 0x200,
-};
-
-/****************************************************************************/
-
-
-static struct ddb_regmap octopus_map = {
-	.i2c = &octopus_i2c,
-	.i2c_buf = &octopus_i2c_buf,
-	.idma[0] = &octopus_idma,
-	.idma_buf[0] = &octopus_idma_buf,
-	.odma = &octopus_odma,
-	.odma_buf = &octopus_odma_buf,
-};
-
-
-/****************************************************************************/
-
 static const struct ddb_info ddb_none = {
 	.type     = DDB_NONE,
 	.name     = "unknown Digital Devices PCIe card, install newer driver",
