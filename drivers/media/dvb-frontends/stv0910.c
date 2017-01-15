@@ -42,6 +42,7 @@
 
 #define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
 
+#define EXT_CLOCK   30000000
 #define TUNING_DELAY    200
 #define BER_SRC_S    0x20
 #define BER_SRC_S2   0x20
@@ -127,9 +128,19 @@ struct stv {
 	u32                     Pilots;
 	enum FE_STV0910_RollOff FERollOff;
 
+	int   isStandardBroadcast;
+	int   isVCM;
+
+	u32   CurScramblingCode;
+	u32   ForceScramblingCode;
+	u32   ScramblingCode;
+	u32   DefaultInputStreamID;
+
 	u32   LastBERNumerator;
 	u32   LastBERDenominator;
 	u8    BERScale;
+
+	u8    VTH[6];
 };
 
 struct SInitTable {
@@ -196,6 +207,19 @@ static int read_regs(struct stv *state, u16 reg, u8 *val, int len)
 {
 	return i2c_read_regs16(state->base->i2c, state->base->adr,
 			       reg, val, len);
+}
+
+static int write_shared_reg(struct stv *state, u16 reg, u8 mask, u8 val)
+{
+	int status;
+	u8 tmp;
+
+	mutex_lock(&state->base->reg_lock);
+	status = read_reg(state, reg, &tmp);
+	if (!status)
+		status = write_reg(state, reg, (tmp & ~mask) | (val & mask));
+	mutex_unlock(&state->base->reg_lock);
+	return status;
 }
 
 struct SLookup S1_SN_Lookup[] = {
@@ -463,24 +487,40 @@ static int GetCurSymbolRate(struct stv *state, u32 *pSymbolRate)
 
 static int GetSignalParameters(struct stv *state)
 {
+	u8 tmp;
+
 	if (!state->Started)
 		return -EINVAL;
 
 	if (state->ReceiveMode == Mode_DVBS2) {
-		u8 tmp;
-		u8 rolloff;
-
 		read_reg(state, RSTV0910_P2_DMDMODCOD + state->regoff, &tmp);
 		state->ModCod = (enum FE_STV0910_ModCod) ((tmp & 0x7c) >> 2);
 		state->Pilots = (tmp & 0x01) != 0;
 		state->FECType = (enum DVBS2_FECType) ((tmp & 0x02) >> 1);
 
-		read_reg(state, RSTV0910_P2_TMGOBS + state->regoff, &rolloff);
-		rolloff = rolloff >> 6;
-		state->FERollOff = (enum FE_STV0910_RollOff) rolloff;
-
 	} else if (state->ReceiveMode == Mode_DVBS) {
-		/* todo */
+		read_reg(state, RSTV0910_P2_VITCURPUN + state->regoff, &tmp);
+		state->PunctureRate = FEC_NONE;
+		switch (tmp & 0x1F) {
+		case 0x0d:
+			state->PunctureRate = FEC_1_2;
+			break;
+		case 0x12:
+			state->PunctureRate = FEC_2_3;
+			break;
+		case 0x15:
+			state->PunctureRate = FEC_3_4;
+			break;
+		case 0x18:
+			state->PunctureRate = FEC_5_6;
+			break;
+		case 0x1a:
+			state->PunctureRate = FEC_7_8;
+			break;
+		}
+		state->isVCM = 0;
+		state->isStandardBroadcast = 1;
+		state->FERollOff = FE_SAT_35;
 	}
 	return 0;
 }
@@ -496,18 +536,20 @@ static int TrackingOptimization(struct stv *state)
 
 	switch (state->ReceiveMode) {
 	case Mode_DVBS:
-		tmp |= 0x40; break;
+		tmp |= 0x40;
+		break;
 	case Mode_DVBS2:
-		tmp |= 0x80; break;
+		tmp |= 0x80;
+		break;
 	default:
-		tmp |= 0xC0; break;
+		tmp |= 0xC0;
+		break;
 	}
 	write_reg(state, RSTV0910_P2_DMDCFGMD + state->regoff, tmp);
 
 	if (state->ReceiveMode == Mode_DVBS2) {
-		/* force to PRE BCH Rate */
-		write_reg(state, RSTV0910_P2_ERRCTRL1 + state->regoff,
-			  BER_SRC_S2 | state->BERScale);
+		/*Disable Reed-Solomon */
+		write_shared_reg(state, RSTV0910_TSTTSRS, state->nr ? 0x02 : 0x01, 0x03);
 
 		if (state->FECType == DVBS2_64K) {
 			u8 aclc = get_optim_cloop(state, state->ModCod,
@@ -532,29 +574,6 @@ static int TrackingOptimization(struct stv *state)
 				write_reg(state, RSTV0910_P2_ACLC2S232A +
 					  state->regoff, aclc);
 			}
-		}
-	}
-	if (state->ReceiveMode == Mode_DVBS) {
-		u8 tmp;
-
-		read_reg(state, RSTV0910_P2_VITCURPUN + state->regoff, &tmp);
-		state->PunctureRate = FEC_NONE;
-		switch (tmp & 0x1F) {
-		case 0x0d:
-			state->PunctureRate = FEC_1_2;
-			break;
-		case 0x12:
-			state->PunctureRate = FEC_2_3;
-			break;
-		case 0x15:
-			state->PunctureRate = FEC_3_4;
-			break;
-		case 0x18:
-			state->PunctureRate = FEC_5_6;
-			break;
-		case 0x1A:
-			state->PunctureRate = FEC_7_8;
-			break;
 		}
 	}
 	return 0;
@@ -832,6 +851,112 @@ static int Stop(struct stv *state)
 	return 0;
 }
 
+static int init_search_param(struct stv *state)
+{
+	u8 tmp;
+
+	read_reg(state, RSTV0910_P2_PDELCTRL1 + state->regoff, &tmp);
+	tmp |= 0x20; // Filter_en (no effect if SIS=non-MIS
+	write_reg(state, RSTV0910_P2_PDELCTRL1 + state->regoff, tmp);
+
+	read_reg(state, RSTV0910_P2_PDELCTRL2 + state->regoff, &tmp);
+	tmp &= ~0x02; // frame mode = 0
+	write_reg(state, RSTV0910_P2_PDELCTRL2 + state->regoff, tmp);
+
+	write_reg(state, RSTV0910_P2_UPLCCST0 + state->regoff, 0xe0);
+	write_reg(state, RSTV0910_P2_ISIBITENA + state->regoff, 0x00);
+
+	read_reg(state, RSTV0910_P2_TSSTATEM + state->regoff, &tmp);
+	tmp &= ~0x01; // nosync = 0, in case next signal is standard TS
+	write_reg(state, RSTV0910_P2_TSSTATEM + state->regoff, tmp);
+
+	read_reg(state, RSTV0910_P2_TSCFGL + state->regoff, &tmp);
+	tmp &= ~0x04; // embindvb = 0
+	write_reg(state, RSTV0910_P2_TSCFGL + state->regoff, tmp);
+
+	read_reg(state, RSTV0910_P2_TSINSDELH + state->regoff, &tmp);
+	tmp &= ~0x80; // syncbyte = 0
+	write_reg(state, RSTV0910_P2_TSINSDELH + state->regoff, tmp);
+
+	read_reg(state, RSTV0910_P2_TSINSDELM + state->regoff, &tmp);
+	tmp &= ~0x08; // token = 0
+	write_reg(state, RSTV0910_P2_TSINSDELM + state->regoff, tmp);
+
+	read_reg(state, RSTV0910_P2_TSDLYSET2 + state->regoff, &tmp);
+	tmp &= ~0x30; // hysteresis threshold = 0
+	write_reg(state, RSTV0910_P2_TSDLYSET2 + state->regoff, tmp);
+
+	read_reg(state, RSTV0910_P2_PDELCTRL0 + state->regoff, &tmp);
+	tmp = (tmp & ~0x30) | 0x10; // isi obs mode = 1, observe min ISI
+	write_reg(state, RSTV0910_P2_PDELCTRL0 + state->regoff, tmp);
+
+	return 0;
+}
+
+static int EnablePunctureRate(struct stv *state, enum fe_code_rate rate)
+{
+	switch(rate) {
+	case FEC_1_2:
+		return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x01);
+	case FEC_2_3:
+		return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x02);
+	case FEC_3_4:
+		return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x04);
+	case FEC_5_6:
+		return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x08);
+	case FEC_7_8:
+		return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x20);
+	case FEC_NONE:
+	default:
+		return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x2f);
+	}
+}
+
+static int set_vth_default(struct stv *state)
+{
+	state->VTH[0] = 0xd7;
+	state->VTH[1] = 0x85;
+	state->VTH[2] = 0x58;
+	state->VTH[3] = 0x3a;
+	state->VTH[4] = 0x34;
+	state->VTH[5] = 0x28;
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 0, state->VTH[0]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 1, state->VTH[1]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 2, state->VTH[2]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 3, state->VTH[3]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 4, state->VTH[4]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 5, state->VTH[5]);
+	return 0;
+}
+
+static int set_vth(struct stv *state)
+{
+	static struct SLookup VTHLookupTable[] = {
+		{250,	8780}, /*C/N=1.5dB*/
+		{100,	7405}, /*C/N=4.5dB*/
+		{40,	6330}, /*C/N=6.5dB*/
+		{12,	5224}, /*C/N=8.5dB*/
+		{5,	4236} /*C/N=10.5dB*/
+	};
+
+	int i;
+	u8 tmp[2];
+	int status = read_regs(state, RSTV0910_P2_NNOSDATAT1 + state->regoff, tmp, 2);
+	u16 RegValue = (tmp[0] << 8) | tmp[1];
+	s32 vth = TableLookup(VTHLookupTable, ARRAY_SIZE(VTHLookupTable), RegValue);
+
+	for (i = 0; i < 6; i += 1)
+		if (state->VTH[i] > vth)
+			state->VTH[i] = vth;
+
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 0, state->VTH[0]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 1, state->VTH[1]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 2, state->VTH[2]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 3, state->VTH[3]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 4, state->VTH[4]);
+	write_reg(state, RSTV0910_P2_VTH12 + state->regoff + 5, state->VTH[5]);
+	return status;
+}
 
 static int Start(struct stv *state, struct dtv_frontend_properties *p)
 {
@@ -849,6 +974,8 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 	if (state->Started)
 		write_reg(state, RSTV0910_P2_DMDISTATE + state->regoff, 0x5C);
 
+	init_search_param(state);
+
 	if (p->symbol_rate <= 1000000) {  /*SR <=1Msps*/
 		state->DemodTimeout = 3000;
 		state->FecTimeout = 2000;
@@ -857,7 +984,7 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 		state->FecTimeout = 1300;
 	} else if (p->symbol_rate <= 5000000) {  /*2Msps< SR <=5Msps*/
 		state->DemodTimeout = 1000;
-	    state->FecTimeout = 650;
+		state->FecTimeout = 650;
 	} else if (p->symbol_rate <= 10000000) {  /*5Msps< SR <=10Msps*/
 		state->DemodTimeout = 700;
 		state->FecTimeout = 350;
@@ -883,9 +1010,13 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 	write_reg(state, RSTV0910_P2_DMDCFGMD + state->regoff,
 		  regDMDCFGMD |= 0xC0);
 
+	write_shared_reg(state, RSTV0910_TSTTSRS, state->nr ? 0x02 : 0x01, 0x00);
+
 	/* Disable DSS */
 	write_reg(state, RSTV0910_P2_FECM  + state->regoff, 0x00);
 	write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x2F);
+
+	EnablePunctureRate(state, FEC_NONE);
 
 	/* 8PSK 3/5, 8PSK 2/3 Poff tracking optimization WA*/
 	write_reg(state, RSTV0910_P2_ACLC2S2Q + state->regoff, 0x0B);
@@ -893,14 +1024,28 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 	write_reg(state, RSTV0910_P2_BCLC2S2Q + state->regoff, 0x84);
 	write_reg(state, RSTV0910_P2_BCLC2S28 + state->regoff, 0x84);
 	write_reg(state, RSTV0910_P2_CARHDR + state->regoff, 0x1C);
+	write_reg(state, RSTV0910_P2_CARFREQ + state->regoff, 0x79);
+
+	write_reg(state, RSTV0910_P2_ACLC2S216A + state->regoff, 0x29);
+	write_reg(state, RSTV0910_P2_ACLC2S232A + state->regoff, 0x09);
+	write_reg(state, RSTV0910_P2_BCLC2S216A + state->regoff, 0x84);
+	write_reg(state, RSTV0910_P2_BCLC2S232A + state->regoff, 0x84);
+
+	/* Reset CAR3, bug DVBS2->DVBS1 lock*/
+	/* Note: The bit is only pulsed -> no lock on shared register needed */
+	write_reg(state, RSTV0910_TSTRES0, state->nr ? 0x04 : 0x08);
+	write_reg(state, RSTV0910_TSTRES0, 0);
+
+	set_vth_default(state);
 	/* Reset demod */
 	write_reg(state, RSTV0910_P2_DMDISTATE + state->regoff, 0x1F);
 
 	write_reg(state, RSTV0910_P2_CARCFG + state->regoff, 0x46);
 
-	Freq = (state->SearchRange / 2000) + 600;
 	if (p->symbol_rate <= 5000000)
-		Freq -= (600 + 80);
+		Freq = (state->SearchRange / 2000) + 80;
+	else
+		Freq = (state->SearchRange / 2000) + 1600;
 	Freq = (Freq << 16) / (state->base->mclk / 1000);
 
 	write_reg(state, RSTV0910_P2_CFRUP1 + state->regoff,
@@ -957,18 +1102,28 @@ static int probe(struct stv *state)
 	/* Configure the I2C repeater to off */
 	write_reg(state, RSTV0910_P2_I2CRPT, 0x24);
 	/* Set the I2C to oversampling ratio */
-	write_reg(state, RSTV0910_I2CCFG, 0x88);
+	write_reg(state, RSTV0910_I2CCFG, 0x88); /* state->i2ccfg */
 
 	write_reg(state, RSTV0910_OUTCFG,    0x00);  /* OUTCFG */
-	write_reg(state, RSTV0910_PADCFG,    0x05);  /* RF AGC Pads Dev = 05 */
+	write_reg(state, RSTV0910_PADCFG,    0x05);  /* RFAGC Pads Dev = 05 */
 	write_reg(state, RSTV0910_SYNTCTRL,  0x02);  /* SYNTCTRL */
 	write_reg(state, RSTV0910_TSGENERAL, state->tsgeneral);  /* TSGENERAL */
 	write_reg(state, RSTV0910_CFGEXT,    0x02);  /* CFGEXT */
 	write_reg(state, RSTV0910_GENCFG,    0x15);  /* GENCFG */
 
+	write_reg(state, RSTV0910_P1_CAR3CFG, 0x02);
+	write_reg(state, RSTV0910_P2_CAR3CFG, 0x02);
+	write_reg(state, RSTV0910_P1_DMDCFG4, 0x04);
+	write_reg(state, RSTV0910_P2_DMDCFG4, 0x04);
 
 	write_reg(state, RSTV0910_TSTRES0, 0x80); /* LDPC Reset */
 	write_reg(state, RSTV0910_TSTRES0, 0x00);
+
+	write_reg(state, RSTV0910_P1_TSPIDFLT1, 0x00);
+	write_reg(state, RSTV0910_P2_TSPIDFLT1, 0x00);
+
+	write_reg(state, RSTV0910_P1_TMGCFG2, 0x80);
+	write_reg(state, RSTV0910_P2_TMGCFG2, 0x80);
 
 	set_mclock(state, 135000000);
 
@@ -1073,6 +1228,27 @@ static int get_frequency_offset(struct stv *state, s32 *off)
 	return 0;
 }
 
+static int ManageMatypeInfo(struct stv *state)
+{
+	if (!state->Started)
+		return -1;
+	if (state->ReceiveMode == Mode_DVBS2 ) {
+		u8 BBHeader[2];
+
+		read_regs(state, RSTV0910_P2_MATSTR1 + state->regoff,
+			BBHeader, 2);
+		state->FERollOff =
+			(enum FE_STV0910_RollOff) (BBHeader[0] & 0x03);
+		state->isVCM = (BBHeader[0] & 0x10) == 0;
+		state->isStandardBroadcast = (BBHeader[0] & 0xFC) == 0xF0;
+	} else if (state->ReceiveMode == Mode_DVBS) {
+		state->isVCM = 0;
+		state->isStandardBroadcast = 1;
+		state->FERollOff = FE_SAT_35;
+	}
+	return 0;
+}
+
 static int read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct stv *state = fe->demodulator_priv;
@@ -1158,6 +1334,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 				Mode_DVBS : Mode_DVBS2;
 	}
 	if (CurReceiveMode == Mode_None) {
+		set_vth(state);
 		*status = 0;
 		return 0;
 	}
@@ -1171,6 +1348,9 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		state->ReceiveMode = CurReceiveMode;
 		state->DemodLockTime = jiffies;
 		state->FirstTimeLock = 1;
+
+		GetSignalParameters(state);
+		TrackingOptimization(state);
 
 		write_reg(state, RSTV0910_P2_TSCFGH + state->regoff,
 			  state->tscfgh);
@@ -1207,7 +1387,8 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		u8 tmp;
 
 		state->FirstTimeLock = 0;
-		GetSignalParameters(state);
+
+		ManageMatypeInfo(state);
 
 		if (state->ReceiveMode == Mode_DVBS2) {
 			/* FSTV0910_P2_MANUALSX_ROLLOFF,
@@ -1248,7 +1429,9 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		 */
 		write_reg(state, RSTV0910_P2_ERRCTRL2 + state->regoff, 0xc1);
 
-		TrackingOptimization(state);
+		set_vth_default(state);
+		if (state->ReceiveMode == Mode_DVBS)
+			EnablePunctureRate(state, state->PunctureRate);
 	}
 	return 0;
 }
@@ -1506,6 +1689,9 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->SearchRange = 16000000;
 	state->DEMOD = 0x10;     /* Inversion : Auto with reset to 0 */
 	state->ReceiveMode   = Mode_None;
+	state->CurScramblingCode = (u32) -1;
+	state->ForceScramblingCode = (u32) -1;
+	state->DefaultInputStreamID = (u32) -1;
 
 	base = match_base(i2c, cfg->adr);
 	if (base) {
@@ -1542,5 +1728,5 @@ fail:
 EXPORT_SYMBOL_GPL(stv0910_attach);
 
 MODULE_DESCRIPTION("STV0910 driver");
-MODULE_AUTHOR("Ralph Metzler, Manfred Voelkel");
+MODULE_AUTHOR("Ralph and Marcus Metzler, Manfred Voelkel");
 MODULE_LICENSE("GPL");
