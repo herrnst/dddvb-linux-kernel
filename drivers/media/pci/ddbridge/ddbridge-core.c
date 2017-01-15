@@ -3775,6 +3775,10 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	spin_lock_init(&link->lock);
 	mutex_init(&link->flash_mutex);
 
+	link->nr = l;
+	link->dev = dev;
+	link->regs = regs;
+
 	if (!(1 & ddbreadl(dev, regs))) {
 		u32 c;
 
@@ -3789,9 +3793,6 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 		if (c == 5)
 			return -1;
 	}
-	link->nr = l;
-	link->dev = dev;
-	link->regs = regs;
 
 	id = ddbreadl(dev, DDB_LINK_TAG(l) | 8);
 	switch (id) {
