@@ -221,6 +221,12 @@ static int ddb_probe(struct pci_dev *pdev,
 	if (pci_enable_device(pdev) < 0)
 		return -ENODEV;
 
+	pci_set_master(pdev);
+
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
+			return -ENODEV;
+
 	dev = vzalloc(sizeof(struct ddb));
 	if (dev == NULL)
 		return -ENOMEM;
