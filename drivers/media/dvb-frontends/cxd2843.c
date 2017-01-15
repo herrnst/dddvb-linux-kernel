@@ -2162,6 +2162,9 @@ static int get_fe_t2(struct cxd_state *state)
 	case 5:
 		p->fec_inner = FEC_5_6;
 		break;
+	case 6:
+		p->fec_inner = FEC_1_3;
+		break;
 	case 7:
 		p->fec_inner = FEC_2_5;
 		break;
@@ -2200,6 +2203,9 @@ static int get_fe_t2(struct cxd_state *state)
 		break;
 	case 5:
 		p->transmission_mode = TRANSMISSION_MODE_32K;
+		break;
+	case 6:
+		p->transmission_mode = TRANSMISSION_MODE_64K;
 		break;
 	}
 
