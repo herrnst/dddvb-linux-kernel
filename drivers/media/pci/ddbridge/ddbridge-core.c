@@ -127,6 +127,10 @@ static struct ddb_regmap octopus_map = {
 };
 
 /****************************************************************************/
+
+static struct ddb_info ddb_ct_8;
+
+/****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
 
@@ -3720,35 +3724,6 @@ static void gtl_irq_handler(unsigned long priv)
 	}
 }
 
-static struct ddb_regset octopus_maxct_gtl_i2c = {
-	.base = 0x80,
-	.num  = 0x04,
-	.size = 0x20,
-};
-
-static struct ddb_regset octopus_maxct_gtl_i2c_buf = {
-	.base = 0x1000,
-	.num  = 0x04,
-	.size = 0x200,
-};
-
-static struct ddb_regmap octopus_maxct_gtl_map = {
-	.i2c = &octopus_maxct_gtl_i2c,
-	.i2c_buf = &octopus_maxct_gtl_i2c_buf,
-};
-
-static struct ddb_info octopus_ct_gtl = {
-	.type     = DDB_OCTOPUS_MAX_CT,
-	.name     = "Digital Devices Octopus MAX CT GTL",
-	.regmap   = &octopus_maxct_gtl_map,
-	.port_num = 4,
-	.i2c_mask = 0x0f,
-	.board_control = 0xff,
-	.board_control_2 = 0xf00,
-	.ts_quirks = TS_QUIRK_SERIAL,
-};
-
-
 static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 {
 	struct ddb_link *link = &dev->link[l];
@@ -3782,7 +3757,7 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	id = ddbreadl(dev, DDB_LINK_TAG(l) | 8);
 	switch (id) {
 	case 0x0008dd01:
-		link->info = &octopus_ct_gtl;
+		link->info = &ddb_ct_8;
 		break;
 	default:
 		pr_info("DDBridge: Detected GT link but found invalid ID %08x. You might have to update (flash) the add-on card first.",

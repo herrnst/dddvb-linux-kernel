@@ -426,7 +426,7 @@ static const struct ddb_info ddb_dvbct = {
 
 /****************************************************************************/
 
-static const struct ddb_info ddb_ct_8 = {
+static struct ddb_info ddb_ct_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX CT8",
 	.regmap   = &octopus_map,
