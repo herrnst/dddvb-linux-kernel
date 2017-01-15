@@ -24,7 +24,7 @@ DEFINE_MUTEX(redirect_lock);
 
 static int ci_bitrate = 72000;
 module_param(ci_bitrate, int, 0444);
-MODULE_PARM_DESC(ci_bitrate, " Bitrate for output to CI.");
+MODULE_PARM_DESC(ci_bitrate, " Bitrate in KHz for output to CI.");
 
 static int ts_loop = -1;
 module_param(ts_loop, int, 0444);
@@ -385,13 +385,75 @@ static void ddb_buffers_free(struct ddb *dev)
 	}
 }
 
+static void calc_con(struct ddb_output *output, u32 *con, u32 *con2, u32 flags)
+{
+	struct ddb *dev = output->port->dev;
+	u32 bitrate = output->port->obr, max_bitrate = 72000;
+	u32 gap = 4, nco = 0;
+
+	*con = 0x1c;
+	if (output->port->gap != 0xffffffff) {
+		flags |= 1;
+		gap = output->port->gap;
+	}
+	if (dev->link[0].info->type == DDB_OCTOPUS_CI && output->port->nr > 1) {
+		*con = 0x10c;
+		if (dev->link[0].ids.regmapid >= 0x10003 && !(flags & 1)) {
+			if (!(flags & 2)) {
+				/* NCO */
+				max_bitrate = 0;
+				gap = 0;
+				if (bitrate != 72000) {
+					if (bitrate >= 96000)
+						*con |= 0x800;
+					else {
+						*con |= 0x1000;
+						nco = (bitrate * 8192 + 71999) / 72000;
+					}
+				}
+			} else {
+				/* Divider and gap */
+				*con |= 0x1810;
+				if (bitrate <= 64000) {
+					max_bitrate = 64000;
+					nco = 8;
+				} else if( bitrate <= 72000) {
+					max_bitrate = 72000;
+					nco = 7;
+				} else {
+					max_bitrate = 96000;
+					nco = 5;
+				}
+			}
+		} else {
+			if (bitrate > 72000) {
+				*con |= 0x810; /* 96 MBit/s and gap */
+				max_bitrate = 96000;
+			}
+		}
+	}
+	if (max_bitrate > 0) {
+		if (bitrate > max_bitrate)
+			bitrate = max_bitrate;
+		if (bitrate < 31000)
+			bitrate = 31000;
+		gap = ((max_bitrate - bitrate) * 94) / bitrate;
+		if (gap < 2)
+			*con &= ~0x10; /* Disable gap */
+		else
+			gap -= 2;
+		if (gap > 127)
+			gap = 127;
+	}
+
+	*con2 = (nco << 16) | gap;
+	return;
+}
+
 static void ddb_output_start(struct ddb_output *output)
 {
 	struct ddb *dev = output->port->dev;
-	u32 con2;
-
-	con2 = ((output->port->obr << 13) + 71999) / 72000;
-	con2 = (con2 << 16) | output->port->gap;
+	u32 con = 0x11c, con2 = 0;
 
 	if (output->dma) {
 		spin_lock_irq(&output->dma->lock);
@@ -401,10 +463,15 @@ static void ddb_output_start(struct ddb_output *output)
 		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma));
 	}
 
+	if (output->port->input[0]->port->class == DDB_PORT_LOOP)
+		con = (1UL << 13) | 0x14;
+	else
+		calc_con(output, &con, &con2, 0);
+
 	ddbwritel(dev, 0, TS_CONTROL(output));
 	ddbwritel(dev, 2, TS_CONTROL(output));
 	ddbwritel(dev, 0, TS_CONTROL(output));
-	ddbwritel(dev, 0x3c, TS_CONTROL(output));
+	ddbwritel(dev, con, TS_CONTROL(output));
 	ddbwritel(dev, con2, TS_CONTROL2(output));
 
 	if (output->dma) {
@@ -414,11 +481,9 @@ static void ddb_output_start(struct ddb_output *output)
 		ddbwritel(dev, 1, DMA_BASE_READ);
 		ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->dma));
 	}
-	if (output->port->input[0]->port->class == DDB_PORT_LOOP)
-		ddbwritel(dev, (1 << 13) | 0x15,
-			  TS_CONTROL(output));
-	else
-		ddbwritel(dev, 0x11d, TS_CONTROL(output));
+
+	ddbwritel(dev, con | 1, TS_CONTROL(output));
+
 	if (output->dma) {
 		output->dma->running = 1;
 		spin_unlock_irq(&output->dma->lock);
@@ -2516,7 +2581,7 @@ static void ddb_ports_init(struct ddb *dev)
 			port->nr = i;
 			port->lnr = l;
 			port->pnr = p;
-			port->gap = 4;
+			port->gap = 0xffffffff;
 			port->obr = ci_bitrate;
 			mutex_init(&port->i2c_gate_lock);
 
