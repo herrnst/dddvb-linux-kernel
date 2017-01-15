@@ -230,9 +230,9 @@ done:
 
 static int ddb_redirect(u32 i, u32 p)
 {
-	struct ddb *idev = ddbs[(i >> 4) & 0x1f];
+	struct ddb *idev = ddbs[(i >> 4) & 0x3f];
 	struct ddb_input *input, *input2;
-	struct ddb *pdev = ddbs[(p >> 4) & 0x1f];
+	struct ddb *pdev = ddbs[(p >> 4) & 0x3f];
 	struct ddb_port *port;
 
 	if (!idev->has_dma || !pdev->has_dma)
