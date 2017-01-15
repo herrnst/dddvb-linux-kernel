@@ -341,7 +341,7 @@ static int ddb_buffers_alloc(struct ddb *dev)
 	int i;
 	struct ddb_port *port;
 
-	for (i = 0; i < dev->link[0].info->port_num; i++) {
+	for (i = 0; i < dev->port_num; i++) {
 		port = &dev->port[i];
 		switch (port->class) {
 		case DDB_PORT_TUNER:
@@ -373,7 +373,7 @@ static void ddb_buffers_free(struct ddb *dev)
 	int i;
 	struct ddb_port *port;
 
-	for (i = 0; i < dev->link[0].info->port_num; i++) {
+	for (i = 0; i < dev->port_num; i++) {
 		port = &dev->port[i];
 
 		if (port->input[0] && port->input[0]->dma)
@@ -3260,7 +3260,7 @@ static ssize_t ports_show(struct device *device,
 {
 	struct ddb *dev = dev_get_drvdata(device);
 
-	return sprintf(buf, "%d\n", dev->link[0].info->port_num);
+	return sprintf(buf, "%d\n", dev->port_num);
 }
 
 static ssize_t ts_irq_show(struct device *device,
