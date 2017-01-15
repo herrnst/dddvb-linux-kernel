@@ -76,10 +76,10 @@
 #include "stv6111.h"
 #include "lnbh25.h"
 
-#define DDB_MAX_I2C    16
-#define DDB_MAX_PORT   16
-#define DDB_MAX_INPUT  44
-#define DDB_MAX_OUTPUT 10
+#define DDB_MAX_I2C    32
+#define DDB_MAX_PORT   32
+#define DDB_MAX_INPUT  64
+#define DDB_MAX_OUTPUT 32
 #define DDB_MAX_LINK    4
 #define DDB_LINK_SHIFT 28
 
