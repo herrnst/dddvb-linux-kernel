@@ -1056,6 +1056,23 @@ static int set_parameters(struct dvb_frontend *fe)
 	return stat;
 }
 
+static int get_frequency_offset(struct stv *state, s32 *off)
+{
+	u8 cfr0, cfr1, cfr2;
+	s32 derot;
+
+	read_reg(state, RSTV0910_P2_CFR2 + state->regoff, &cfr2);
+	read_reg(state, RSTV0910_P2_CFR1 + state->regoff, &cfr1);
+	read_reg(state, RSTV0910_P2_CFR0 + state->regoff, &cfr0);
+
+	derot = ((u32) cfr2 << 16) | ((u32)cfr1 << 8) | cfr0;
+	if (derot & (1<<23))
+		derot |= 0xFF000000;
+	*off = - (s32) (((s64) derot * (s64) state->base->mclk) >> 24);
+	pr_info("foff = %d\n", *off);
+	return 0;
+}
+
 static int read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct stv *state = fe->demodulator_priv;
@@ -1243,6 +1260,7 @@ static int get_frontend(struct dvb_frontend *fe,
 	enum fe_status status;
 	u16 snr = 0, strength = 0;
 	u32 ber = 0, bernom = 0, berdenom = 0;
+	s32 foff;
 	u8 tmp;
 
 	if (state->ReceiveMode == Mode_DVBS2) {
@@ -1313,6 +1331,8 @@ static int get_frontend(struct dvb_frontend *fe,
 		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		return 0;
 	}
+
+	get_frequency_offset(state, &foff);
 
 	if (read_snr(fe, &snr))
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
