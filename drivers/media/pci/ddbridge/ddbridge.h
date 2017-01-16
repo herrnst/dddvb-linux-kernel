@@ -1,4 +1,4 @@
-/*
+	/*
  * ddbridge.h: Digital Devices PCIe bridge driver
  *
  * Copyright (C) 2010-2015 Digital Devices GmbH
@@ -97,6 +97,7 @@ struct ddb_regmap {
 	u32 irq_base_idma;
 	u32 irq_base_odma;
 	u32 irq_base_gtl;
+	u32 irq_base_rate;
 
 	struct ddb_regset *i2c;
 	struct ddb_regset *i2c_buf;
@@ -125,12 +126,13 @@ struct ddb_ids {
 };
 
 struct ddb_info {
-	int   type;
+	u32   type;
 #define DDB_NONE         0
 #define DDB_OCTOPUS      1
 #define DDB_OCTOPUS_CI   2
 #define DDB_OCTOPUS_MAX  5
 #define DDB_OCTOPUS_MAX_CT  6
+	u32   version;
 	char *name;
 	u32   i2c_mask;
 	u8    port_num;
@@ -145,6 +147,7 @@ struct ddb_info {
 	u8    ts_quirks;
 #define TS_QUIRK_SERIAL   1
 #define TS_QUIRK_REVERSED 2
+#define TS_QUIRK_NO_OUTPUT 4
 #define TS_QUIRK_ALT_OSC  8
 	u32   tempmon_irq;
 	struct ddb_regmap *regmap;

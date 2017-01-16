@@ -62,6 +62,8 @@
 
 #define INTERRUPT_STATUS (INTERRUPT_BASE + 0x20)
 #define INTERRUPT_ACK    (INTERRUPT_BASE + 0x20)
+#define INTERRUPT_ACK1   (INTERRUPT_BASE + 0x24)
+#define INTERRUPT_ACK2   (INTERRUPT_BASE + 0x28)
 
 /* Temperature Monitor ( 2x LM75A @ 0x90,0x92 I2c ) */
 #define TEMPMON_BASE			(0x1c0)
