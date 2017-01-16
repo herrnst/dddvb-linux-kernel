@@ -136,6 +136,7 @@ static struct ddb_regmap octopus_map = {
 /****************************************************************************/
 
 static struct ddb_info ddb_c2t2_8;
+static struct ddb_info ddb_s2_48;
 
 /****************************************************************************/
 /****************************************************************************/
@@ -4170,32 +4171,6 @@ static void gtl_irq_handler(unsigned long priv)
 	}
 }
 
-static struct ddb_regset octopus_max_gtl_i2c = {
-	.base = 0x80,
-	.num  = 0x01,
-	.size = 0x20,
-};
-
-static struct ddb_regset octopus_max_gtl_i2c_buf = {
-	.base = 0x1000,
-	.num  = 0x01,
-	.size = 0x200,
-};
-
-static struct ddb_regmap octopus_max_gtl_map = {
-	.i2c = &octopus_max_gtl_i2c,
-	.i2c_buf = &octopus_max_gtl_i2c_buf,
-};
-
-static struct ddb_info octopus_max_gtl = {
-	.type     = DDB_OCTOPUS_MAX,
-	.name     = "Digital Devices Octopus MAX GTL",
-	.regmap   = &octopus_max_gtl_map,
-	.port_num = 4,
-	.i2c_mask = 0x01,
-	.board_control = 1,
-};
-
 static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 {
 	struct ddb_link *link = &dev->link[l];
@@ -4234,7 +4209,7 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 
 	switch (id) {
 	case 0x0007dd01:
-		link->info = &octopus_max_gtl;
+		link->info = &ddb_s2_48;
 		break;
 	case 0x0008dd01:
 		link->info = &ddb_c2t2_8;
