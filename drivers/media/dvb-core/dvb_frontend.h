@@ -618,6 +618,7 @@ struct dtv_frontend_properties {
 	u8			atscmh_sccc_code_mode_d;
 
 	u32			lna;
+	u32			pls;
 
 	/* statistics data */
 	struct dtv_fe_stats	strength;
