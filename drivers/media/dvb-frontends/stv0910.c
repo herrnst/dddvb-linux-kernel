@@ -133,9 +133,7 @@ struct stv {
 	int   isVCM;
 
 	u32   CurScramblingCode;
-	u32   ForceScramblingCode;
 	u32   ScramblingCode;
-	u32   DefaultInputStreamID;
 
 	u32   LastBERNumerator;
 	u32   LastBERDenominator;
@@ -964,6 +962,7 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 	s32 Freq;
 	u8  regDMDCFGMD;
 	u16 symb;
+	u32 ScramblingCode = 1;
 
 	if (p->symbol_rate < 100000 || p->symbol_rate > 70000000)
 		return -EINVAL;
@@ -976,6 +975,30 @@ static int Start(struct stv *state, struct dtv_frontend_properties *p)
 		write_reg(state, RSTV0910_P2_DMDISTATE + state->regoff, 0x5C);
 
 	init_search_param(state);
+
+	if (p->stream_id != NO_STREAM_ID_FILTER) {
+		/* Backwards compatibility to "crazy" API.
+		   PRBS X root cannot be 0, so this should always work.
+		*/
+		if (p->stream_id & 0xffffff00)
+			ScramblingCode = p->stream_id >> 8;
+		write_reg(state, RSTV0910_P2_ISIENTRY + state->regoff, p->stream_id & 0xff);
+		write_reg(state, RSTV0910_P2_ISIBITENA + state->regoff, 0xff);
+	}
+
+	/* p->pls is always gold code! */
+	if (p->pls != NO_SCRAMBLING_CODE)
+		ScramblingCode = p->pls | 0x40000;
+
+	if (ScramblingCode != state->CurScramblingCode) {
+		write_reg(state, RSTV0910_P2_PLROOT0 + state->regoff,
+			  ScramblingCode & 0xff);
+		write_reg(state, RSTV0910_P2_PLROOT1 + state->regoff,
+			  (ScramblingCode >> 8) & 0xff);
+		write_reg(state, RSTV0910_P2_PLROOT2 + state->regoff,
+			  (ScramblingCode >> 16) & 0x07);
+		state->CurScramblingCode = ScramblingCode;
+	}
 
 	if (p->symbol_rate <= 1000000) {  /*SR <=1Msps*/
 		state->DemodTimeout = 3000;
@@ -1678,9 +1701,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->SearchRange = 16000000;
 	state->DEMOD = 0x10;     /* Inversion : Auto with reset to 0 */
 	state->ReceiveMode   = Mode_None;
-	state->CurScramblingCode = (u32) -1;
-	state->ForceScramblingCode = (u32) -1;
-	state->DefaultInputStreamID = (u32) -1;
+	state->CurScramblingCode = NO_SCRAMBLING_CODE;
 	state->single = cfg->single ? 1 : 0;
 
 	base = match_base(i2c, cfg->adr);
