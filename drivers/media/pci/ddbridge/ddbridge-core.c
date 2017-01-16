@@ -2919,6 +2919,20 @@ static int ddb_port_match_i2c(struct ddb_port *port)
 	return 0;
 }
 
+static int ddb_port_match_link_i2c(struct ddb_port *port)
+{
+	struct ddb *dev = port->dev;
+	u32 i;
+
+	for (i = 0; i < dev->i2c_num; i++) {
+		if (dev->i2c[i].link == port->lnr) {
+			port->i2c = &dev->i2c[i];
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void ddb_ports_init(struct ddb *dev)
 {
 	u32 i, l, p;
@@ -2944,10 +2958,9 @@ static void ddb_ports_init(struct ddb *dev)
 			port->obr = ci_bitrate;
 			mutex_init(&port->i2c_gate_lock);
 
-			portmatch = ddb_port_match_i2c(port);
-			if (!portmatch) {
+			if (!ddb_port_match_i2c(port)) {
 				if (info->type == DDB_OCTOPUS_MAX)
-					port->i2c = &dev->i2c[li2c];
+					portmatch = ddb_port_match_link_i2c(port);
 			}
 
 			ddb_port_probe(port);
