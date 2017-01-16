@@ -178,13 +178,13 @@ static int read_register_unlocked(struct mxl *state, u32 reg, u32 *val)
 	if (stat)
 		pr_err("i2c read error 1\n");
 	if (!stat)
-		stat = i2cread(state, (u8 *) val, MXL_HYDRA_REG_SIZE_IN_BYTES);
+		stat = i2cread(state, (u8 *) val,
+			       MXL_HYDRA_REG_SIZE_IN_BYTES);
 	le32_to_cpus(val);
 	if (stat)
 		pr_err("i2c read error 2\n");
 	return stat;
 }
-
 
 #define DMA_I2C_INTERRUPT_ADDR 0x8000011C
 #define DMA_INTR_PROT_WR_CMP 0x08
@@ -203,7 +203,8 @@ static int send_command(struct mxl *state, u32 size, u8 *buf)
 			mutex_unlock(&state->base->i2c_lock);
 			usleep_range(1000, 2000);
 			mutex_lock(&state->base->i2c_lock);
-			read_register_unlocked(state, DMA_I2C_INTERRUPT_ADDR, &val);
+			read_register_unlocked(state, DMA_I2C_INTERRUPT_ADDR,
+					       &val);
 		}
 		if (!count) {
 			pr_info("send_command busy\n");
@@ -270,7 +271,8 @@ static int read_register(struct mxl *state, u32 reg, u32 *val)
 	if (stat)
 		pr_err("i2c read error 1\n");
 	if (!stat)
-		stat = i2cread(state, (u8 *) val, MXL_HYDRA_REG_SIZE_IN_BYTES);
+		stat = i2cread(state, (u8 *) val,
+			       MXL_HYDRA_REG_SIZE_IN_BYTES);
 	mutex_unlock(&state->base->i2c_lock);
 	le32_to_cpus(val);
 	if (stat)
@@ -378,8 +380,10 @@ static int CfgDemodAbortTune(struct mxl *state)
 	u8 cmdBuff[MXL_HYDRA_OEM_MAX_CMD_BUFF_LEN];
 
 	abortTuneCmd.demodId = state->demod;
-	BUILD_HYDRA_CMD(MXL_HYDRA_ABORT_TUNE_CMD, MXL_CMD_WRITE, cmdSize, &abortTuneCmd, cmdBuff);
-	return send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE, &cmdBuff[0]);
+	BUILD_HYDRA_CMD(MXL_HYDRA_ABORT_TUNE_CMD, MXL_CMD_WRITE,
+			cmdSize, &abortTuneCmd, cmdBuff);
+	return send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE,
+			    &cmdBuff[0]);
 }
 
 static int send_master_cmd(struct dvb_frontend *fe,
@@ -440,14 +444,16 @@ static int set_parameters(struct dvb_frontend *fe)
 	demodChanCfg.fecCodeRate = MXL_HYDRA_FEC_AUTO;
 
 	mutex_lock(&state->base->tune_lock);
-	if (time_after(jiffies + msecs_to_jiffies(200), state->base->next_tune))
+	if (time_after(jiffies + msecs_to_jiffies(200),
+		       state->base->next_tune))
 		while (time_before(jiffies, state->base->next_tune))
 			usleep_range(10000, 11000);
 	state->base->next_tune = jiffies + msecs_to_jiffies(100);
 	state->tuner_in_use = state->tuner;
 	BUILD_HYDRA_CMD(MXL_HYDRA_DEMOD_SET_PARAM_CMD, MXL_CMD_WRITE,
 			cmdSize, &demodChanCfg, cmdBuff);
-	stat = send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE, &cmdBuff[0]);
+	stat = send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE,
+			    &cmdBuff[0]);
 	mutex_unlock(&state->base->tune_lock);
 	return stat;
 }
@@ -696,7 +702,8 @@ static int get_frontend(struct dvb_frontend *fe,
 	case SYS_DSS:
 		break;
 	case SYS_DVBS2:
-		switch ((MXL_HYDRA_PILOTS_E) regData[DMD_DVBS2_PILOT_ON_OFF_ADDR]) {
+		switch ((MXL_HYDRA_PILOTS_E)
+			regData[DMD_DVBS2_PILOT_ON_OFF_ADDR]) {
 		case MXL_HYDRA_PILOTS_OFF:
 			p->pilot = PILOT_OFF;
 			break;
@@ -707,7 +714,8 @@ static int get_frontend(struct dvb_frontend *fe,
 			break;
 		}
 	case SYS_DVBS:
-		switch ((MXL_HYDRA_MODULATION_E) regData[DMD_MODULATION_SCHEME_ADDR]) {
+		switch ((MXL_HYDRA_MODULATION_E)
+			regData[DMD_MODULATION_SCHEME_ADDR]) {
 		case MXL_HYDRA_MOD_QPSK:
 			p->modulation = QPSK;
 			break;
@@ -717,7 +725,8 @@ static int get_frontend(struct dvb_frontend *fe,
 		default:
 			break;
 		}
-		switch ((MXL_HYDRA_ROLLOFF_E) regData[DMD_SPECTRUM_ROLL_OFF_ADDR]) {
+		switch ((MXL_HYDRA_ROLLOFF_E)
+			regData[DMD_SPECTRUM_ROLL_OFF_ADDR]) {
 		case MXL_HYDRA_ROLLOFF_0_20:
 			p->rolloff = ROLLOFF_20;
 			break;
@@ -855,7 +864,8 @@ static int write_fw_segment(struct mxl *state,
 	return status;
 }
 
-static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr, u32 mbinBufferSize)
+static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
+				u32 mbinBufferSize)
 
 {
 	int status;
@@ -881,26 +891,31 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr, u32 mbinBu
 			       __func__, segmentPtr->header.id);
 			return -EINVAL;
 		}
-		segLength  = get_big_endian(24, &(segmentPtr->header.len24[0]));
-		segAddress = get_big_endian(32, &(segmentPtr->header.address[0]));
+		segLength  = get_big_endian(24,
+					    &(segmentPtr->header.len24[0]));
+		segAddress = get_big_endian(32,
+					    &(segmentPtr->header.address[0]));
 
 		if (state->base->type == MXL_HYDRA_DEVICE_568) {
 			if ((((segAddress & 0x90760000) == 0x90760000) ||
 			     ((segAddress & 0x90740000) == 0x90740000)) &&
 			    (xcpuFwFlag == MXL_FALSE)) {
-				SET_REG_FIELD_DATA(PRCM_PRCM_CPU_SOFT_RST_N, 1);
+				SET_REG_FIELD_DATA(PRCM_PRCM_CPU_SOFT_RST_N,
+						   1);
 				msleep(200);
 				write_register(state, 0x90720000, 0);
 				usleep_range(10000, 11000);
 				xcpuFwFlag = MXL_TRUE;
 			}
 			status = write_fw_segment(state, segAddress,
-						  segLength, (u8 *) segmentPtr->data);
+						  segLength,
+						  (u8 *) segmentPtr->data);
 		} else {
 			if (((segAddress & 0x90760000) != 0x90760000) &&
 			    ((segAddress & 0x90740000) != 0x90740000))
 				status = write_fw_segment(state, segAddress,
-							  segLength, (u8 *) segmentPtr->data);
+							  segLength,
+							  (u8 *) segmentPtr->data);
 		}
 		if (status)
 			return status;
@@ -963,8 +978,10 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 	if (status)
 		return status;
 
-	/* Disable clock to Baseband, Wideband, SerDes, Alias ext & Transport modules */
-	status = write_register(state, HYDRA_MODULES_CLK_2_REG, HYDRA_DISABLE_CLK_2);
+	/* Disable clock to Baseband, Wideband, SerDes,
+	   Alias ext & Transport modules */
+	status = write_register(state, HYDRA_MODULES_CLK_2_REG,
+				HYDRA_DISABLE_CLK_2);
 	if (status)
 		return status;
 	/* Clear Software & Host interrupt status - (Clear on read) */
@@ -1007,13 +1024,15 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 
 	pr_info("Hydra FW alive. Hail!\n");
 
-	/* sometimes register values are wrong shortly after first heart beats */
+	/* sometimes register values are wrong shortly
+	   after first heart beats */
 	msleep(50);
 
 	devSkuCfg.skuType = state->base->sku_type;
 	BUILD_HYDRA_CMD(MXL_HYDRA_DEV_CFG_SKU_CMD, MXL_CMD_WRITE,
 			cmdSize, &devSkuCfg, cmdBuff);
-	status = send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE, &cmdBuff[0]);
+	status = send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE,
+			      &cmdBuff[0]);
 
 	return status;
 }
@@ -1043,19 +1062,32 @@ static int cfg_ts_pad_mux(struct mxl *state, MXL_BOOL_E enableSerialTS)
 	case MXL_HYDRA_DEVICE_541S:
 	case MXL_HYDRA_DEVICE_561S:
 	case MXL_HYDRA_DEVICE_581S:
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_15_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_20_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_21_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_22_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_23_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_24_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_25_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_26_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_15_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_20_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_21_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_22_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_23_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_24_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_25_PINMUX_SEL,
+					     padMuxValue);
+		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_26_PINMUX_SEL,
+					     padMuxValue);
 		break;
 
 	case MXL_HYDRA_DEVICE_544:
@@ -1272,8 +1304,10 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 		{XPT_TS_CLK_PHASE4}, {XPT_TS_CLK_PHASE5},
 		{XPT_TS_CLK_PHASE6}, {XPT_TS_CLK_PHASE7} };
 	MXL_REG_FIELD_T xpt_lsb_first[MXL_HYDRA_DEMOD_MAX] = {
-		{XPT_LSB_FIRST0}, {XPT_LSB_FIRST1}, {XPT_LSB_FIRST2}, {XPT_LSB_FIRST3},
-		{XPT_LSB_FIRST4}, {XPT_LSB_FIRST5}, {XPT_LSB_FIRST6}, {XPT_LSB_FIRST7} };
+		{XPT_LSB_FIRST0}, {XPT_LSB_FIRST1},
+		{XPT_LSB_FIRST2}, {XPT_LSB_FIRST3},
+		{XPT_LSB_FIRST4}, {XPT_LSB_FIRST5},
+		{XPT_LSB_FIRST6}, {XPT_LSB_FIRST7} };
 	MXL_REG_FIELD_T xpt_sync_byte[MXL_HYDRA_DEMOD_MAX] = {
 		{XPT_SYNC_FULL_BYTE0}, {XPT_SYNC_FULL_BYTE1},
 		{XPT_SYNC_FULL_BYTE2}, {XPT_SYNC_FULL_BYTE3},
@@ -1308,7 +1342,8 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 	demodId = state->base->ts_map[demodId];
 
 	if (mpegOutParamPtr->enable == MXL_ENABLE) {
-		if (mpegOutParamPtr->mpegMode == MXL_HYDRA_MPEG_MODE_PARALLEL)	{
+		if (mpegOutParamPtr->mpegMode ==
+		    MXL_HYDRA_MPEG_MODE_PARALLEL) {
 		} else {
 			cfg_ts_pad_mux(state, MXL_TRUE);
 			SET_REG_FIELD_DATA(XPT_ENABLE_PARALLEL_OUTPUT, MXL_FALSE);
@@ -1330,11 +1365,12 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 		clkType = 1;
 
 	if (mpegOutParamPtr->mpegMode < MXL_HYDRA_MPEG_MODE_PARALLEL) {
-		status  |= update_by_mnemonic(state,
-					      xpt_continuous_clock[demodId].regAddr,
-					      xpt_continuous_clock[demodId].lsbPos,
-					      xpt_continuous_clock[demodId].numOfBits,
-					      clkType);
+		status |=
+			update_by_mnemonic(state,
+					   xpt_continuous_clock[demodId].regAddr,
+					   xpt_continuous_clock[demodId].lsbPos,
+					   xpt_continuous_clock[demodId].numOfBits,
+					   clkType);
 	} else
 		SET_REG_FIELD_DATA(XPT_TS_CLK_OUT_EN_PARALLEL, clkType);
 
