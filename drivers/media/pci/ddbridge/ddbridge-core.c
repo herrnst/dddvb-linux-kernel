@@ -3644,7 +3644,7 @@ static void ddb_device_attrs_del(struct ddb *dev)
 		device_remove_file(dev->ddb_dev, &ddb_attrs_snr[i]);
 		device_remove_file(dev->ddb_dev, &ddb_attrs_ctemp[i]);
 	}
-	for (i = 0; ddb_attrs[i].attr.name; i++)
+	for (i = 0; ddb_attrs[i].attr.name != NULL; i++)
 		device_remove_file(dev->ddb_dev, &ddb_attrs[i]);
 }
 
@@ -3652,7 +3652,7 @@ static int ddb_device_attrs_add(struct ddb *dev)
 {
 	int i;
 
-	for (i = 0; ddb_attrs[i].attr.name; i++)
+	for (i = 0; ddb_attrs[i].attr.name != NULL; i++)
 		if (device_create_file(dev->ddb_dev, &ddb_attrs[i]))
 			goto fail;
 	for (i = 0; i < dev->link[0].info->temp_num; i++)
@@ -3661,7 +3661,7 @@ static int ddb_device_attrs_add(struct ddb *dev)
 	for (i = 0; i < dev->link[0].info->fan_num; i++)
 		if (device_create_file(dev->ddb_dev, &ddb_attrs_fan[i]))
 			goto fail;
-	for (i = 0; i < dev->i2c_num && i < 4; i++) {
+	for (i = 0; (i < dev->i2c_num) && (i < 4); i++) {
 		if (device_create_file(dev->ddb_dev, &ddb_attrs_snr[i]))
 			goto fail;
 		if (device_create_file(dev->ddb_dev, &ddb_attrs_ctemp[i]))
