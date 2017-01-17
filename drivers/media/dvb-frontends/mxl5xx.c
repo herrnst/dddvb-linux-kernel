@@ -1505,7 +1505,7 @@ static int load_fw(struct mxl *state, struct mxl5xx_cfg *cfg)
 
 static int validate_sku(struct mxl *state)
 {
-	u32 padMuxBond, prcmChipId, prcmSoCId;
+	u32 padMuxBond = 0, prcmChipId = 0, prcmSoCId = 0;
 	int status;
 	u32 type = state->base->type;
 
