@@ -128,7 +128,7 @@ static struct ddb_regmap octopus_map = {
 
 /****************************************************************************/
 
-static struct ddb_info ddb_ct_8;
+static struct ddb_info ddb_c2t2_8;
 
 /****************************************************************************/
 /****************************************************************************/
@@ -3899,7 +3899,7 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	id = ddbreadl(dev, DDB_LINK_TAG(l) | 8);
 	switch (id) {
 	case 0x0008dd01:
-		link->info = &ddb_ct_8;
+		link->info = &ddb_c2t2_8;
 		break;
 	default:
 		pr_info("DDBridge: Detected GT link but found invalid ID %08x. You might have to update (flash) the add-on card first.",
