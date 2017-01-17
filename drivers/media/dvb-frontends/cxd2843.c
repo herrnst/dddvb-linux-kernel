@@ -1521,9 +1521,9 @@ static int get_ber_t2(struct cxd_state *state, u32 *n, u32 *d)
 	*n = 0;
 	*d = 1;
 	freeze_regst(state);
-	readregst(state, 0x24, 0x40, BERRegs, 4);
-	readregst(state, 0x22, 0x5e, &FECType, 1);
-	readregst(state, 0x22, 0x5b, &CodeRate, 1);
+	readregst_unlocked(state, 0x24, 0x40, BERRegs, 4);
+	readregst_unlocked(state, 0x22, 0x5e, &FECType, 1);
+	readregst_unlocked(state, 0x22, 0x5b, &CodeRate, 1);
 
 	FECType &= 0x03;
 	CodeRate &= 0x07;
