@@ -1859,6 +1859,11 @@ static void ddb_port_probe(struct ddb_port *port)
 			port->type = DDB_TUNER_ISDBT_SONY_P;
 			port->type_name = "ISDBT_SONY";
 			break;
+		case 0xc1:
+			port->name = "DUAL DVB-C2T2 ISDB-T CXD2854";
+			port->type = DDB_TUNER_DVBC2T2_SONY_P;
+			port->type_name = "DVBC2T2_ISDBT_SONY";
+			break;
 		default:
 			return;
 		}
