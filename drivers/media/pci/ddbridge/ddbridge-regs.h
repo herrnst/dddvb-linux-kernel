@@ -118,6 +118,20 @@
 #define INTERRUPT_V2_STATUS_6 (INTERRUPT_BASE + 0x38)
 #define INTERRUPT_V2_STATUS_7 (INTERRUPT_BASE + 0x3c)
 
+/* Temperature Monitor ( 2x LM75A @ 0x90,0x92 I2c ) */
+#define TEMPMON_BASE			(0x1c0)
+#define TEMPMON_CONTROL			(TEMPMON_BASE + 0x00)
+
+#define TEMPMON_CONTROL_AUTOSCAN	(0x00000002)
+#define TEMPMON_CONTROL_INTENABLE	(0x00000004)
+#define TEMPMON_CONTROL_OVERTEMP	(0x00008000)
+
+/* SHORT Temperature in °C x 256 */
+#define TEMPMON_SENSOR0			(TEMPMON_BASE + 0x04)
+#define TEMPMON_SENSOR1			(TEMPMON_BASE + 0x08)
+
+#define TEMPMON_FANCONTROL		(TEMPMON_BASE + 0x10)
+
 /* ------------------------------------------------------------------------- */
 /* I2C Master Controller */
 

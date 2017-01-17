@@ -3375,6 +3375,18 @@ static ssize_t fan_store(struct device *device, struct device_attribute *d,
 	return count;
 }
 
+static ssize_t fanspeed_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[8] - 0x30;
+	struct ddb_link *link = &dev->link[num];
+	u32 spd;
+
+	spd = ddblreadl(link, TEMPMON_FANCONTROL) & 0xff;
+	return sprintf(buf, "%u\n", spd * 100);
+}
+
 static ssize_t temp_show(struct device *device,
 			 struct device_attribute *attr, char *buf)
 {
@@ -3681,6 +3693,13 @@ static struct device_attribute ddb_attrs_led[] = {
 	__ATTR(led3, 0664, led_show, led_store),
 };
 
+static struct device_attribute ddb_attrs_fanspeed[] = {
+	__ATTR_MRO(fanspeed0, fanspeed_show),
+	__ATTR_MRO(fanspeed1, fanspeed_show),
+	__ATTR_MRO(fanspeed2, fanspeed_show),
+	__ATTR_MRO(fanspeed3, fanspeed_show),
+};
+
 static struct class ddb_class = {
 	.name		= "ddbridge",
 	.owner          = THIS_MODULE,
@@ -3707,6 +3726,9 @@ static void ddb_device_attrs_del(struct ddb *dev)
 {
 	int i;
 
+	for (i = 0; i < 4; i++)
+		if (dev->link[i].info && dev->link[i].info->tempmon_irq)
+			device_remove_file(dev->ddb_dev, &ddb_attrs_fanspeed[i]);
 	for (i = 0; i < dev->link[0].info->temp_num; i++)
 		device_remove_file(dev->ddb_dev, &ddb_attrs_temp[i]);
 	for (i = 0; i < dev->link[0].info->fan_num; i++)
@@ -3744,6 +3766,11 @@ static int ddb_device_attrs_add(struct ddb *dev)
 					       &ddb_attrs_led[i]))
 				goto fail;
 	}
+	for (i = 0; i < 4; i++)
+		if (dev->link[i].info && dev->link[i].info->tempmon_irq)
+			if (device_create_file(dev->ddb_dev,
+					       &ddb_attrs_fanspeed[i]))
+				goto fail;
 	return 0;
 fail:
 	return -1;
@@ -3819,6 +3846,7 @@ static void link_tasklet(unsigned long data)
 	LINK_IRQ_HANDLE(l, 1);
 	LINK_IRQ_HANDLE(l, 2);
 	LINK_IRQ_HANDLE(l, 3);
+	LINK_IRQ_HANDLE(l, 24);
 }
 
 static void gtl_irq_handler(unsigned long priv)
@@ -3833,6 +3861,7 @@ static void gtl_irq_handler(unsigned long priv)
 		LINK_IRQ_HANDLE(l, 1);
 		LINK_IRQ_HANDLE(l, 2);
 		LINK_IRQ_HANDLE(l, 3);
+		LINK_IRQ_HANDLE(l, 24);
 	}
 }
 
@@ -3884,16 +3913,21 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	dev->handler_data[0][base + l] = (unsigned long) link;
 	dev->handler[0][base + l] = gtl_irq_handler;
 
+	dev->link[l].ids.hwid = ddbreadl(dev, DDB_LINK_TAG(l) | 0);
+	dev->link[l].ids.regmapid = ddbreadl(dev, DDB_LINK_TAG(l) | 4);
+	dev->link[l].ids.vendor = id >> 16;;
+	dev->link[l].ids.device = id & 0xffff;;
+
 	pr_info("GTL %s\n", dev->link[l].info->name);
 	pr_info("GTL HW %08x REGMAP %08x\n",
-		ddbreadl(dev, DDB_LINK_TAG(l) | 0),
-		ddbreadl(dev, DDB_LINK_TAG(l) | 4));
+		dev->link[l].ids.hwid,
+		dev->link[l].ids.regmapid);
 	pr_info("GTL ID %08x\n",
 		ddbreadl(dev, DDB_LINK_TAG(l) | 8));
 
 	tasklet_init(&link->tasklet, link_tasklet, (unsigned long) link);
 	ddbwritel(dev, 0xffffffff, DDB_LINK_TAG(l) | INTERRUPT_ACK);
-	ddbwritel(dev, 0xf, DDB_LINK_TAG(l) | INTERRUPT_ENABLE);
+	ddbwritel(dev, 0x0100000f, DDB_LINK_TAG(l) | INTERRUPT_ENABLE);
 
 	return 0;
 }
@@ -3910,13 +3944,109 @@ static int ddb_gtl_init(struct ddb *dev)
 	return 0;
 }
 
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
+static void tempmon_setfan(struct ddb_link *link)
+{
+	u32 temp, temp2, pwm;
+
+	if ((ddblreadl(link, TEMPMON_CONTROL) & TEMPMON_CONTROL_OVERTEMP ) != 0) {
+		pr_info("Over temperature condition\n");
+		link->OverTemperatureError = 1;
+	}
+	temp  = (ddblreadl(link, TEMPMON_SENSOR0) >> 8) & 0xFF;
+	if (temp & 0x80)
+		temp = 0;
+	temp2  = (ddblreadl(link, TEMPMON_SENSOR1) >> 8) & 0xFF;
+	if (temp2 & 0x80)
+		temp2 = 0;
+	if (temp2 > temp)
+		temp = temp2;
+
+	pwm = (ddblreadl(link, TEMPMON_FANCONTROL) >> 8) & 0x0F;
+	if (pwm > 10)
+		pwm = 10;
+
+	if (temp >= link->temp_tab[pwm]) {
+		while( pwm < 10 && temp >= link->temp_tab[pwm + 1])
+			pwm += 1;
+	} else {
+		while( pwm > 1 && temp < link->temp_tab[pwm - 2])
+			pwm -= 1;
+	}
+	ddblwritel(link, (pwm << 8), TEMPMON_FANCONTROL);
+}
+
+
+static void temp_handler(unsigned long data)
+{
+	struct ddb_link *link = (struct ddb_link *) data;
+
+	spin_lock(&link->temp_lock);
+	tempmon_setfan(link);
+	spin_unlock(&link->temp_lock);
+}
+
+static int tempmon_init(struct ddb_link *link, int FirstTime)
+{
+	struct ddb *dev = link->dev;
+	int status = 0;
+	u32 l = link->nr;
+
+	spin_lock_irq(&link->temp_lock);
+	if (FirstTime) {
+		static u8 TemperatureTable[11] = {30,35,40,45,50,55,60,65,70,75,80};
+
+		memcpy(link->temp_tab, TemperatureTable, sizeof(TemperatureTable));
+	}
+	dev->handler[l][link->info->tempmon_irq] = temp_handler;
+	dev->handler_data[l][link->info->tempmon_irq] = (unsigned long) link;
+	ddblwritel(link, (TEMPMON_CONTROL_OVERTEMP | TEMPMON_CONTROL_AUTOSCAN |
+			  TEMPMON_CONTROL_INTENABLE),
+		   TEMPMON_CONTROL);
+	ddblwritel(link, (3 << 8), TEMPMON_FANCONTROL);
+
+	link->OverTemperatureError =
+		((ddblreadl(link, TEMPMON_CONTROL) & TEMPMON_CONTROL_OVERTEMP ) != 0);
+	if (link->OverTemperatureError)	{
+		pr_info("Over temperature condition\n");
+		status = -1;
+	}
+	tempmon_setfan(link);
+	spin_unlock_irq(&link->temp_lock);
+	return status;
+}
+
+static void ddb_init_tempmon(struct ddb_link *link)
+{
+	struct ddb_info *info = link->info;
+
+	if (!info->tempmon_irq)
+		return;
+	if (info->type == DDB_OCTOPUS_MAX_CT)
+		if (link->ids.regmapid < 0x00010002)
+			return;
+	spin_lock_init(&link->temp_lock);
+	printk("init_tempmon\n");
+	tempmon_init(link, 1);
+}
+
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
 static int ddb_init_boards(struct ddb *dev)
 {
 	struct ddb_info *info;
+	struct ddb_link *link;
 	u32 l;
 
 	for (l = 0; l < DDB_MAX_LINK; l++) {
-		info = dev->link[l].info;
+		link = &dev->link[l];
+		info = link->info;
+
 		if (!info)
 			continue;
 		if (info->board_control) {
@@ -3930,6 +4060,7 @@ static int ddb_init_boards(struct ddb *dev)
 				DDB_LINK_TAG(l) | BOARD_CONTROL);
 			usleep_range(2000, 3000);
 		}
+		ddb_init_tempmon(link);
 	}
 	return 0;
 }

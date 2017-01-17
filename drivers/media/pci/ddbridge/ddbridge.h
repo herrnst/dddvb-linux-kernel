@@ -144,6 +144,7 @@ struct ddb_info {
 	u8    ts_quirks;
 #define TS_QUIRK_SERIAL   1
 #define TS_QUIRK_REVERSED 2
+	u32   tempmon_irq;
 	struct ddb_regmap *regmap;
 };
 
@@ -319,6 +320,10 @@ struct ddb_link {
 	struct mutex           flash_mutex;
 	struct tasklet_struct  tasklet;
 	struct ddb_ids         ids;
+
+	spinlock_t             temp_lock;
+	int                    OverTemperatureError;
+	u8                     temp_tab[11];
 };
 
 struct ddb {
@@ -384,6 +389,40 @@ static inline void gtlw(struct ddb_link *link)
 {
 	while (1 & ddbreadl0(link, link->regs + 0x10))
 		;
+}
+
+static u32 ddblreadl(struct ddb_link *link, u32 adr)
+{
+	if (unlikely(link->nr)) {
+		unsigned long flags;
+		u32 val;
+
+		spin_lock_irqsave(&link->lock, flags);
+		gtlw(link);
+		ddbwritel0(link, adr & 0xfffc, link->regs + 0x14);
+		ddbwritel0(link, 3, link->regs + 0x10);
+		gtlw(link);
+		val = ddbreadl0(link, link->regs + 0x1c);
+		spin_unlock_irqrestore(&link->lock, flags);
+		return val;
+	}
+	return readl((char *) (link->dev->regs + (adr)));
+}
+
+static void ddblwritel(struct ddb_link *link, u32 val, u32 adr)
+{
+	if (unlikely(link->nr)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&link->lock, flags);
+		gtlw(link);
+		ddbwritel0(link, 0xf0000 | (adr & 0xfffc), link->regs + 0x14);
+		ddbwritel0(link, val, link->regs + 0x18);
+		ddbwritel0(link, 1, link->regs + 0x10);
+		spin_unlock_irqrestore(&link->lock, flags);
+		return;
+	}
+	writel(val, (char *) (link->dev->regs + (adr)));
 }
 
 static u32 ddbreadl(struct ddb *dev, u32 adr)
