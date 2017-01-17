@@ -1328,6 +1328,8 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	enum ReceiveMode CurReceiveMode = Mode_None;
 	u32 FECLock = 0;
 
+	*status = 0;
+
 	read_reg(state, RSTV0910_P2_DMDSTATE + state->regoff, &DmdState);
 
 	if (DmdState & 0x40) {
@@ -1338,7 +1340,6 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 	if (CurReceiveMode == Mode_None) {
 		set_vth(state);
-		*status = 0;
 		return 0;
 	}
 
