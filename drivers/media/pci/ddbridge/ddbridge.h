@@ -554,6 +554,6 @@ static void ddbcpyfrom(struct ddb *dev, void *dst, u32 adr, long count)
 
 int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 
-#define DDBRIDGE_VERSION "0.9.25"
+#define DDBRIDGE_VERSION "0.9.26"
 
 #endif
