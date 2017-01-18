@@ -903,42 +903,21 @@ static int demod_attach_drxk(struct ddb_input *input)
 	return 0;
 }
 
-struct cxd2843_cfg cxd2843_0 = {
-	.adr = 0x6c,
-	.ts_clock = 1,
-};
-
-struct cxd2843_cfg cxd2843_1 = {
-	.adr = 0x6d,
-	.ts_clock = 1,
-};
-
-struct cxd2843_cfg cxd2843p_0 = {
-	.adr = 0x6c,
-	.parallel = 1,
-};
-
-struct cxd2843_cfg cxd2843p_1 = {
-	.adr = 0x6d,
-	.parallel = 1,
-};
-
-static int demod_attach_cxd2843(struct ddb_input *input, int par)
+static int demod_attach_cxd2843(struct ddb_input *input, int par, int osc24)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
+	struct cxd2843_cfg cfg;
 
-	if (par)
-		fe = dvb->fe = dvb_attach(cxd2843_attach, i2c,
-					  (input->nr & 1) ?
-					  &cxd2843p_1 : &cxd2843p_0);
-	else
-		fe = dvb->fe = dvb_attach(cxd2843_attach, i2c,
-					  (input->nr & 1) ?
-					  &cxd2843_1 : &cxd2843_0);
+	cfg.adr = (input->nr & 1) ? 0x6d : 0x6c;
+	cfg.ts_clock = par ? 0 : 1;
+	cfg.parallel = par ? 1 : 0;
+	cfg.osc = osc24 ? 24000000 : 20500000;
+	fe = dvb->fe = dvb_attach(cxd2843_attach, i2c, &cfg);
+
 	if (!dvb->fe) {
-		pr_err("No cxd2837/38/43 found!\n");
+		pr_err("No cxd2837/38/43/54 found!\n");
 		return -ENODEV;
 	}
 	fe->sec_priv = input;
@@ -1530,7 +1509,19 @@ static int dvb_input_attach(struct ddb_input *input)
 	case DDB_TUNER_DVBCT2_SONY:
 	case DDB_TUNER_DVBC2T2_SONY:
 	case DDB_TUNER_ISDBT_SONY:
-		if (demod_attach_cxd2843(input, par) < 0)
+		if (demod_attach_cxd2843(input, par, 0) < 0)
+			return -ENODEV;
+		if (tuner_attach_tda18212(input) < 0)
+		{
+			if(dvb->fe2)
+				dvb_frontend_detach(dvb->fe2);
+			if(dvb->fe)
+				dvb_frontend_detach(dvb->fe);
+			return -ENODEV;
+		}
+		break;
+	case DDB_TUNER_DVBC2T2I_SONY:
+		if (demod_attach_cxd2843(input, par, 1) < 0)
 			return -ENODEV;
 		if (tuner_attach_tda18212(input) < 0)
 		{
@@ -1760,14 +1751,14 @@ static int port_has_cxd28xx(struct ddb_port *port, u8 *id)
 static char *xo2names[] = {
 	"DUAL DVB-S2", "DUAL DVB-C/T/T2",
 	"DUAL DVB-ISDBT", "DUAL DVB-C/C2/T/T2",
-	"DUAL ATSC", "DUAL DVB-C/C2/T/T2",
+	"DUAL ATSC", "DUAL DVB-C/C2/T/T2,ISDB-T",
 	"", ""
 };
 
 static char *xo2types[] = {
 	"DVBS_ST", "DVBCT2_SONY",
 	"ISDBT_SONY", "DVBC2T2_SONY",
-	"ATSC_ST", "DVBC2T2_ST"
+	"ATSC_ST", "DVBC2T2I_SONY"
 };
 
 static void ddb_port_probe(struct ddb_port *port)
@@ -3458,7 +3449,7 @@ static void ddb_set_led(struct ddb *dev, int num, int val)
 			i2c_write_reg16(&dev->i2c[num].adap,
 					0x1f, 0xf00f, val ? 1 : 0);
 			break;
-		case DDB_TUNER_XO2 ... DDB_TUNER_DVBC2T2_ST:
+		case DDB_TUNER_XO2 ... DDB_TUNER_DVBC2T2I_SONY:
 		{
 			u8 v;
 
