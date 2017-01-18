@@ -2496,6 +2496,8 @@ static void ddb_dma_init(struct ddb_io *io, int nr, int out)
 		dma->div = INPUT_DMA_IRQ_DIV;
 	}
 	ddbwritel(io->port->dev, 0, DMA_BUFFER_ACK(dma));
+	pr_debug("init link %u, io %u, dma %u, dmaregs %08x bufregs %08x\n",
+		io->port->lnr, io->nr, nr, dma->regs, dma->bufregs);
 }
 
 static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int anr)
@@ -2510,6 +2512,7 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int anr)
 	rm = io_regmap(input, 1);
 	input->regs = DDB_LINK_TAG(port->lnr) |
 		(rm->input->base + rm->input->size * nr);
+	pr_debug("init link %u, input %u, regs %08x\n", port->lnr, nr, input->regs);
 
 	if (dev->has_dma) {
 		struct ddb_regmap *rm0 = io_regmap(input, 0);
@@ -2518,6 +2521,9 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int anr)
 
 		if (port->lnr)
 			dma_nr += 32 + (port->lnr - 1) * 8;
+
+		pr_debug("init link %u, input %u, handler %u\n",
+			 port->lnr, nr, dma_nr + base);
 
 		dev->handler[0][dma_nr + base] = input_handler;
 		dev->handler_data[0][dma_nr + base] = (unsigned long) input;
@@ -2537,6 +2543,9 @@ static void ddb_output_init(struct ddb_port *port, int nr)
 	rm = io_regmap(output, 1);
 	output->regs = DDB_LINK_TAG(port->lnr) |
 		(rm->output->base + rm->output->size * nr);
+
+	pr_debug("init link %u, output %u, regs %08x\n",
+		 port->lnr, nr, output->regs);
 
 	if (dev->has_dma) {
 		struct ddb_regmap *rm0 = io_regmap(output, 0);
@@ -3902,7 +3911,7 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 		link->info = &ddb_c2t2_8;
 		break;
 	default:
-		pr_info("DDBridge: Detected GT link but found invalid ID %08x. You might have to update (flash) the add-on card first.",
+		pr_info("Detected GT link but found invalid ID %08x. You might have to update (flash) the add-on card first.",
 			id);
 		return -1;
 	}
@@ -4085,7 +4094,7 @@ static int ddb_init(struct ddb *dev)
 		goto fail;
 	ddb_ports_init(dev);
 	if (ddb_buffers_alloc(dev) < 0) {
-		pr_info(": Could not allocate buffer memory\n");
+		pr_info("Could not allocate buffer memory\n");
 		goto fail2;
 	}
 	ddb_ports_attach(dev);

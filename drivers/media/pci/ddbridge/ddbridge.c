@@ -24,6 +24,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DDB_USE_WORK
 /*#define DDB_TEST_THREADED*/
 
@@ -113,10 +116,10 @@ static int ddb_irq_msi(struct ddb *dev, int nr)
 		stat = pci_enable_msi_range(dev->pdev, 1, nr);
 		if (stat >= 1) {
 			dev->msi = stat;
-			pr_info("DDBridge: using %d MSI interrupt(s)\n",
+			pr_info("using %d MSI interrupt(s)\n",
 				dev->msi);
 		} else
-			pr_info("DDBridge: MSI not available.\n");
+			pr_info("MSI not available.\n");
 	}
 	return stat;
 }
@@ -246,19 +249,19 @@ static int ddb_probe(struct pci_dev *pdev,
 
 	dev->link[0].dev = dev;
 	dev->link[0].info = (struct ddb_info *) id->driver_data;
-	pr_info("DDBridge driver detected: %s\n", dev->link[0].info->name);
+	pr_info("detected %s\n", dev->link[0].info->name);
 
 	dev->regs_len = pci_resource_len(dev->pdev, 0);
 	dev->regs = ioremap(pci_resource_start(dev->pdev, 0),
 			    pci_resource_len(dev->pdev, 0));
 
 	if (!dev->regs) {
-		pr_err("DDBridge: not enough memory for register map\n");
+		pr_err("not enough memory for register map\n");
 		stat = -ENOMEM;
 		goto fail;
 	}
 	if (ddbreadl(dev, 0) == 0xffffffff) {
-		pr_err("DDBridge: cannot read registers\n");
+		pr_err("cannot read registers\n");
 		stat = -ENODEV;
 		goto fail;
 	}
@@ -266,7 +269,7 @@ static int ddb_probe(struct pci_dev *pdev,
 	dev->link[0].ids.hwid = ddbreadl(dev, 0);
 	dev->link[0].ids.regmapid = ddbreadl(dev, 4);
 
-	pr_info("DDBridge: HW %08x REGMAP %08x\n",
+	pr_info("HW %08x REGMAP %08x\n",
 		dev->link[0].ids.hwid, dev->link[0].ids.regmapid);
 
 	ddbwritel(dev, 0, DMA_BASE_READ);
@@ -552,7 +555,7 @@ static __init int module_init_ddbridge(void)
 
 	pr_info("Digital Devices PCIE bridge driver "
 		DDBRIDGE_VERSION
-		", Copyright (C) 2010-15 Digital Devices GmbH\n");
+		", Copyright (C) 2010-16 Digital Devices GmbH\n");
 	if (ddb_class_create() < 0)
 		return -1;
 	ddb_wq = create_workqueue("ddbridge");
