@@ -472,7 +472,7 @@ static struct ddb_info ddb_c2t2i_v0_8 = {
 	.i2c_mask = 0x0f,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
-	.ts_quirks = TS_QUIRK_SERIAL,
+	.ts_quirks = TS_QUIRK_SERIAL | TS_QUIRK_ALT_OSC,
 	.tempmon_irq = 24,
 };
 
