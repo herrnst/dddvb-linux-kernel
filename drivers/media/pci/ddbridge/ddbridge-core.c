@@ -3870,7 +3870,7 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	struct ddb_link *link = &dev->link[l];
 	u32 regs = dev->link[0].info->regmap->gtl->base +
 		(l - 1) * dev->link[0].info->regmap->gtl->size;
-	u32 id, base = dev->link[0].info->regmap->irq_base_gtl;
+	u32 id, subid, base = dev->link[0].info->regmap->irq_base_gtl;
 
 	pr_info("Checking GT link %u: regs = %08x\n", l, regs);
 
@@ -3897,6 +3897,8 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 	}
 
 	id = ddbreadl(dev, DDB_LINK_TAG(l) | 8);
+	subid = ddbreadl(dev, DDB_LINK_TAG(l) | 12);
+
 	switch (id) {
 	case 0x0008dd01:
 		link->info = &ddb_c2t2_8;
@@ -3915,8 +3917,11 @@ static int ddb_gtl_init_link(struct ddb *dev, u32 l)
 
 	dev->link[l].ids.hwid = ddbreadl(dev, DDB_LINK_TAG(l) | 0);
 	dev->link[l].ids.regmapid = ddbreadl(dev, DDB_LINK_TAG(l) | 4);
-	dev->link[l].ids.vendor = id >> 16;;
-	dev->link[l].ids.device = id & 0xffff;;
+	dev->link[l].ids.vendor = id & 0xffff;
+	dev->link[l].ids.device = id >> 16;
+	dev->link[l].ids.subvendor = subid & 0xffff;
+	dev->link[l].ids.subdevice = subid >> 16;
+
 
 	pr_info("GTL %s\n", dev->link[l].info->name);
 	pr_info("GTL HW %08x REGMAP %08x\n",
