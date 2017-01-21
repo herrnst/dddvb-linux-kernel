@@ -30,10 +30,6 @@ static int ts_loop = -1;
 module_param(ts_loop, int, 0444);
 MODULE_PARM_DESC(ts_loop, "TS in/out test loop on port ts_loop");
 
-static int tt;
-module_param(tt, int, 0444);
-MODULE_PARM_DESC(tt, "");
-
 static int xo2_speed = 2;
 module_param(xo2_speed, int, 0444);
 MODULE_PARM_DESC(xo2_speed, "default transfer speed for xo2 based duoflex, 0=55,1=75,2=90,3=104 MBit/s, default=2, use attribute to change for individual cards");
