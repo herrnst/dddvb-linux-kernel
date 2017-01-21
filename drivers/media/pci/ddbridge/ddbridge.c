@@ -28,7 +28,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DDB_USE_WORK
-/*#define DDB_TEST_THREADED*/
 
 #include "ddbridge.h"
 #include "ddbridge-regs.h"
@@ -63,19 +62,8 @@ static void ddb_unmap(struct ddb *dev)
 
 static void ddb_irq_disable(struct ddb *dev)
 {
-	if (dev->link[0].info->regmap->irq_version == 2) {
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_4);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_5);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_6);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_7);
-	} else {
-		ddbwritel(dev, 0, INTERRUPT_ENABLE);
-		ddbwritel(dev, 0, MSI1_ENABLE);
-	}
+	ddbwritel(dev, 0, INTERRUPT_ENABLE);
+	ddbwritel(dev, 0, MSI1_ENABLE);
 }
 
 static void ddb_irq_exit(struct ddb *dev)
@@ -107,13 +95,13 @@ static void ddb_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int ddb_irq_msi(struct ddb *dev, int nr)
+#ifdef CONFIG_PCI_MSI
+static void ddb_irq_msi(struct ddb *dev, int nr)
 {
 	int stat;
 
-#ifdef CONFIG_PCI_MSI
 	if (msi && pci_msi_enabled()) {
-		stat = pci_enable_msi_range(dev->pdev, 1, nr);
+		stat = pci_alloc_irq_vectors(dev->pdev, 1, nr, PCI_IRQ_MSI);
 		if (stat >= 1) {
 			dev->msi = stat;
 			pr_info("using %d MSI interrupt(s)\n",
@@ -121,52 +109,13 @@ static int ddb_irq_msi(struct ddb *dev, int nr)
 		} else
 			pr_info("MSI not available.\n");
 	}
-	return stat;
 }
-
-static int ddb_irq_init2(struct ddb *dev)
-{
-	int stat;
-	int irq_flag = IRQF_SHARED;
-
-	pr_info("init type 2 IRQ hardware block\n");
-
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_4);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_5);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_6);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_7);
-
-	ddb_irq_msi(dev, 1);
-	if (dev->msi)
-		irq_flag = 0;
-
-	stat = request_irq(dev->pdev->irq, irq_handler_v2,
-			   irq_flag, "ddbridge", (void *) dev);
-	if (stat < 0)
-		return stat;
-
-	ddbwritel(dev, 0x0000ff7f, INTERRUPT_V2_CONTROL);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_1);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_2);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_3);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_4);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_5);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_6);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_7);
-	return stat;
-}
+#endif
 
 static int ddb_irq_init(struct ddb *dev)
 {
 	int stat;
 	int irq_flag = IRQF_SHARED;
-
-	if (dev->link[0].info->regmap->irq_version == 2)
-		return ddb_irq_init2(dev);
 
 	ddbwritel(dev, 0x00000000, INTERRUPT_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
@@ -177,6 +126,7 @@ static int ddb_irq_init(struct ddb *dev)
 	ddbwritel(dev, 0x00000000, MSI6_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI7_ENABLE);
 
+#ifdef CONFIG_PCI_MSI
 	ddb_irq_msi(dev, 2);
 
 	if (dev->msi)
@@ -195,15 +145,8 @@ static int ddb_irq_init(struct ddb *dev)
 	} else
 #endif
 	{
-#ifdef DDB_TEST_THREADED
-		stat = request_threaded_irq(dev->pdev->irq, irq_handler,
-					    irq_thread,
-					    irq_flag,
-					    "ddbridge", (void *) dev);
-#else
 		stat = request_irq(dev->pdev->irq, irq_handler,
 				   irq_flag, "ddbridge", (void *) dev);
-#endif
 		if (stat < 0)
 			return stat;
 	}

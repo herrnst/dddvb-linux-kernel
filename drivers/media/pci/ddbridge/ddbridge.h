@@ -92,7 +92,6 @@ struct ddb_regset {
 };
 
 struct ddb_regmap {
-	u32 irq_version;
 	u32 irq_base_i2c;
 	u32 irq_base_idma;
 	u32 irq_base_odma;
@@ -556,6 +555,6 @@ static void ddbcpyfrom(struct ddb *dev, void *dst, u32 adr, long count)
 
 int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 
-#define DDBRIDGE_VERSION "0.9.28"
+#define DDBRIDGE_VERSION "0.9.28-integrated"
 
 #endif
