@@ -28,7 +28,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DDB_USE_WORK
-/*#define DDB_TEST_THREADED*/
 
 #include "ddbridge.h"
 #include "ddbridge-regs.h"
@@ -146,15 +145,8 @@ static int ddb_irq_init(struct ddb *dev)
 	} else
 #endif
 	{
-#ifdef DDB_TEST_THREADED
-		stat = request_threaded_irq(dev->pdev->irq, irq_handler,
-					    irq_thread,
-					    irq_flag,
-					    "ddbridge", (void *) dev);
-#else
 		stat = request_irq(dev->pdev->irq, irq_handler,
 				   irq_flag, "ddbridge", (void *) dev);
-#endif
 		if (stat < 0)
 			return stat;
 	}

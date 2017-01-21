@@ -2801,25 +2801,11 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 			irq_handle_msg(dev, s);
 		if (s & 0x0fffff00) {
 			irq_handle_io(dev, s);
-#ifdef DDB_TEST_THREADED
-		ret = IRQ_WAKE_THREAD;
-#endif
 		}
 	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
 
 	return ret;
 }
-
-#ifdef DDB_TEST_THREADED
-static irqreturn_t irq_thread(int irq, void *dev_id)
-{
-	/* struct ddb *dev = (struct ddb *) dev_id; */
-
-	/*pr_info("%s\n", __func__);*/
-
-	return IRQ_HANDLED;
-}
-#endif
 
 /****************************************************************************/
 /****************************************************************************/
