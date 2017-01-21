@@ -107,29 +107,6 @@
 #define DMA_BUFFER_SIZE(_dma)          (_dma->regs + 0x0c)
 
 /* ------------------------------------------------------------------------- */
-
-#define LNB_BASE                     (0x400)
-#define LNB_CONTROL(i)               (LNB_BASE + (i) * 0x20 + 0x00)
-#define LNB_CMD   (7ULL <<  0)
-#define LNB_CMD_NOP    0
-#define LNB_CMD_INIT   1
-#define LNB_CMD_STATUS 2
-#define LNB_CMD_LOW    3
-#define LNB_CMD_HIGH   4
-#define LNB_CMD_OFF    5
-#define LNB_CMD_DISEQC 6
-#define LNB_CMD_UNI    7
-
-#define LNB_BUSY  (1ULL <<  4)
-#define LNB_TONE  (1ULL << 15)
-
-#define LNB_STATUS(i)                (LNB_BASE + (i) * 0x20 + 0x04)
-#define LNB_VOLTAGE(i)               (LNB_BASE + (i) * 0x20 + 0x08)
-#define LNB_CONFIG(i)                (LNB_BASE + (i) * 0x20 + 0x0c)
-#define LNB_BUF_LEVEL(i)             (LNB_BASE + (i) * 0x20 + 0x10)
-#define LNB_BUF_WRITE(i)             (LNB_BASE + (i) * 0x20 + 0x14)
-
-/* ------------------------------------------------------------------------- */
 /* CI Interface (only CI-Bridge) */
 
 #define CI_BASE                     (0x400)
