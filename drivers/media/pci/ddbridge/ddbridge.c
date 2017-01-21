@@ -102,7 +102,7 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 	int stat;
 
 	if (msi && pci_msi_enabled()) {
-		stat = pci_enable_msi_range(dev->pdev, 1, nr);
+		stat = pci_alloc_irq_vectors(dev->pdev, 1, nr, PCI_IRQ_MSI);
 		if (stat >= 1) {
 			dev->msi = stat;
 			pr_info("using %d MSI interrupt(s)\n",
