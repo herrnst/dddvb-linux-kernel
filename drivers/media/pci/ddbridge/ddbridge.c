@@ -107,7 +107,7 @@ static void ddb_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int ddb_irq_msi(struct ddb *dev, int nr)
+static void ddb_irq_msi(struct ddb *dev, int nr)
 {
 	int stat;
 
@@ -121,7 +121,6 @@ static int ddb_irq_msi(struct ddb *dev, int nr)
 		} else
 			pr_info("MSI not available.\n");
 	}
-	return stat;
 }
 
 static int ddb_irq_init2(struct ddb *dev)
