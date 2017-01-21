@@ -63,19 +63,8 @@ static void ddb_unmap(struct ddb *dev)
 
 static void ddb_irq_disable(struct ddb *dev)
 {
-	if (dev->link[0].info->regmap->irq_version == 2) {
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_4);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_5);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_6);
-		ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_7);
-	} else {
-		ddbwritel(dev, 0, INTERRUPT_ENABLE);
-		ddbwritel(dev, 0, MSI1_ENABLE);
-	}
+	ddbwritel(dev, 0, INTERRUPT_ENABLE);
+	ddbwritel(dev, 0, MSI1_ENABLE);
 }
 
 static void ddb_irq_exit(struct ddb *dev)
@@ -123,49 +112,10 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 	}
 }
 
-static int ddb_irq_init2(struct ddb *dev)
-{
-	int stat;
-	int irq_flag = IRQF_SHARED;
-
-	pr_info("init type 2 IRQ hardware block\n");
-
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_CONTROL);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_1);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_2);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_3);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_4);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_5);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_6);
-	ddbwritel(dev, 0x00000000, INTERRUPT_V2_ENABLE_7);
-
-	ddb_irq_msi(dev, 1);
-	if (dev->msi)
-		irq_flag = 0;
-
-	stat = request_irq(dev->pdev->irq, irq_handler_v2,
-			   irq_flag, "ddbridge", (void *) dev);
-	if (stat < 0)
-		return stat;
-
-	ddbwritel(dev, 0x0000ff7f, INTERRUPT_V2_CONTROL);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_1);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_2);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_3);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_4);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_5);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_6);
-	ddbwritel(dev, 0xffffffff, INTERRUPT_V2_ENABLE_7);
-	return stat;
-}
-
 static int ddb_irq_init(struct ddb *dev)
 {
 	int stat;
 	int irq_flag = IRQF_SHARED;
-
-	if (dev->link[0].info->regmap->irq_version == 2)
-		return ddb_irq_init2(dev);
 
 	ddbwritel(dev, 0x00000000, INTERRUPT_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI1_ENABLE);

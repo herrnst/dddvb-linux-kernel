@@ -92,7 +92,6 @@ struct ddb_regset {
 };
 
 struct ddb_regmap {
-	u32 irq_version;
 	u32 irq_base_i2c;
 	u32 irq_base_idma;
 	u32 irq_base_odma;
