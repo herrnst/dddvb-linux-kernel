@@ -96,11 +96,11 @@ static void ddb_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+#ifdef CONFIG_PCI_MSI
 static void ddb_irq_msi(struct ddb *dev, int nr)
 {
 	int stat;
 
-#ifdef CONFIG_PCI_MSI
 	if (msi && pci_msi_enabled()) {
 		stat = pci_enable_msi_range(dev->pdev, 1, nr);
 		if (stat >= 1) {
@@ -111,6 +111,7 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 			pr_info("MSI not available.\n");
 	}
 }
+#endif
 
 static int ddb_irq_init(struct ddb *dev)
 {
@@ -126,6 +127,7 @@ static int ddb_irq_init(struct ddb *dev)
 	ddbwritel(dev, 0x00000000, MSI6_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI7_ENABLE);
 
+#ifdef CONFIG_PCI_MSI
 	ddb_irq_msi(dev, 2);
 
 	if (dev->msi)
