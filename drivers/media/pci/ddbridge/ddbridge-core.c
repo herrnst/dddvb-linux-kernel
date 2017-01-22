@@ -1130,24 +1130,23 @@ static struct stv0910_cfg stv0910_p = {
 
 static struct lnbh25_config lnbh25_conf_0_0 = {
 	.i2c_address = 0x0c << 1,
-	.data2_config = LNBH25_TEN | LNBH25_EXTM
+	.data2_config = LNBH25_TEN
 };
 
 static struct lnbh25_config lnbh25_conf_0_1 = {
 	.i2c_address = 0x0d << 1,
-	.data2_config = LNBH25_TEN | LNBH25_EXTM
+	.data2_config = LNBH25_TEN
 };
 
 static struct lnbh25_config lnbh25_conf_1_0 = {
 	.i2c_address = 0x08 << 1,
-	.data2_config = LNBH25_TEN | LNBH25_EXTM
+	.data2_config = LNBH25_TEN
 };
 
 static struct lnbh25_config lnbh25_conf_1_1 = {
 	.i2c_address = 0x09 << 1,
-	.data2_config = LNBH25_TEN | LNBH25_EXTM
+	.data2_config = LNBH25_TEN
 };
-
 
 static int demod_attach_stv0910(struct ddb_input *input, int type)
 {
