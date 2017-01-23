@@ -902,18 +902,18 @@ static int demod_attach_drxk(struct ddb_input *input)
 	return 0;
 }
 
-static int demod_attach_cxd2843(struct ddb_input *input, int par, int osc24)
+static int demod_attach_sonycxd(struct ddb_input *input, int par, int osc24)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
-	struct cxd2843_cfg cfg;
+	struct cxd2841er_config cfg;
 
-	cfg.adr = (input->nr & 1) ? 0x6d : 0x6c;
-	cfg.ts_clock = par ? 0 : 1;
-	cfg.parallel = par ? 1 : 0;
-	cfg.osc = osc24 ? 24000000 : 20500000;
-	fe = dvb->fe = dvb_attach(cxd2843_attach, i2c, &cfg);
+	cfg.i2c_addr = (input->nr & 1) ? 0x6d : 0x6c;
+	cfg.xtal = osc24 ? SONY_XTAL_24000 : SONY_XTAL_20500;
+	cfg.ts_serial = par ? 0 : 1;
+
+	fe = dvb->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
 
 	if (!dvb->fe) {
 		pr_err("No cxd2837/38/43/54 found!\n");
@@ -1499,7 +1499,7 @@ static int dvb_input_attach(struct ddb_input *input)
 			par = 0;
 		else
 			par = 1;
-		if (demod_attach_cxd2843(input, par, osc24) < 0)
+		if (demod_attach_sonycxd(input, par, osc24) < 0)
 			return -ENODEV;
 		if (tuner_attach_tda18212(input) < 0)
 		{
@@ -1515,7 +1515,7 @@ static int dvb_input_attach(struct ddb_input *input)
 	case DDB_TUNER_DVBCT2_SONY:
 	case DDB_TUNER_DVBC2T2_SONY:
 	case DDB_TUNER_ISDBT_SONY:
-		if (demod_attach_cxd2843(input, 0, osc24) < 0)
+		if (demod_attach_sonycxd(input, 0, osc24) < 0)
 			return -ENODEV;
 		if (tuner_attach_tda18212(input) < 0)
 		{
