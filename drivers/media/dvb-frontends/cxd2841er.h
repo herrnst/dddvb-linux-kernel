@@ -33,6 +33,7 @@ enum cxd2841er_xtal {
 struct cxd2841er_config {
 	u8	i2c_addr;
 	enum cxd2841er_xtal	xtal;
+	u8	adrshift;
 };
 
 #if IS_REACHABLE(CONFIG_DVB_CXD2841ER)

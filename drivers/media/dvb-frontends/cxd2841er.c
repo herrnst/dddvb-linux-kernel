@@ -3737,8 +3737,8 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 		return NULL;
 	priv->i2c = i2c;
 	priv->config = cfg;
-	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> 1;
-	priv->i2c_addr_slvt = (cfg->i2c_addr) >> 1;
+	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> cfg->adrshift;
+	priv->i2c_addr_slvt = (cfg->i2c_addr) >> cfg->adrshift;
 	priv->xtal = cfg->xtal;
 	priv->frontend.demodulator_priv = priv;
 	dev_info(&priv->i2c->dev,
