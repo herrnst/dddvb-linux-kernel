@@ -64,6 +64,7 @@ struct cxd2841er_priv {
 	enum cxd2841er_state		state;
 	u8				system;
 	enum cxd2841er_xtal		xtal;
+	u8				ts_serial;
 	enum fe_caps caps;
 };
 
@@ -867,7 +868,7 @@ static int cxd2841er_tune_done(struct cxd2841er_priv *priv)
 	return 0;
 }
 
-/* Set TS parallel mode */
+/* Set TS serial/parallel mode */
 static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 					u8 system)
 {
@@ -876,6 +877,20 @@ static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	/* Set SLV-T Bank : 0x00 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x00);
+
+	/* Set up serial/parallel TS mode */
+
+	/*
+	 * slave    Bank    Addr    Bit    default    Name
+	 * <SLV-T>  00h     C4h     [1:0]  0'b01      OSERCKMODE
+	 */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, (priv->ts_serial ? 0x01 : 0x00), 0x03);
+	/*
+	 * slave    Bank    Addr    Bit    default    Name
+	 * <SLV-T>  00h     D1h     [1:0]  0'b01      OSERDUTYMODE
+	 */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xd1, (priv->ts_serial ? 0x01 : 0x00), 0x03);
+
 	cxd2841er_read_reg(priv, I2C_SLVT, 0xc4, &serial_ts);
 	cxd2841er_read_reg(priv, I2C_SLVT, 0xd3, &ts_rate_ctrl_off);
 	cxd2841er_read_reg(priv, I2C_SLVT, 0xde, &ts_in_off);
@@ -897,7 +912,7 @@ static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 	 * slave    Bank    Addr    Bit    default    Name
 	 * <SLV-T>  00h     33h     [1:0]  2'b01      OREG_CKSEL_TSIF
 	 */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x33, 0x00, 0x03);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x33, (priv->ts_serial ? 0x01 : 0x00), 0x03);
 	/*
 	 * Enable TS IF Clock
 	 * slave    Bank    Addr    Bit    default    Name
@@ -3712,7 +3727,7 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 	cxd2841er_write_reg(priv, I2C_SLVT, 0xcd, 0x50);
 	/* SONY_DEMOD_CONFIG_PARALLEL_SEL = 1 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x00);
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, 0x00, 0x80);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, (priv->ts_serial ? 0x01 : 0x00), 0x80);
 
 	cxd2841er_init_stats(fe);
 
@@ -3740,6 +3755,7 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> cfg->adrshift;
 	priv->i2c_addr_slvt = (cfg->i2c_addr) >> cfg->adrshift;
 	priv->xtal = cfg->xtal;
+	priv->ts_serial = cfg->ts_serial;
 	priv->frontend.demodulator_priv = priv;
 	dev_info(&priv->i2c->dev,
 		"%s(): I2C adapter %p SLVX addr %x SLVT addr %x\n",
