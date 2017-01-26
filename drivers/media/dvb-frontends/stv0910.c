@@ -1694,6 +1694,8 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 		mutex_init(&base->reg_lock);
 		state->base = base;
 		if (probe(state) < 0) {
+			pr_info("No demod found at adr %02X on %s\n",
+				cfg->adr, dev_name(&i2c->dev));
 			kfree(base);
 			goto fail;
 		}
@@ -1703,6 +1705,9 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->fe.demodulator_priv  = state;
 	state->nr = nr;
 
+	pr_info("%s demod found at adr %02X on %s\n",
+		state->fe.ops.info.name, cfg->adr, dev_name(&i2c->dev));
+
 	return &state->fe;
 
 fail:
@@ -1711,6 +1716,6 @@ fail:
 }
 EXPORT_SYMBOL_GPL(stv0910_attach);
 
-MODULE_DESCRIPTION("STV0910 driver");
+MODULE_DESCRIPTION("ST STV0910 multistandard frontend driver");
 MODULE_AUTHOR("Ralph and Marcus Metzler, Manfred Voelkel");
 MODULE_LICENSE("GPL");
