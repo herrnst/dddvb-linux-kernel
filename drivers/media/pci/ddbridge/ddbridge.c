@@ -320,6 +320,17 @@ static const struct ddb_info ddb_v7 = {
 	.ts_quirks = TS_QUIRK_REVERSED,
 };
 
+static const struct ddb_info ddb_v7a = {
+	.type     = DDB_OCTOPUS,
+	.name     = "Digital Devices Cine S2 V7 Advanced DVB adapter",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x0f,
+	.board_control   = 2,
+	.board_control_2 = 4,
+	.ts_quirks = TS_QUIRK_REVERSED,
+};
+
 static const struct ddb_info ddb_ctv7 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine CT V7 DVB adapter",
@@ -357,6 +368,16 @@ static const struct ddb_info ddb_cis = {
 static const struct ddb_info ddb_ci_s2_pro = {
 	.type     = DDB_OCTOPUS_CI,
 	.name     = "Digital Devices Octopus CI S2 Pro",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x01,
+	.board_control   = 2,
+	.board_control_2 = 4,
+};
+
+static const struct ddb_info ddb_ci_s2_pro_a = {
+	.type     = DDB_OCTOPUS_CI,
+	.name     = "Digital Devices Octopus CI S2 Pro Advanced",
 	.regmap   = &octopus_map,
 	.port_num = 4,
 	.i2c_mask = 0x01,
@@ -456,6 +477,7 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0003, DDVID, 0x0020, ddb_v6),
 	DDB_ID(DDVID, 0x0003, DDVID, 0x0021, ddb_v6_5),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0022, ddb_v7),
+	DDB_ID(DDVID, 0x0006, DDVID, 0x0024, ddb_v7a),
 	DDB_ID(DDVID, 0x0003, DDVID, 0x0030, ddb_dvbct),
 	DDB_ID(DDVID, 0x0003, DDVID, 0xdb03, ddb_satixS2v3),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0031, ddb_ctv7),
@@ -471,6 +493,7 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0041, ddb_cis),
 	DDB_ID(DDVID, 0x0012, DDVID, 0x0042, ddb_ci),
 	DDB_ID(DDVID, 0x0013, DDVID, 0x0043, ddb_ci_s2_pro),
+	DDB_ID(DDVID, 0x0013, DDVID, 0x0044, ddb_ci_s2_pro_a),
 	/* in case sub-ids got deleted in flash */
 	DDB_ID(DDVID, 0x0003, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0005, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
