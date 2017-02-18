@@ -36,7 +36,7 @@
 #include "dvb_frontend.h"
 #include "dvb_math.h"
 #include "stv0367dd.h"
-#include "stv0367dd_regs.h"
+#include "stv0367_regs.h"
 
 #define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
 
@@ -112,601 +112,601 @@ struct init_table {
 };
 
 struct init_table base_init[] = {
-	{ R367_IOCFG0,     0x80 },
-	{ R367_DAC0R,      0x00 },
-	{ R367_IOCFG1,     0x00 },
-	{ R367_DAC1R,      0x00 },
-	{ R367_IOCFG2,     0x00 },
-	{ R367_SDFR,       0x00 },
-	{ R367_AUX_CLK,    0x00 },
-	{ R367_FREESYS1,   0x00 },
-	{ R367_FREESYS2,   0x00 },
-	{ R367_FREESYS3,   0x00 },
-	{ R367_GPIO_CFG,   0x55 },
-	{ R367_GPIO_CMD,   0x01 },
-	{ R367_TSTRES,     0x00 },
-	{ R367_ANACTRL,    0x00 },
-	{ R367_TSTBUS,     0x00 },
-	{ R367_RF_AGC2,    0x20 },
-	{ R367_ANADIGCTRL, 0x0b },
-	{ R367_PLLMDIV,    0x01 },
-	{ R367_PLLNDIV,    0x08 },
-	{ R367_PLLSETUP,   0x18 },
-	{ R367_DUAL_AD12,  0x04 },
-	{ R367_TSTBIST,    0x00 },
+	{ R367TER_IOCFG0,     0x80 },
+	{ R367TER_DAC0R,      0x00 },
+	{ R367TER_IOCFG1,     0x00 },
+	{ R367TER_DAC1R,      0x00 },
+	{ R367TER_IOCFG2,     0x00 },
+	{ R367TER_SDFR,       0x00 },
+	{ R367TER_AUX_CLK,    0x00 },
+	{ R367TER_FREESYS1,   0x00 },
+	{ R367TER_FREESYS2,   0x00 },
+	{ R367TER_FREESYS3,   0x00 },
+	{ R367TER_GPIO_CFG,   0x55 },
+	{ R367TER_GPIO_CMD,   0x01 },
+	{ R367TER_TSTRES,     0x00 },
+	{ R367TER_ANACTRL,    0x00 },
+	{ R367TER_TSTBUS,     0x00 },
+	{ R367TER_RF_AGC2,    0x20 },
+	{ R367TER_ANADIGCTRL, 0x0b },
+	{ R367TER_PLLMDIV,    0x01 },
+	{ R367TER_PLLNDIV,    0x08 },
+	{ R367TER_PLLSETUP,   0x18 },
+	{ R367TER_DUAL_AD12,  0x04 },
+	{ R367TER_TSTBIST,    0x00 },
 	{ 0x0000,          0x00 }
 };
 
 struct init_table qam_init[] = {
-	{ R367_QAM_CTRL_1,                  0x06 }, /* Orginal 0x04 */
-	{ R367_QAM_CTRL_2,                  0x03 },
-	{ R367_QAM_IT_STATUS1,              0x2b },
-	{ R367_QAM_IT_STATUS2,              0x08 },
-	{ R367_QAM_IT_EN1,                  0x00 },
-	{ R367_QAM_IT_EN2,                  0x00 },
-	{ R367_QAM_CTRL_STATUS,             0x04 },
-	{ R367_QAM_TEST_CTL,                0x00 },
-	{ R367_QAM_AGC_CTL,                 0x73 },
-	{ R367_QAM_AGC_IF_CFG,              0x50 },
-	{ R367_QAM_AGC_RF_CFG,              0x02 }, /* RF Freeze */
-	{ R367_QAM_AGC_PWM_CFG,             0x03 },
-	{ R367_QAM_AGC_PWR_REF_L,           0x5a },
-	{ R367_QAM_AGC_PWR_REF_H,           0x00 },
-	{ R367_QAM_AGC_RF_TH_L,             0xff },
-	{ R367_QAM_AGC_RF_TH_H,             0x07 },
-	{ R367_QAM_AGC_IF_LTH_L,            0x00 },
-	{ R367_QAM_AGC_IF_LTH_H,            0x08 },
-	{ R367_QAM_AGC_IF_HTH_L,            0xff },
-	{ R367_QAM_AGC_IF_HTH_H,            0x07 },
-	{ R367_QAM_AGC_PWR_RD_L,            0xa0 },
-	{ R367_QAM_AGC_PWR_RD_M,            0xe9 },
-	{ R367_QAM_AGC_PWR_RD_H,            0x03 },
-	{ R367_QAM_AGC_PWM_IFCMD_L,         0xe4 },
-	{ R367_QAM_AGC_PWM_IFCMD_H,         0x00 },
-	{ R367_QAM_AGC_PWM_RFCMD_L,         0xff },
-	{ R367_QAM_AGC_PWM_RFCMD_H,         0x07 },
-	{ R367_QAM_IQDEM_CFG,               0x01 },
-	{ R367_QAM_MIX_NCO_LL,              0x22 },
-	{ R367_QAM_MIX_NCO_HL,              0x96 },
-	{ R367_QAM_MIX_NCO_HH,              0x55 },
-	{ R367_QAM_SRC_NCO_LL,              0xff },
-	{ R367_QAM_SRC_NCO_LH,              0x0c },
-	{ R367_QAM_SRC_NCO_HL,              0xf5 },
-	{ R367_QAM_SRC_NCO_HH,              0x20 },
-	{ R367_QAM_IQDEM_GAIN_SRC_L,        0x06 },
-	{ R367_QAM_IQDEM_GAIN_SRC_H,        0x01 },
-	{ R367_QAM_IQDEM_DCRM_CFG_LL,       0xfe },
-	{ R367_QAM_IQDEM_DCRM_CFG_LH,       0xff },
-	{ R367_QAM_IQDEM_DCRM_CFG_HL,       0x0f },
-	{ R367_QAM_IQDEM_DCRM_CFG_HH,       0x00 },
-	{ R367_QAM_IQDEM_ADJ_COEFF0,        0x34 },
-	{ R367_QAM_IQDEM_ADJ_COEFF1,        0xae },
-	{ R367_QAM_IQDEM_ADJ_COEFF2,        0x46 },
-	{ R367_QAM_IQDEM_ADJ_COEFF3,        0x77 },
-	{ R367_QAM_IQDEM_ADJ_COEFF4,        0x96 },
-	{ R367_QAM_IQDEM_ADJ_COEFF5,        0x69 },
-	{ R367_QAM_IQDEM_ADJ_COEFF6,        0xc7 },
-	{ R367_QAM_IQDEM_ADJ_COEFF7,        0x01 },
-	{ R367_QAM_IQDEM_ADJ_EN,            0x04 },
-	{ R367_QAM_IQDEM_ADJ_AGC_REF,       0x94 },
-	{ R367_QAM_ALLPASSFILT1,            0xc9 },
-	{ R367_QAM_ALLPASSFILT2,            0x2d },
-	{ R367_QAM_ALLPASSFILT3,            0xa3 },
-	{ R367_QAM_ALLPASSFILT4,            0xfb },
-	{ R367_QAM_ALLPASSFILT5,            0xf6 },
-	{ R367_QAM_ALLPASSFILT6,            0x45 },
-	{ R367_QAM_ALLPASSFILT7,            0x6f },
-	{ R367_QAM_ALLPASSFILT8,            0x7e },
-	{ R367_QAM_ALLPASSFILT9,            0x05 },
-	{ R367_QAM_ALLPASSFILT10,           0x0a },
-	{ R367_QAM_ALLPASSFILT11,           0x51 },
-	{ R367_QAM_TRL_AGC_CFG,             0x20 },
-	{ R367_QAM_TRL_LPF_CFG,             0x28 },
-	{ R367_QAM_TRL_LPF_ACQ_GAIN,        0x44 },
-	{ R367_QAM_TRL_LPF_TRK_GAIN,        0x22 },
-	{ R367_QAM_TRL_LPF_OUT_GAIN,        0x03 },
-	{ R367_QAM_TRL_LOCKDET_LTH,         0x04 },
-	{ R367_QAM_TRL_LOCKDET_HTH,         0x11 },
-	{ R367_QAM_TRL_LOCKDET_TRGVAL,      0x20 },
-	{ R367_QAM_IQ_QAM,                  0x01 },
-	{ R367_QAM_FSM_STATE,               0xa0 },
-	{ R367_QAM_FSM_CTL,                 0x08 },
-	{ R367_QAM_FSM_STS,                 0x0c },
-	{ R367_QAM_FSM_SNR0_HTH,            0x00 },
-	{ R367_QAM_FSM_SNR1_HTH,            0x00 },
-	{ R367_QAM_FSM_SNR2_HTH,            0x00 },
-	{ R367_QAM_FSM_SNR0_LTH,            0x00 },
-	{ R367_QAM_FSM_SNR1_LTH,            0x00 },
-	{ R367_QAM_FSM_EQA1_HTH,            0x00 },
-	{ R367_QAM_FSM_TEMPO,               0x32 },
-	{ R367_QAM_FSM_CONFIG,              0x03 },
-	{ R367_QAM_EQU_I_TESTTAP_L,         0x11 },
-	{ R367_QAM_EQU_I_TESTTAP_M,         0x00 },
-	{ R367_QAM_EQU_I_TESTTAP_H,         0x00 },
-	{ R367_QAM_EQU_TESTAP_CFG,          0x00 },
-	{ R367_QAM_EQU_Q_TESTTAP_L,         0xff },
-	{ R367_QAM_EQU_Q_TESTTAP_M,         0x00 },
-	{ R367_QAM_EQU_Q_TESTTAP_H,         0x00 },
-	{ R367_QAM_EQU_TAP_CTRL,            0x00 },
-	{ R367_QAM_EQU_CTR_CRL_CONTROL_L,   0x11 },
-	{ R367_QAM_EQU_CTR_CRL_CONTROL_H,   0x05 },
-	{ R367_QAM_EQU_CTR_HIPOW_L,         0x00 },
-	{ R367_QAM_EQU_CTR_HIPOW_H,         0x00 },
-	{ R367_QAM_EQU_I_EQU_LO,            0xef },
-	{ R367_QAM_EQU_I_EQU_HI,            0x00 },
-	{ R367_QAM_EQU_Q_EQU_LO,            0xee },
-	{ R367_QAM_EQU_Q_EQU_HI,            0x00 },
-	{ R367_QAM_EQU_MAPPER,              0xc5 },
-	{ R367_QAM_EQU_SWEEP_RATE,          0x80 },
-	{ R367_QAM_EQU_SNR_LO,              0x64 },
-	{ R367_QAM_EQU_SNR_HI,              0x03 },
-	{ R367_QAM_EQU_GAMMA_LO,            0x00 },
-	{ R367_QAM_EQU_GAMMA_HI,            0x00 },
-	{ R367_QAM_EQU_ERR_GAIN,            0x36 },
-	{ R367_QAM_EQU_RADIUS,              0xaa },
-	{ R367_QAM_EQU_FFE_MAINTAP,         0x00 },
-	{ R367_QAM_EQU_FFE_LEAKAGE,         0x63 },
-	{ R367_QAM_EQU_FFE_MAINTAP_POS,     0xdf },
-	{ R367_QAM_EQU_GAIN_WIDE,           0x88 },
-	{ R367_QAM_EQU_GAIN_NARROW,         0x41 },
-	{ R367_QAM_EQU_CTR_LPF_GAIN,        0xd1 },
-	{ R367_QAM_EQU_CRL_LPF_GAIN,        0xa7 },
-	{ R367_QAM_EQU_GLOBAL_GAIN,         0x06 },
-	{ R367_QAM_EQU_CRL_LD_SEN,          0x85 },
-	{ R367_QAM_EQU_CRL_LD_VAL,          0xe2 },
-	{ R367_QAM_EQU_CRL_TFR,             0x20 },
-	{ R367_QAM_EQU_CRL_BISTH_LO,        0x00 },
-	{ R367_QAM_EQU_CRL_BISTH_HI,        0x00 },
-	{ R367_QAM_EQU_SWEEP_RANGE_LO,      0x00 },
-	{ R367_QAM_EQU_SWEEP_RANGE_HI,      0x00 },
-	{ R367_QAM_EQU_CRL_LIMITER,         0x40 },
-	{ R367_QAM_EQU_MODULUS_MAP,         0x90 },
-	{ R367_QAM_EQU_PNT_GAIN,            0xa7 },
-	{ R367_QAM_FEC_AC_CTR_0,            0x16 },
-	{ R367_QAM_FEC_AC_CTR_1,            0x0b },
-	{ R367_QAM_FEC_AC_CTR_2,            0x88 },
-	{ R367_QAM_FEC_AC_CTR_3,            0x02 },
-	{ R367_QAM_FEC_STATUS,              0x12 },
-	{ R367_QAM_RS_COUNTER_0,            0x7d },
-	{ R367_QAM_RS_COUNTER_1,            0xd0 },
-	{ R367_QAM_RS_COUNTER_2,            0x19 },
-	{ R367_QAM_RS_COUNTER_3,            0x0b },
-	{ R367_QAM_RS_COUNTER_4,            0xa3 },
-	{ R367_QAM_RS_COUNTER_5,            0x00 },
-	{ R367_QAM_BERT_0,                  0x01 },
-	{ R367_QAM_BERT_1,                  0x25 },
-	{ R367_QAM_BERT_2,                  0x41 },
-	{ R367_QAM_BERT_3,                  0x39 },
-	{ R367_QAM_OUTFORMAT_0,             0xc2 },
-	{ R367_QAM_OUTFORMAT_1,             0x22 },
-	{ R367_QAM_SMOOTHER_2,              0x28 },
-	{ R367_QAM_TSMF_CTRL_0,             0x01 },
-	{ R367_QAM_TSMF_CTRL_1,             0xc6 },
-	{ R367_QAM_TSMF_CTRL_3,             0x43 },
-	{ R367_QAM_TS_ON_ID_0,              0x00 },
-	{ R367_QAM_TS_ON_ID_1,              0x00 },
-	{ R367_QAM_TS_ON_ID_2,              0x00 },
-	{ R367_QAM_TS_ON_ID_3,              0x00 },
-	{ R367_QAM_RE_STATUS_0,             0x00 },
-	{ R367_QAM_RE_STATUS_1,             0x00 },
-	{ R367_QAM_RE_STATUS_2,             0x00 },
-	{ R367_QAM_RE_STATUS_3,             0x00 },
-	{ R367_QAM_TS_STATUS_0,             0x00 },
-	{ R367_QAM_TS_STATUS_1,             0x00 },
-	{ R367_QAM_TS_STATUS_2,             0xa0 },
-	{ R367_QAM_TS_STATUS_3,             0x00 },
-	{ R367_QAM_T_O_ID_0,                0x00 },
-	{ R367_QAM_T_O_ID_1,                0x00 },
-	{ R367_QAM_T_O_ID_2,                0x00 },
-	{ R367_QAM_T_O_ID_3,                0x00 },
+	{ R367CAB_CTRL_1,                  0x06 }, /* Orginal 0x04 */
+	{ R367CAB_CTRL_2,                  0x03 },
+	{ R367CAB_IT_STATUS1,              0x2b },
+	{ R367CAB_IT_STATUS2,              0x08 },
+	{ R367CAB_IT_EN1,                  0x00 },
+	{ R367CAB_IT_EN2,                  0x00 },
+	{ R367CAB_CTRL_STATUS,             0x04 },
+	{ R367CAB_TEST_CTL,                0x00 },
+	{ R367CAB_AGC_CTL,                 0x73 },
+	{ R367CAB_AGC_IF_CFG,              0x50 },
+	{ R367CAB_AGC_RF_CFG,              0x02 }, /* RF Freeze */
+	{ R367CAB_AGC_PWM_CFG,             0x03 },
+	{ R367CAB_AGC_PWR_REF_L,           0x5a },
+	{ R367CAB_AGC_PWR_REF_H,           0x00 },
+	{ R367CAB_AGC_RF_TH_L,             0xff },
+	{ R367CAB_AGC_RF_TH_H,             0x07 },
+	{ R367CAB_AGC_IF_LTH_L,            0x00 },
+	{ R367CAB_AGC_IF_LTH_H,            0x08 },
+	{ R367CAB_AGC_IF_HTH_L,            0xff },
+	{ R367CAB_AGC_IF_HTH_H,            0x07 },
+	{ R367CAB_AGC_PWR_RD_L,            0xa0 },
+	{ R367CAB_AGC_PWR_RD_M,            0xe9 },
+	{ R367CAB_AGC_PWR_RD_H,            0x03 },
+	{ R367CAB_AGC_PWM_IFCMD_L,         0xe4 },
+	{ R367CAB_AGC_PWM_IFCMD_H,         0x00 },
+	{ R367CAB_AGC_PWM_RFCMD_L,         0xff },
+	{ R367CAB_AGC_PWM_RFCMD_H,         0x07 },
+	{ R367CAB_IQDEM_CFG,               0x01 },
+	{ R367CAB_MIX_NCO_LL,              0x22 },
+	{ R367CAB_MIX_NCO_HL,              0x96 },
+	{ R367CAB_MIX_NCO_HH,              0x55 },
+	{ R367CAB_SRC_NCO_LL,              0xff },
+	{ R367CAB_SRC_NCO_LH,              0x0c },
+	{ R367CAB_SRC_NCO_HL,              0xf5 },
+	{ R367CAB_SRC_NCO_HH,              0x20 },
+	{ R367CAB_IQDEM_GAIN_SRC_L,        0x06 },
+	{ R367CAB_IQDEM_GAIN_SRC_H,        0x01 },
+	{ R367CAB_IQDEM_DCRM_CFG_LL,       0xfe },
+	{ R367CAB_IQDEM_DCRM_CFG_LH,       0xff },
+	{ R367CAB_IQDEM_DCRM_CFG_HL,       0x0f },
+	{ R367CAB_IQDEM_DCRM_CFG_HH,       0x00 },
+	{ R367CAB_IQDEM_ADJ_COEFF0,        0x34 },
+	{ R367CAB_IQDEM_ADJ_COEFF1,        0xae },
+	{ R367CAB_IQDEM_ADJ_COEFF2,        0x46 },
+	{ R367CAB_IQDEM_ADJ_COEFF3,        0x77 },
+	{ R367CAB_IQDEM_ADJ_COEFF4,        0x96 },
+	{ R367CAB_IQDEM_ADJ_COEFF5,        0x69 },
+	{ R367CAB_IQDEM_ADJ_COEFF6,        0xc7 },
+	{ R367CAB_IQDEM_ADJ_COEFF7,        0x01 },
+	{ R367CAB_IQDEM_ADJ_EN,            0x04 },
+	{ R367CAB_IQDEM_ADJ_AGC_REF,       0x94 },
+	{ R367CAB_ALLPASSFILT1,            0xc9 },
+	{ R367CAB_ALLPASSFILT2,            0x2d },
+	{ R367CAB_ALLPASSFILT3,            0xa3 },
+	{ R367CAB_ALLPASSFILT4,            0xfb },
+	{ R367CAB_ALLPASSFILT5,            0xf6 },
+	{ R367CAB_ALLPASSFILT6,            0x45 },
+	{ R367CAB_ALLPASSFILT7,            0x6f },
+	{ R367CAB_ALLPASSFILT8,            0x7e },
+	{ R367CAB_ALLPASSFILT9,            0x05 },
+	{ R367CAB_ALLPASSFILT10,           0x0a },
+	{ R367CAB_ALLPASSFILT11,           0x51 },
+	{ R367CAB_TRL_AGC_CFG,             0x20 },
+	{ R367CAB_TRL_LPF_CFG,             0x28 },
+	{ R367CAB_TRL_LPF_ACQ_GAIN,        0x44 },
+	{ R367CAB_TRL_LPF_TRK_GAIN,        0x22 },
+	{ R367CAB_TRL_LPF_OUT_GAIN,        0x03 },
+	{ R367CAB_TRL_LOCKDET_LTH,         0x04 },
+	{ R367CAB_TRL_LOCKDET_HTH,         0x11 },
+	{ R367CAB_TRL_LOCKDET_TRGVAL,      0x20 },
+	{ R367CAB_IQ_QAM,                  0x01 },
+	{ R367CAB_FSM_STATE,               0xa0 },
+	{ R367CAB_FSM_CTL,                 0x08 },
+	{ R367CAB_FSM_STS,                 0x0c },
+	{ R367CAB_FSM_SNR0_HTH,            0x00 },
+	{ R367CAB_FSM_SNR1_HTH,            0x00 },
+	{ R367CAB_FSM_SNR2_HTH,            0x00 },
+	{ R367CAB_FSM_SNR0_LTH,            0x00 },
+	{ R367CAB_FSM_SNR1_LTH,            0x00 },
+	{ R367CAB_FSM_EQA1_HTH,            0x00 },
+	{ R367CAB_FSM_TEMPO,               0x32 },
+	{ R367CAB_FSM_CONFIG,              0x03 },
+	{ R367CAB_EQU_I_TESTTAP_L,         0x11 },
+	{ R367CAB_EQU_I_TESTTAP_M,         0x00 },
+	{ R367CAB_EQU_I_TESTTAP_H,         0x00 },
+	{ R367CAB_EQU_TESTAP_CFG,          0x00 },
+	{ R367CAB_EQU_Q_TESTTAP_L,         0xff },
+	{ R367CAB_EQU_Q_TESTTAP_M,         0x00 },
+	{ R367CAB_EQU_Q_TESTTAP_H,         0x00 },
+	{ R367CAB_EQU_TAP_CTRL,            0x00 },
+	{ R367CAB_EQU_CTR_CRL_CONTROL_L,   0x11 },
+	{ R367CAB_EQU_CTR_CRL_CONTROL_H,   0x05 },
+	{ R367CAB_EQU_CTR_HIPOW_L,         0x00 },
+	{ R367CAB_EQU_CTR_HIPOW_H,         0x00 },
+	{ R367CAB_EQU_I_EQU_LO,            0xef },
+	{ R367CAB_EQU_I_EQU_HI,            0x00 },
+	{ R367CAB_EQU_Q_EQU_LO,            0xee },
+	{ R367CAB_EQU_Q_EQU_HI,            0x00 },
+	{ R367CAB_EQU_MAPPER,              0xc5 },
+	{ R367CAB_EQU_SWEEP_RATE,          0x80 },
+	{ R367CAB_EQU_SNR_LO,              0x64 },
+	{ R367CAB_EQU_SNR_HI,              0x03 },
+	{ R367CAB_EQU_GAMMA_LO,            0x00 },
+	{ R367CAB_EQU_GAMMA_HI,            0x00 },
+	{ R367CAB_EQU_ERR_GAIN,            0x36 },
+	{ R367CAB_EQU_RADIUS,              0xaa },
+	{ R367CAB_EQU_FFE_MAINTAP,         0x00 },
+	{ R367CAB_EQU_FFE_LEAKAGE,         0x63 },
+	{ R367CAB_EQU_FFE_MAINTAP_POS,     0xdf },
+	{ R367CAB_EQU_GAIN_WIDE,           0x88 },
+	{ R367CAB_EQU_GAIN_NARROW,         0x41 },
+	{ R367CAB_EQU_CTR_LPF_GAIN,        0xd1 },
+	{ R367CAB_EQU_CRL_LPF_GAIN,        0xa7 },
+	{ R367CAB_EQU_GLOBAL_GAIN,         0x06 },
+	{ R367CAB_EQU_CRL_LD_SEN,          0x85 },
+	{ R367CAB_EQU_CRL_LD_VAL,          0xe2 },
+	{ R367CAB_EQU_CRL_TFR,             0x20 },
+	{ R367CAB_EQU_CRL_BISTH_LO,        0x00 },
+	{ R367CAB_EQU_CRL_BISTH_HI,        0x00 },
+	{ R367CAB_EQU_SWEEP_RANGE_LO,      0x00 },
+	{ R367CAB_EQU_SWEEP_RANGE_HI,      0x00 },
+	{ R367CAB_EQU_CRL_LIMITER,         0x40 },
+	{ R367CAB_EQU_MODULUS_MAP,         0x90 },
+	{ R367CAB_EQU_PNT_GAIN,            0xa7 },
+	{ R367CAB_FEC_AC_CTR_0,            0x16 },
+	{ R367CAB_FEC_AC_CTR_1,            0x0b },
+	{ R367CAB_FEC_AC_CTR_2,            0x88 },
+	{ R367CAB_FEC_AC_CTR_3,            0x02 },
+	{ R367CAB_FEC_STATUS,              0x12 },
+	{ R367CAB_RS_COUNTER_0,            0x7d },
+	{ R367CAB_RS_COUNTER_1,            0xd0 },
+	{ R367CAB_RS_COUNTER_2,            0x19 },
+	{ R367CAB_RS_COUNTER_3,            0x0b },
+	{ R367CAB_RS_COUNTER_4,            0xa3 },
+	{ R367CAB_RS_COUNTER_5,            0x00 },
+	{ R367CAB_BERT_0,                  0x01 },
+	{ R367CAB_BERT_1,                  0x25 },
+	{ R367CAB_BERT_2,                  0x41 },
+	{ R367CAB_BERT_3,                  0x39 },
+	{ R367CAB_OUTFORMAT_0,             0xc2 },
+	{ R367CAB_OUTFORMAT_1,             0x22 },
+	{ R367CAB_SMOOTHER_2,              0x28 },
+	{ R367CAB_TSMF_CTRL_0,             0x01 },
+	{ R367CAB_TSMF_CTRL_1,             0xc6 },
+	{ R367CAB_TSMF_CTRL_3,             0x43 },
+	{ R367CAB_TS_ON_ID_0,              0x00 },
+	{ R367CAB_TS_ON_ID_1,              0x00 },
+	{ R367CAB_TS_ON_ID_2,              0x00 },
+	{ R367CAB_TS_ON_ID_3,              0x00 },
+	{ R367CAB_RE_STATUS_0,             0x00 },
+	{ R367CAB_RE_STATUS_1,             0x00 },
+	{ R367CAB_RE_STATUS_2,             0x00 },
+	{ R367CAB_RE_STATUS_3,             0x00 },
+	{ R367CAB_TS_STATUS_0,             0x00 },
+	{ R367CAB_TS_STATUS_1,             0x00 },
+	{ R367CAB_TS_STATUS_2,             0xa0 },
+	{ R367CAB_TS_STATUS_3,             0x00 },
+	{ R367CAB_T_O_ID_0,                0x00 },
+	{ R367CAB_T_O_ID_1,                0x00 },
+	{ R367CAB_T_O_ID_2,                0x00 },
+	{ R367CAB_T_O_ID_3,                0x00 },
 	{ 0x0000, 0x00 } /* EOT */
 };
 
 struct init_table ofdm_init[] = {
-	{ R367_OFDM_AGC2MAX,                0xff },
-	{ R367_OFDM_AGC2MIN,                0x00 },
-	{ R367_OFDM_AGC1MAX,                0xff },
-	{ R367_OFDM_AGC1MIN,                0x00 },
-	{ R367_OFDM_AGCR,                   0xbc },
-	{ R367_OFDM_AGC2TH,                 0x00 },
-	{ R367_OFDM_AGCCTRL1,               0x85 },
-	{ R367_OFDM_AGCCTRL2,               0x1f },
-	{ R367_OFDM_AGC1VAL1,               0x00 },
-	{ R367_OFDM_AGC1VAL2,               0x00 },
-	{ R367_OFDM_AGC2VAL1,               0x6f },
-	{ R367_OFDM_AGC2VAL2,               0x05 },
-	{ R367_OFDM_AGC2PGA,                0x00 },
-	{ R367_OFDM_OVF_RATE1,              0x00 },
-	{ R367_OFDM_OVF_RATE2,              0x00 },
-	{ R367_OFDM_GAIN_SRC1,              0x2b },
-	{ R367_OFDM_GAIN_SRC2,              0x04 },
-	{ R367_OFDM_INC_DEROT1,             0x55 },
-	{ R367_OFDM_INC_DEROT2,             0x55 },
-	{ R367_OFDM_PPM_CPAMP_DIR,          0x2c },
-	{ R367_OFDM_PPM_CPAMP_INV,          0x00 },
-	{ R367_OFDM_FREESTFE_1,             0x00 },
-	{ R367_OFDM_FREESTFE_2,             0x1c },
-	{ R367_OFDM_DCOFFSET,               0x00 },
-	{ R367_OFDM_EN_PROCESS,             0x05 },
-	{ R367_OFDM_SDI_SMOOTHER,           0x80 },
-	{ R367_OFDM_FE_LOOP_OPEN,           0x1c },
-	{ R367_OFDM_FREQOFF1,               0x00 },
-	{ R367_OFDM_FREQOFF2,               0x00 },
-	{ R367_OFDM_FREQOFF3,               0x00 },
-	{ R367_OFDM_TIMOFF1,                0x00 },
-	{ R367_OFDM_TIMOFF2,                0x00 },
-	{ R367_OFDM_EPQ,                    0x02 },
-	{ R367_OFDM_EPQAUTO,                0x01 },
-	{ R367_OFDM_SYR_UPDATE,             0xf5 },
-	{ R367_OFDM_CHPFREE,                0x00 },
-	{ R367_OFDM_PPM_STATE_MAC,          0x23 },
-	{ R367_OFDM_INR_THRESHOLD,          0xff },
-	{ R367_OFDM_EPQ_TPS_ID_CELL,        0xf9 },
-	{ R367_OFDM_EPQ_CFG,                0x00 },
-	{ R367_OFDM_EPQ_STATUS,             0x01 },
-	{ R367_OFDM_AUTORELOCK,             0x81 },
-	{ R367_OFDM_BER_THR_VMSB,           0x00 },
-	{ R367_OFDM_BER_THR_MSB,            0x00 },
-	{ R367_OFDM_BER_THR_LSB,            0x00 },
-	{ R367_OFDM_CCD,                    0x83 },
-	{ R367_OFDM_SPECTR_CFG,             0x00 },
-	{ R367_OFDM_CHC_DUMMY,              0x18 },
-	{ R367_OFDM_INC_CTL,                0x88 },
-	{ R367_OFDM_INCTHRES_COR1,          0xb4 },
-	{ R367_OFDM_INCTHRES_COR2,          0x96 },
-	{ R367_OFDM_INCTHRES_DET1,          0x0e },
-	{ R367_OFDM_INCTHRES_DET2,          0x11 },
-	{ R367_OFDM_IIR_CELLNB,             0x8d },
-	{ R367_OFDM_IIRCX_COEFF1_MSB,       0x00 },
-	{ R367_OFDM_IIRCX_COEFF1_LSB,       0x00 },
-	{ R367_OFDM_IIRCX_COEFF2_MSB,       0x09 },
-	{ R367_OFDM_IIRCX_COEFF2_LSB,       0x18 },
-	{ R367_OFDM_IIRCX_COEFF3_MSB,       0x14 },
-	{ R367_OFDM_IIRCX_COEFF3_LSB,       0x9c },
-	{ R367_OFDM_IIRCX_COEFF4_MSB,       0x00 },
-	{ R367_OFDM_IIRCX_COEFF4_LSB,       0x00 },
-	{ R367_OFDM_IIRCX_COEFF5_MSB,       0x36 },
-	{ R367_OFDM_IIRCX_COEFF5_LSB,       0x42 },
-	{ R367_OFDM_FEPATH_CFG,             0x00 },
-	{ R367_OFDM_PMC1_FUNC,              0x65 },
-	{ R367_OFDM_PMC1_FOR,               0x00 },
-	{ R367_OFDM_PMC2_FUNC,              0x00 },
-	{ R367_OFDM_STATUS_ERR_DA,          0xe0 },
-	{ R367_OFDM_DIG_AGC_R,              0xfe },
-	{ R367_OFDM_COMAGC_TARMSB,          0x0b },
-	{ R367_OFDM_COM_AGC_TAR_ENMODE,     0x41 },
-	{ R367_OFDM_COM_AGC_CFG,            0x3e },
-	{ R367_OFDM_COM_AGC_GAIN1,          0x39 },
-	{ R367_OFDM_AUT_AGC_TARGETMSB,      0x0b },
-	{ R367_OFDM_LOCK_DET_MSB,           0x01 },
-	{ R367_OFDM_AGCTAR_LOCK_LSBS,       0x40 },
-	{ R367_OFDM_AUT_GAIN_EN,            0xf4 },
-	{ R367_OFDM_AUT_CFG,                0xf0 },
-	{ R367_OFDM_LOCKN,                  0x23 },
-	{ R367_OFDM_INT_X_3,                0x00 },
-	{ R367_OFDM_INT_X_2,                0x03 },
-	{ R367_OFDM_INT_X_1,                0x8d },
-	{ R367_OFDM_INT_X_0,                0xa0 },
-	{ R367_OFDM_MIN_ERRX_MSB,           0x00 },
-	{ R367_OFDM_COR_CTL,                0x00 },
-	{ R367_OFDM_COR_STAT,               0xf6 },
-	{ R367_OFDM_COR_INTEN,              0x00 },
-	{ R367_OFDM_COR_INTSTAT,            0x3f },
-	{ R367_OFDM_COR_MODEGUARD,          0x03 },
-	{ R367_OFDM_AGC_CTL,                0x08 },
-	{ R367_OFDM_AGC_MANUAL1,            0x00 },
-	{ R367_OFDM_AGC_MANUAL2,            0x00 },
-	{ R367_OFDM_AGC_TARG,               0x16 },
-	{ R367_OFDM_AGC_GAIN1,              0x53 },
-	{ R367_OFDM_AGC_GAIN2,              0x1d },
-	{ R367_OFDM_RESERVED_1,             0x00 },
-	{ R367_OFDM_RESERVED_2,             0x00 },
-	{ R367_OFDM_RESERVED_3,             0x00 },
-	{ R367_OFDM_CAS_CTL,                0x44 },
-	{ R367_OFDM_CAS_FREQ,               0xb3 },
-	{ R367_OFDM_CAS_DAGCGAIN,           0x12 },
-	{ R367_OFDM_SYR_CTL,                0x04 },
-	{ R367_OFDM_SYR_STAT,               0x10 },
-	{ R367_OFDM_SYR_NCO1,               0x00 },
-	{ R367_OFDM_SYR_NCO2,               0x00 },
-	{ R367_OFDM_SYR_OFFSET1,            0x00 },
-	{ R367_OFDM_SYR_OFFSET2,            0x00 },
-	{ R367_OFDM_FFT_CTL,                0x00 },
-	{ R367_OFDM_SCR_CTL,                0x70 },
-	{ R367_OFDM_PPM_CTL1,               0xf8 },
-	{ R367_OFDM_TRL_CTL,                0xac },
-	{ R367_OFDM_TRL_NOMRATE1,           0x1e },
-	{ R367_OFDM_TRL_NOMRATE2,           0x58 },
-	{ R367_OFDM_TRL_TIME1,              0x1d },
-	{ R367_OFDM_TRL_TIME2,              0xfc },
-	{ R367_OFDM_CRL_CTL,                0x24 },
-	{ R367_OFDM_CRL_FREQ1,              0xad },
-	{ R367_OFDM_CRL_FREQ2,              0x9d },
-	{ R367_OFDM_CRL_FREQ3,              0xff },
-	{ R367_OFDM_CHC_CTL,                0x01 },
-	{ R367_OFDM_CHC_SNR,                0xf0 },
-	{ R367_OFDM_BDI_CTL,                0x00 },
-	{ R367_OFDM_DMP_CTL,                0x00 },
-	{ R367_OFDM_TPS_RCVD1,              0x30 },
-	{ R367_OFDM_TPS_RCVD2,              0x02 },
-	{ R367_OFDM_TPS_RCVD3,              0x01 },
-	{ R367_OFDM_TPS_RCVD4,              0x00 },
-	{ R367_OFDM_TPS_ID_CELL1,           0x00 },
-	{ R367_OFDM_TPS_ID_CELL2,           0x00 },
-	{ R367_OFDM_TPS_RCVD5_SET1,         0x02 },
-	{ R367_OFDM_TPS_SET2,               0x02 },
-	{ R367_OFDM_TPS_SET3,               0x01 },
-	{ R367_OFDM_TPS_CTL,                0x00 },
-	{ R367_OFDM_CTL_FFTOSNUM,           0x34 },
-	{ R367_OFDM_TESTSELECT,             0x09 },
-	{ R367_OFDM_MSC_REV,                0x0a },
-	{ R367_OFDM_PIR_CTL,                0x00 },
-	{ R367_OFDM_SNR_CARRIER1,           0xa1 },
-	{ R367_OFDM_SNR_CARRIER2,           0x9a },
-	{ R367_OFDM_PPM_CPAMP,              0x2c },
-	{ R367_OFDM_TSM_AP0,                0x00 },
-	{ R367_OFDM_TSM_AP1,                0x00 },
-	{ R367_OFDM_TSM_AP2,                0x00 },
-	{ R367_OFDM_TSM_AP3,                0x00 },
-	{ R367_OFDM_TSM_AP4,                0x00 },
-	{ R367_OFDM_TSM_AP5,                0x00 },
-	{ R367_OFDM_TSM_AP6,                0x00 },
-	{ R367_OFDM_TSM_AP7,                0x00 },
-	{ R367_OFDM_CONSTMODE,              0x01 },
-	{ R367_OFDM_CONSTCARR1,             0x00 },
-	{ R367_OFDM_CONSTCARR2,             0x00 },
-	{ R367_OFDM_ICONSTEL,               0x0a },
-	{ R367_OFDM_QCONSTEL,               0x15 },
-	{ R367_OFDM_TSTBISTRES0,            0x00 },
-	{ R367_OFDM_TSTBISTRES1,            0x00 },
-	{ R367_OFDM_TSTBISTRES2,            0x28 },
-	{ R367_OFDM_TSTBISTRES3,            0x00 },
-	{ R367_OFDM_SYR_TARGET_FFTADJT_MSB, 0x00 },
-	{ R367_OFDM_SYR_TARGET_FFTADJT_LSB, 0x00 },
-	{ R367_OFDM_SYR_TARGET_CHCADJT_MSB, 0x00 },
-	{ R367_OFDM_SYR_TARGET_CHCADJT_LSB, 0x00 },
-	{ R367_OFDM_SYR_FLAG,               0x00 },
-	{ R367_OFDM_CRL_TARGET1,            0x00 },
-	{ R367_OFDM_CRL_TARGET2,            0x00 },
-	{ R367_OFDM_CRL_TARGET3,            0x00 },
-	{ R367_OFDM_CRL_TARGET4,            0x00 },
-	{ R367_OFDM_CRL_FLAG,               0x00 },
-	{ R367_OFDM_TRL_TARGET1,            0x00 },
-	{ R367_OFDM_TRL_TARGET2,            0x00 },
-	{ R367_OFDM_TRL_CHC,                0x00 },
-	{ R367_OFDM_CHC_SNR_TARG,           0x00 },
-	{ R367_OFDM_TOP_TRACK,              0x00 },
-	{ R367_OFDM_TRACKER_FREE1,          0x00 },
-	{ R367_OFDM_ERROR_CRL1,             0x00 },
-	{ R367_OFDM_ERROR_CRL2,             0x00 },
-	{ R367_OFDM_ERROR_CRL3,             0x00 },
-	{ R367_OFDM_ERROR_CRL4,             0x00 },
-	{ R367_OFDM_DEC_NCO1,               0x2c },
-	{ R367_OFDM_DEC_NCO2,               0x0f },
-	{ R367_OFDM_DEC_NCO3,               0x20 },
-	{ R367_OFDM_SNR,                    0xf1 },
-	{ R367_OFDM_SYR_FFTADJ1,            0x00 },
-	{ R367_OFDM_SYR_FFTADJ2,            0x00 },
-	{ R367_OFDM_SYR_CHCADJ1,            0x00 },
-	{ R367_OFDM_SYR_CHCADJ2,            0x00 },
-	{ R367_OFDM_SYR_OFF,                0x00 },
-	{ R367_OFDM_PPM_OFFSET1,            0x00 },
-	{ R367_OFDM_PPM_OFFSET2,            0x03 },
-	{ R367_OFDM_TRACKER_FREE2,          0x00 },
-	{ R367_OFDM_DEBG_LT10,              0x00 },
-	{ R367_OFDM_DEBG_LT11,              0x00 },
-	{ R367_OFDM_DEBG_LT12,              0x00 },
-	{ R367_OFDM_DEBG_LT13,              0x00 },
-	{ R367_OFDM_DEBG_LT14,              0x00 },
-	{ R367_OFDM_DEBG_LT15,              0x00 },
-	{ R367_OFDM_DEBG_LT16,              0x00 },
-	{ R367_OFDM_DEBG_LT17,              0x00 },
-	{ R367_OFDM_DEBG_LT18,              0x00 },
-	{ R367_OFDM_DEBG_LT19,              0x00 },
-	{ R367_OFDM_DEBG_LT1A,              0x00 },
-	{ R367_OFDM_DEBG_LT1B,              0x00 },
-	{ R367_OFDM_DEBG_LT1C,              0x00 },
-	{ R367_OFDM_DEBG_LT1D,              0x00 },
-	{ R367_OFDM_DEBG_LT1E,              0x00 },
-	{ R367_OFDM_DEBG_LT1F,              0x00 },
-	{ R367_OFDM_RCCFGH,                 0x00 },
-	{ R367_OFDM_RCCFGM,                 0x00 },
-	{ R367_OFDM_RCCFGL,                 0x00 },
-	{ R367_OFDM_RCINSDELH,              0x00 },
-	{ R367_OFDM_RCINSDELM,              0x00 },
-	{ R367_OFDM_RCINSDELL,              0x00 },
-	{ R367_OFDM_RCSTATUS,               0x00 },
-	{ R367_OFDM_RCSPEED,                0x6f },
-	{ R367_OFDM_RCDEBUGM,               0xe7 },
-	{ R367_OFDM_RCDEBUGL,               0x9b },
-	{ R367_OFDM_RCOBSCFG,               0x00 },
-	{ R367_OFDM_RCOBSM,                 0x00 },
-	{ R367_OFDM_RCOBSL,                 0x00 },
-	{ R367_OFDM_RCFECSPY,               0x00 },
-	{ R367_OFDM_RCFSPYCFG,              0x00 },
-	{ R367_OFDM_RCFSPYDATA,             0x00 },
-	{ R367_OFDM_RCFSPYOUT,              0x00 },
-	{ R367_OFDM_RCFSTATUS,              0x00 },
-	{ R367_OFDM_RCFGOODPACK,            0x00 },
-	{ R367_OFDM_RCFPACKCNT,             0x00 },
-	{ R367_OFDM_RCFSPYMISC,             0x00 },
-	{ R367_OFDM_RCFBERCPT4,             0x00 },
-	{ R367_OFDM_RCFBERCPT3,             0x00 },
-	{ R367_OFDM_RCFBERCPT2,             0x00 },
-	{ R367_OFDM_RCFBERCPT1,             0x00 },
-	{ R367_OFDM_RCFBERCPT0,             0x00 },
-	{ R367_OFDM_RCFBERERR2,             0x00 },
-	{ R367_OFDM_RCFBERERR1,             0x00 },
-	{ R367_OFDM_RCFBERERR0,             0x00 },
-	{ R367_OFDM_RCFSTATESM,             0x00 },
-	{ R367_OFDM_RCFSTATESL,             0x00 },
-	{ R367_OFDM_RCFSPYBER,              0x00 },
-	{ R367_OFDM_RCFSPYDISTM,            0x00 },
-	{ R367_OFDM_RCFSPYDISTL,            0x00 },
-	{ R367_OFDM_RCFSPYOBS7,             0x00 },
-	{ R367_OFDM_RCFSPYOBS6,             0x00 },
-	{ R367_OFDM_RCFSPYOBS5,             0x00 },
-	{ R367_OFDM_RCFSPYOBS4,             0x00 },
-	{ R367_OFDM_RCFSPYOBS3,             0x00 },
-	{ R367_OFDM_RCFSPYOBS2,             0x00 },
-	{ R367_OFDM_RCFSPYOBS1,             0x00 },
-	{ R367_OFDM_RCFSPYOBS0,             0x00 },
-	{ R367_OFDM_FECM,                   0x01 },
-	{ R367_OFDM_VTH12,                  0xff },
-	{ R367_OFDM_VTH23,                  0xa1 },
-	{ R367_OFDM_VTH34,                  0x64 },
-	{ R367_OFDM_VTH56,                  0x40 },
-	{ R367_OFDM_VTH67,                  0x00 },
-	{ R367_OFDM_VTH78,                  0x2c },
-	{ R367_OFDM_VITCURPUN,              0x12 },
-	{ R367_OFDM_VERROR,                 0x01 },
-	{ R367_OFDM_PRVIT,                  0x3f },
-	{ R367_OFDM_VAVSRVIT,               0x00 },
-	{ R367_OFDM_VSTATUSVIT,             0xbd },
-	{ R367_OFDM_VTHINUSE,               0xa1 },
-	{ R367_OFDM_KDIV12,                 0x20 },
-	{ R367_OFDM_KDIV23,                 0x40 },
-	{ R367_OFDM_KDIV34,                 0x20 },
-	{ R367_OFDM_KDIV56,                 0x30 },
-	{ R367_OFDM_KDIV67,                 0x00 },
-	{ R367_OFDM_KDIV78,                 0x30 },
-	{ R367_OFDM_SIGPOWER,               0x54 },
-	{ R367_OFDM_DEMAPVIT,               0x40 },
-	{ R367_OFDM_VITSCALE,               0x00 },
-	{ R367_OFDM_FFEC1PRG,               0x00 },
-	{ R367_OFDM_FVITCURPUN,             0x12 },
-	{ R367_OFDM_FVERROR,                0x01 },
-	{ R367_OFDM_FVSTATUSVIT,            0xbd },
-	{ R367_OFDM_DEBUG_LT1,              0x00 },
-	{ R367_OFDM_DEBUG_LT2,              0x00 },
-	{ R367_OFDM_DEBUG_LT3,              0x00 },
-	{ R367_OFDM_TSTSFMET,               0x00 },
-	{ R367_OFDM_SELOUT,                 0x00 },
-	{ R367_OFDM_TSYNC,                  0x00 },
-	{ R367_OFDM_TSTERR,                 0x00 },
-	{ R367_OFDM_TSFSYNC,                0x00 },
-	{ R367_OFDM_TSTSFERR,               0x00 },
-	{ R367_OFDM_TSTTSSF1,               0x01 },
-	{ R367_OFDM_TSTTSSF2,               0x1f },
-	{ R367_OFDM_TSTTSSF3,               0x00 },
-	{ R367_OFDM_TSTTS1,                 0x00 },
-	{ R367_OFDM_TSTTS2,                 0x1f },
-	{ R367_OFDM_TSTTS3,                 0x01 },
-	{ R367_OFDM_TSTTS4,                 0x00 },
-	{ R367_OFDM_TSTTSRC,                0x00 },
-	{ R367_OFDM_TSTTSRS,                0x00 },
-	{ R367_OFDM_TSSTATEM,               0xb0 },
-	{ R367_OFDM_TSSTATEL,               0x40 },
-	{ R367_OFDM_TSCFGH,                 0x80 },
-	{ R367_OFDM_TSCFGM,                 0x00 },
-	{ R367_OFDM_TSCFGL,                 0x20 },
-	{ R367_OFDM_TSSYNC,                 0x00 },
-	{ R367_OFDM_TSINSDELH,              0x00 },
-	{ R367_OFDM_TSINSDELM,              0x00 },
-	{ R367_OFDM_TSINSDELL,              0x00 },
-	{ R367_OFDM_TSDIVN,                 0x03 },
-	{ R367_OFDM_TSDIVPM,                0x00 },
-	{ R367_OFDM_TSDIVPL,                0x00 },
-	{ R367_OFDM_TSDIVQM,                0x00 },
-	{ R367_OFDM_TSDIVQL,                0x00 },
-	{ R367_OFDM_TSDILSTKM,              0x00 },
-	{ R367_OFDM_TSDILSTKL,              0x00 },
-	{ R367_OFDM_TSSPEED,                0x6f },
-	{ R367_OFDM_TSSTATUS,               0x81 },
-	{ R367_OFDM_TSSTATUS2,              0x6a },
-	{ R367_OFDM_TSBITRATEM,             0x0f },
-	{ R367_OFDM_TSBITRATEL,             0xc6 },
-	{ R367_OFDM_TSPACKLENM,             0x00 },
-	{ R367_OFDM_TSPACKLENL,             0xfc },
-	{ R367_OFDM_TSBLOCLENM,             0x0a },
-	{ R367_OFDM_TSBLOCLENL,             0x80 },
-	{ R367_OFDM_TSDLYH,                 0x90 },
-	{ R367_OFDM_TSDLYM,                 0x68 },
-	{ R367_OFDM_TSDLYL,                 0x01 },
-	{ R367_OFDM_TSNPDAV,                0x00 },
-	{ R367_OFDM_TSBUFSTATH,             0x00 },
-	{ R367_OFDM_TSBUFSTATM,             0x00 },
-	{ R367_OFDM_TSBUFSTATL,             0x00 },
-	{ R367_OFDM_TSDEBUGM,               0xcf },
-	{ R367_OFDM_TSDEBUGL,               0x1e },
-	{ R367_OFDM_TSDLYSETH,              0x00 },
-	{ R367_OFDM_TSDLYSETM,              0x68 },
-	{ R367_OFDM_TSDLYSETL,              0x00 },
-	{ R367_OFDM_TSOBSCFG,               0x00 },
-	{ R367_OFDM_TSOBSM,                 0x47 },
-	{ R367_OFDM_TSOBSL,                 0x1f },
-	{ R367_OFDM_ERRCTRL1,               0x95 },
-	{ R367_OFDM_ERRCNT1H,               0x80 },
-	{ R367_OFDM_ERRCNT1M,               0x00 },
-	{ R367_OFDM_ERRCNT1L,               0x00 },
-	{ R367_OFDM_ERRCTRL2,               0x95 },
-	{ R367_OFDM_ERRCNT2H,               0x00 },
-	{ R367_OFDM_ERRCNT2M,               0x00 },
-	{ R367_OFDM_ERRCNT2L,               0x00 },
-	{ R367_OFDM_FECSPY,                 0x88 },
-	{ R367_OFDM_FSPYCFG,                0x2c },
-	{ R367_OFDM_FSPYDATA,               0x3a },
-	{ R367_OFDM_FSPYOUT,                0x06 },
-	{ R367_OFDM_FSTATUS,                0x61 },
-	{ R367_OFDM_FGOODPACK,              0xff },
-	{ R367_OFDM_FPACKCNT,               0xff },
-	{ R367_OFDM_FSPYMISC,               0x66 },
-	{ R367_OFDM_FBERCPT4,               0x00 },
-	{ R367_OFDM_FBERCPT3,               0x00 },
-	{ R367_OFDM_FBERCPT2,               0x36 },
-	{ R367_OFDM_FBERCPT1,               0x36 },
-	{ R367_OFDM_FBERCPT0,               0x14 },
-	{ R367_OFDM_FBERERR2,               0x00 },
-	{ R367_OFDM_FBERERR1,               0x03 },
-	{ R367_OFDM_FBERERR0,               0x28 },
-	{ R367_OFDM_FSTATESM,               0x00 },
-	{ R367_OFDM_FSTATESL,               0x02 },
-	{ R367_OFDM_FSPYBER,                0x00 },
-	{ R367_OFDM_FSPYDISTM,              0x01 },
-	{ R367_OFDM_FSPYDISTL,              0x9f },
-	{ R367_OFDM_FSPYOBS7,               0xc9 },
-	{ R367_OFDM_FSPYOBS6,               0x99 },
-	{ R367_OFDM_FSPYOBS5,               0x08 },
-	{ R367_OFDM_FSPYOBS4,               0xec },
-	{ R367_OFDM_FSPYOBS3,               0x01 },
-	{ R367_OFDM_FSPYOBS2,               0x0f },
-	{ R367_OFDM_FSPYOBS1,               0xf5 },
-	{ R367_OFDM_FSPYOBS0,               0x08 },
-	{ R367_OFDM_SFDEMAP,                0x40 },
-	{ R367_OFDM_SFERROR,                0x00 },
-	{ R367_OFDM_SFAVSR,                 0x30 },
-	{ R367_OFDM_SFECSTATUS,             0xcc },
-	{ R367_OFDM_SFKDIV12,               0x20 },
-	{ R367_OFDM_SFKDIV23,               0x40 },
-	{ R367_OFDM_SFKDIV34,               0x20 },
-	{ R367_OFDM_SFKDIV56,               0x20 },
-	{ R367_OFDM_SFKDIV67,               0x00 },
-	{ R367_OFDM_SFKDIV78,               0x20 },
-	{ R367_OFDM_SFDILSTKM,              0x00 },
-	{ R367_OFDM_SFDILSTKL,              0x00 },
-	{ R367_OFDM_SFSTATUS,               0xb5 },
-	{ R367_OFDM_SFDLYH,                 0x90 },
-	{ R367_OFDM_SFDLYM,                 0x60 },
-	{ R367_OFDM_SFDLYL,                 0x01 },
-	{ R367_OFDM_SFDLYSETH,              0xc0 },
-	{ R367_OFDM_SFDLYSETM,              0x60 },
-	{ R367_OFDM_SFDLYSETL,              0x00 },
-	{ R367_OFDM_SFOBSCFG,               0x00 },
-	{ R367_OFDM_SFOBSM,                 0x47 },
-	{ R367_OFDM_SFOBSL,                 0x05 },
-	{ R367_OFDM_SFECINFO,               0x40 },
-	{ R367_OFDM_SFERRCTRL,              0x74 },
-	{ R367_OFDM_SFERRCNTH,              0x80 },
-	{ R367_OFDM_SFERRCNTM,              0x00 },
-	{ R367_OFDM_SFERRCNTL,              0x00 },
-	{ R367_OFDM_SYMBRATEM,              0x2f },
-	{ R367_OFDM_SYMBRATEL,              0x50 },
-	{ R367_OFDM_SYMBSTATUS,             0x7f },
-	{ R367_OFDM_SYMBCFG,                0x00 },
-	{ R367_OFDM_SYMBFIFOM,              0xf4 },
-	{ R367_OFDM_SYMBFIFOL,              0x0d },
-	{ R367_OFDM_SYMBOFFSM,              0xf0 },
-	{ R367_OFDM_SYMBOFFSL,              0x2d },
+	{ R367TER_AGC2MAX,                0xff },
+	{ R367TER_AGC2MIN,                0x00 },
+	{ R367TER_AGC1MAX,                0xff },
+	{ R367TER_AGC1MIN,                0x00 },
+	{ R367TER_AGCR,                   0xbc },
+	{ R367TER_AGC2TH,                 0x00 },
+	{ R367TER_AGCCTRL1,               0x85 },
+	{ R367TER_AGCCTRL2,               0x1f },
+	{ R367TER_AGC1VAL1,               0x00 },
+	{ R367TER_AGC1VAL2,               0x00 },
+	{ R367TER_AGC2VAL1,               0x6f },
+	{ R367TER_AGC2VAL2,               0x05 },
+	{ R367TER_AGC2PGA,                0x00 },
+	{ R367TER_OVF_RATE1,              0x00 },
+	{ R367TER_OVF_RATE2,              0x00 },
+	{ R367TER_GAIN_SRC1,              0x2b },
+	{ R367TER_GAIN_SRC2,              0x04 },
+	{ R367TER_INC_DEROT1,             0x55 },
+	{ R367TER_INC_DEROT2,             0x55 },
+	{ R367TER_PPM_CPAMP_DIR,          0x2c },
+	{ R367TER_PPM_CPAMP_INV,          0x00 },
+	{ R367TER_FREESTFE_1,             0x00 },
+	{ R367TER_FREESTFE_2,             0x1c },
+	{ R367TER_DCOFFSET,               0x00 },
+	{ R367TER_EN_PROCESS,             0x05 },
+	{ R367TER_SDI_SMOOTHER,           0x80 },
+	{ R367TER_FE_LOOP_OPEN,           0x1c },
+	{ R367TER_FREQOFF1,               0x00 },
+	{ R367TER_FREQOFF2,               0x00 },
+	{ R367TER_FREQOFF3,               0x00 },
+	{ R367TER_TIMOFF1,                0x00 },
+	{ R367TER_TIMOFF2,                0x00 },
+	{ R367TER_EPQ,                    0x02 },
+	{ R367TER_EPQAUTO,                0x01 },
+	{ R367TER_SYR_UPDATE,             0xf5 },
+	{ R367TER_CHPFREE,                0x00 },
+	{ R367TER_PPM_STATE_MAC,          0x23 },
+	{ R367TER_INR_THRESHOLD,          0xff },
+	{ R367TER_EPQ_TPS_ID_CELL,        0xf9 },
+	{ R367TER_EPQ_CFG,                0x00 },
+	{ R367TER_EPQ_STATUS,             0x01 },
+	{ R367TER_AUTORELOCK,             0x81 },
+	{ R367TER_BER_THR_VMSB,           0x00 },
+	{ R367TER_BER_THR_MSB,            0x00 },
+	{ R367TER_BER_THR_LSB,            0x00 },
+	{ R367TER_CCD,                    0x83 },
+	{ R367TER_SPECTR_CFG,             0x00 },
+	{ R367TER_CHC_DUMMY,              0x18 },
+	{ R367TER_INC_CTL,                0x88 },
+	{ R367TER_INCTHRES_COR1,          0xb4 },
+	{ R367TER_INCTHRES_COR2,          0x96 },
+	{ R367TER_INCTHRES_DET1,          0x0e },
+	{ R367TER_INCTHRES_DET2,          0x11 },
+	{ R367TER_IIR_CELLNB,             0x8d },
+	{ R367TER_IIRCX_COEFF1_MSB,       0x00 },
+	{ R367TER_IIRCX_COEFF1_LSB,       0x00 },
+	{ R367TER_IIRCX_COEFF2_MSB,       0x09 },
+	{ R367TER_IIRCX_COEFF2_LSB,       0x18 },
+	{ R367TER_IIRCX_COEFF3_MSB,       0x14 },
+	{ R367TER_IIRCX_COEFF3_LSB,       0x9c },
+	{ R367TER_IIRCX_COEFF4_MSB,       0x00 },
+	{ R367TER_IIRCX_COEFF4_LSB,       0x00 },
+	{ R367TER_IIRCX_COEFF5_MSB,       0x36 },
+	{ R367TER_IIRCX_COEFF5_LSB,       0x42 },
+	{ R367TER_FEPATH_CFG,             0x00 },
+	{ R367TER_PMC1_FUNC,              0x65 },
+	{ R367TER_PMC1_FOR,               0x00 },
+	{ R367TER_PMC2_FUNC,              0x00 },
+	{ R367TER_STATUS_ERR_DA,          0xe0 },
+	{ R367TER_DIG_AGC_R,              0xfe },
+	{ R367TER_COMAGC_TARMSB,          0x0b },
+	{ R367TER_COM_AGC_TAR_ENMODE,     0x41 },
+	{ R367TER_COM_AGC_CFG,            0x3e },
+	{ R367TER_COM_AGC_GAIN1,          0x39 },
+	{ R367TER_AUT_AGC_TARGETMSB,      0x0b },
+	{ R367TER_LOCK_DET_MSB,           0x01 },
+	{ R367TER_AGCTAR_LOCK_LSBS,       0x40 },
+	{ R367TER_AUT_GAIN_EN,            0xf4 },
+	{ R367TER_AUT_CFG,                0xf0 },
+	{ R367TER_LOCKN,                  0x23 },
+	{ R367TER_INT_X_3,                0x00 },
+	{ R367TER_INT_X_2,                0x03 },
+	{ R367TER_INT_X_1,                0x8d },
+	{ R367TER_INT_X_0,                0xa0 },
+	{ R367TER_MIN_ERRX_MSB,           0x00 },
+	{ R367TER_COR_CTL,                0x00 },
+	{ R367TER_COR_STAT,               0xf6 },
+	{ R367TER_COR_INTEN,              0x00 },
+	{ R367TER_COR_INTSTAT,            0x3f },
+	{ R367TER_COR_MODEGUARD,          0x03 },
+	{ R367TER_AGC_CTL,                0x08 },
+	{ R367TER_AGC_MANUAL1,            0x00 },
+	{ R367TER_AGC_MANUAL2,            0x00 },
+	{ R367TER_AGC_TARG,               0x16 },
+	{ R367TER_AGC_GAIN1,              0x53 },
+	{ R367TER_AGC_GAIN2,              0x1d },
+	{ R367TER_RESERVED_1,             0x00 },
+	{ R367TER_RESERVED_2,             0x00 },
+	{ R367TER_RESERVED_3,             0x00 },
+	{ R367TER_CAS_CTL,                0x44 },
+	{ R367TER_CAS_FREQ,               0xb3 },
+	{ R367TER_CAS_DAGCGAIN,           0x12 },
+	{ R367TER_SYR_CTL,                0x04 },
+	{ R367TER_SYR_STAT,               0x10 },
+	{ R367TER_SYR_NCO1,               0x00 },
+	{ R367TER_SYR_NCO2,               0x00 },
+	{ R367TER_SYR_OFFSET1,            0x00 },
+	{ R367TER_SYR_OFFSET2,            0x00 },
+	{ R367TER_FFT_CTL,                0x00 },
+	{ R367TER_SCR_CTL,                0x70 },
+	{ R367TER_PPM_CTL1,               0xf8 },
+	{ R367TER_TRL_CTL,                0xac },
+	{ R367TER_TRL_NOMRATE1,           0x1e },
+	{ R367TER_TRL_NOMRATE2,           0x58 },
+	{ R367TER_TRL_TIME1,              0x1d },
+	{ R367TER_TRL_TIME2,              0xfc },
+	{ R367TER_CRL_CTL,                0x24 },
+	{ R367TER_CRL_FREQ1,              0xad },
+	{ R367TER_CRL_FREQ2,              0x9d },
+	{ R367TER_CRL_FREQ3,              0xff },
+	{ R367TER_CHC_CTL,                0x01 },
+	{ R367TER_CHC_SNR,                0xf0 },
+	{ R367TER_BDI_CTL,                0x00 },
+	{ R367TER_DMP_CTL,                0x00 },
+	{ R367TER_TPS_RCVD1,              0x30 },
+	{ R367TER_TPS_RCVD2,              0x02 },
+	{ R367TER_TPS_RCVD3,              0x01 },
+	{ R367TER_TPS_RCVD4,              0x00 },
+	{ R367TER_TPS_ID_CELL1,           0x00 },
+	{ R367TER_TPS_ID_CELL2,           0x00 },
+	{ R367TER_TPS_RCVD5_SET1,         0x02 },
+	{ R367TER_TPS_SET2,               0x02 },
+	{ R367TER_TPS_SET3,               0x01 },
+	{ R367TER_TPS_CTL,                0x00 },
+	{ R367TER_CTL_FFTOSNUM,           0x34 },
+	{ R367TER_TESTSELECT,             0x09 },
+	{ R367TER_MSC_REV,                0x0a },
+	{ R367TER_PIR_CTL,                0x00 },
+	{ R367TER_SNR_CARRIER1,           0xa1 },
+	{ R367TER_SNR_CARRIER2,           0x9a },
+	{ R367TER_PPM_CPAMP,              0x2c },
+	{ R367TER_TSM_AP0,                0x00 },
+	{ R367TER_TSM_AP1,                0x00 },
+	{ R367TER_TSM_AP2,                0x00 },
+	{ R367TER_TSM_AP3,                0x00 },
+	{ R367TER_TSM_AP4,                0x00 },
+	{ R367TER_TSM_AP5,                0x00 },
+	{ R367TER_TSM_AP6,                0x00 },
+	{ R367TER_TSM_AP7,                0x00 },
+	{ R367TER_CONSTMODE,              0x01 },
+	{ R367TER_CONSTCARR1,             0x00 },
+	{ R367TER_CONSTCARR2,             0x00 },
+	{ R367TER_ICONSTEL,               0x0a },
+	{ R367TER_QCONSTEL,               0x15 },
+	{ R367TER_TSTBISTRES0,            0x00 },
+	{ R367TER_TSTBISTRES1,            0x00 },
+	{ R367TER_TSTBISTRES2,            0x28 },
+	{ R367TER_TSTBISTRES3,            0x00 },
+	{ R367TER_SYR_TARGET_FFTADJT_MSB, 0x00 },
+	{ R367TER_SYR_TARGET_FFTADJT_LSB, 0x00 },
+	{ R367TER_SYR_TARGET_CHCADJT_MSB, 0x00 },
+	{ R367TER_SYR_TARGET_CHCADJT_LSB, 0x00 },
+	{ R367TER_SYR_FLAG,               0x00 },
+	{ R367TER_CRL_TARGET1,            0x00 },
+	{ R367TER_CRL_TARGET2,            0x00 },
+	{ R367TER_CRL_TARGET3,            0x00 },
+	{ R367TER_CRL_TARGET4,            0x00 },
+	{ R367TER_CRL_FLAG,               0x00 },
+	{ R367TER_TRL_TARGET1,            0x00 },
+	{ R367TER_TRL_TARGET2,            0x00 },
+	{ R367TER_TRL_CHC,                0x00 },
+	{ R367TER_CHC_SNR_TARG,           0x00 },
+	{ R367TER_TOP_TRACK,              0x00 },
+	{ R367TER_TRACKER_FREE1,          0x00 },
+	{ R367TER_ERROR_CRL1,             0x00 },
+	{ R367TER_ERROR_CRL2,             0x00 },
+	{ R367TER_ERROR_CRL3,             0x00 },
+	{ R367TER_ERROR_CRL4,             0x00 },
+	{ R367TER_DEC_NCO1,               0x2c },
+	{ R367TER_DEC_NCO2,               0x0f },
+	{ R367TER_DEC_NCO3,               0x20 },
+	{ R367TER_SNR,                    0xf1 },
+	{ R367TER_SYR_FFTADJ1,            0x00 },
+	{ R367TER_SYR_FFTADJ2,            0x00 },
+	{ R367TER_SYR_CHCADJ1,            0x00 },
+	{ R367TER_SYR_CHCADJ2,            0x00 },
+	{ R367TER_SYR_OFF,                0x00 },
+	{ R367TER_PPM_OFFSET1,            0x00 },
+	{ R367TER_PPM_OFFSET2,            0x03 },
+	{ R367TER_TRACKER_FREE2,          0x00 },
+	{ R367TER_DEBG_LT10,              0x00 },
+	{ R367TER_DEBG_LT11,              0x00 },
+	{ R367TER_DEBG_LT12,              0x00 },
+	{ R367TER_DEBG_LT13,              0x00 },
+	{ R367TER_DEBG_LT14,              0x00 },
+	{ R367TER_DEBG_LT15,              0x00 },
+	{ R367TER_DEBG_LT16,              0x00 },
+	{ R367TER_DEBG_LT17,              0x00 },
+	{ R367TER_DEBG_LT18,              0x00 },
+	{ R367TER_DEBG_LT19,              0x00 },
+	{ R367TER_DEBG_LT1A,              0x00 },
+	{ R367TER_DEBG_LT1B,              0x00 },
+	{ R367TER_DEBG_LT1C,              0x00 },
+	{ R367TER_DEBG_LT1D,              0x00 },
+	{ R367TER_DEBG_LT1E,              0x00 },
+	{ R367TER_DEBG_LT1F,              0x00 },
+	{ R367TER_RCCFGH,                 0x00 },
+	{ R367TER_RCCFGM,                 0x00 },
+	{ R367TER_RCCFGL,                 0x00 },
+	{ R367TER_RCINSDELH,              0x00 },
+	{ R367TER_RCINSDELM,              0x00 },
+	{ R367TER_RCINSDELL,              0x00 },
+	{ R367TER_RCSTATUS,               0x00 },
+	{ R367TER_RCSPEED,                0x6f },
+	{ R367TER_RCDEBUGM,               0xe7 },
+	{ R367TER_RCDEBUGL,               0x9b },
+	{ R367TER_RCOBSCFG,               0x00 },
+	{ R367TER_RCOBSM,                 0x00 },
+	{ R367TER_RCOBSL,                 0x00 },
+	{ R367TER_RCFECSPY,               0x00 },
+	{ R367TER_RCFSPYCFG,              0x00 },
+	{ R367TER_RCFSPYDATA,             0x00 },
+	{ R367TER_RCFSPYOUT,              0x00 },
+	{ R367TER_RCFSTATUS,              0x00 },
+	{ R367TER_RCFGOODPACK,            0x00 },
+	{ R367TER_RCFPACKCNT,             0x00 },
+	{ R367TER_RCFSPYMISC,             0x00 },
+	{ R367TER_RCFBERCPT4,             0x00 },
+	{ R367TER_RCFBERCPT3,             0x00 },
+	{ R367TER_RCFBERCPT2,             0x00 },
+	{ R367TER_RCFBERCPT1,             0x00 },
+	{ R367TER_RCFBERCPT0,             0x00 },
+	{ R367TER_RCFBERERR2,             0x00 },
+	{ R367TER_RCFBERERR1,             0x00 },
+	{ R367TER_RCFBERERR0,             0x00 },
+	{ R367TER_RCFSTATESM,             0x00 },
+	{ R367TER_RCFSTATESL,             0x00 },
+	{ R367TER_RCFSPYBER,              0x00 },
+	{ R367TER_RCFSPYDISTM,            0x00 },
+	{ R367TER_RCFSPYDISTL,            0x00 },
+	{ R367TER_RCFSPYOBS7,             0x00 },
+	{ R367TER_RCFSPYOBS6,             0x00 },
+	{ R367TER_RCFSPYOBS5,             0x00 },
+	{ R367TER_RCFSPYOBS4,             0x00 },
+	{ R367TER_RCFSPYOBS3,             0x00 },
+	{ R367TER_RCFSPYOBS2,             0x00 },
+	{ R367TER_RCFSPYOBS1,             0x00 },
+	{ R367TER_RCFSPYOBS0,             0x00 },
+	{ R367TER_FECM,                   0x01 },
+	{ R367TER_VTH12,                  0xff },
+	{ R367TER_VTH23,                  0xa1 },
+	{ R367TER_VTH34,                  0x64 },
+	{ R367TER_VTH56,                  0x40 },
+	{ R367TER_VTH67,                  0x00 },
+	{ R367TER_VTH78,                  0x2c },
+	{ R367TER_VITCURPUN,              0x12 },
+	{ R367TER_VERROR,                 0x01 },
+	{ R367TER_PRVIT,                  0x3f },
+	{ R367TER_VAVSRVIT,               0x00 },
+	{ R367TER_VSTATUSVIT,             0xbd },
+	{ R367TER_VTHINUSE,               0xa1 },
+	{ R367TER_KDIV12,                 0x20 },
+	{ R367TER_KDIV23,                 0x40 },
+	{ R367TER_KDIV34,                 0x20 },
+	{ R367TER_KDIV56,                 0x30 },
+	{ R367TER_KDIV67,                 0x00 },
+	{ R367TER_KDIV78,                 0x30 },
+	{ R367TER_SIGPOWER,               0x54 },
+	{ R367TER_DEMAPVIT,               0x40 },
+	{ R367TER_VITSCALE,               0x00 },
+	{ R367TER_FFEC1PRG,               0x00 },
+	{ R367TER_FVITCURPUN,             0x12 },
+	{ R367TER_FVERROR,                0x01 },
+	{ R367TER_FVSTATUSVIT,            0xbd },
+	{ R367TER_DEBUG_LT1,              0x00 },
+	{ R367TER_DEBUG_LT2,              0x00 },
+	{ R367TER_DEBUG_LT3,              0x00 },
+	{ R367TER_TSTSFMET,               0x00 },
+	{ R367TER_SELOUT,                 0x00 },
+	{ R367TER_TSYNC,                  0x00 },
+	{ R367TER_TSTERR,                 0x00 },
+	{ R367TER_TSFSYNC,                0x00 },
+	{ R367TER_TSTSFERR,               0x00 },
+	{ R367TER_TSTTSSF1,               0x01 },
+	{ R367TER_TSTTSSF2,               0x1f },
+	{ R367TER_TSTTSSF3,               0x00 },
+	{ R367TER_TSTTS1,                 0x00 },
+	{ R367TER_TSTTS2,                 0x1f },
+	{ R367TER_TSTTS3,                 0x01 },
+	{ R367TER_TSTTS4,                 0x00 },
+	{ R367TER_TSTTSRC,                0x00 },
+	{ R367TER_TSTTSRS,                0x00 },
+	{ R367TER_TSSTATEM,               0xb0 },
+	{ R367TER_TSSTATEL,               0x40 },
+	{ R367TER_TSCFGH,                 0x80 },
+	{ R367TER_TSCFGM,                 0x00 },
+	{ R367TER_TSCFGL,                 0x20 },
+	{ R367TER_TSSYNC,                 0x00 },
+	{ R367TER_TSINSDELH,              0x00 },
+	{ R367TER_TSINSDELM,              0x00 },
+	{ R367TER_TSINSDELL,              0x00 },
+	{ R367TER_TSDIVN,                 0x03 },
+	{ R367TER_TSDIVPM,                0x00 },
+	{ R367TER_TSDIVPL,                0x00 },
+	{ R367TER_TSDIVQM,                0x00 },
+	{ R367TER_TSDIVQL,                0x00 },
+	{ R367TER_TSDILSTKM,              0x00 },
+	{ R367TER_TSDILSTKL,              0x00 },
+	{ R367TER_TSSPEED,                0x6f },
+	{ R367TER_TSSTATUS,               0x81 },
+	{ R367TER_TSSTATUS2,              0x6a },
+	{ R367TER_TSBITRATEM,             0x0f },
+	{ R367TER_TSBITRATEL,             0xc6 },
+	{ R367TER_TSPACKLENM,             0x00 },
+	{ R367TER_TSPACKLENL,             0xfc },
+	{ R367TER_TSBLOCLENM,             0x0a },
+	{ R367TER_TSBLOCLENL,             0x80 },
+	{ R367TER_TSDLYH,                 0x90 },
+	{ R367TER_TSDLYM,                 0x68 },
+	{ R367TER_TSDLYL,                 0x01 },
+	{ R367TER_TSNPDAV,                0x00 },
+	{ R367TER_TSBUFSTATH,             0x00 },
+	{ R367TER_TSBUFSTATM,             0x00 },
+	{ R367TER_TSBUFSTATL,             0x00 },
+	{ R367TER_TSDEBUGM,               0xcf },
+	{ R367TER_TSDEBUGL,               0x1e },
+	{ R367TER_TSDLYSETH,              0x00 },
+	{ R367TER_TSDLYSETM,              0x68 },
+	{ R367TER_TSDLYSETL,              0x00 },
+	{ R367TER_TSOBSCFG,               0x00 },
+	{ R367TER_TSOBSM,                 0x47 },
+	{ R367TER_TSOBSL,                 0x1f },
+	{ R367TER_ERRCTRL1,               0x95 },
+	{ R367TER_ERRCNT1H,               0x80 },
+	{ R367TER_ERRCNT1M,               0x00 },
+	{ R367TER_ERRCNT1L,               0x00 },
+	{ R367TER_ERRCTRL2,               0x95 },
+	{ R367TER_ERRCNT2H,               0x00 },
+	{ R367TER_ERRCNT2M,               0x00 },
+	{ R367TER_ERRCNT2L,               0x00 },
+	{ R367TER_FECSPY,                 0x88 },
+	{ R367TER_FSPYCFG,                0x2c },
+	{ R367TER_FSPYDATA,               0x3a },
+	{ R367TER_FSPYOUT,                0x06 },
+	{ R367TER_FSTATUS,                0x61 },
+	{ R367TER_FGOODPACK,              0xff },
+	{ R367TER_FPACKCNT,               0xff },
+	{ R367TER_FSPYMISC,               0x66 },
+	{ R367TER_FBERCPT4,               0x00 },
+	{ R367TER_FBERCPT3,               0x00 },
+	{ R367TER_FBERCPT2,               0x36 },
+	{ R367TER_FBERCPT1,               0x36 },
+	{ R367TER_FBERCPT0,               0x14 },
+	{ R367TER_FBERERR2,               0x00 },
+	{ R367TER_FBERERR1,               0x03 },
+	{ R367TER_FBERERR0,               0x28 },
+	{ R367TER_FSTATESM,               0x00 },
+	{ R367TER_FSTATESL,               0x02 },
+	{ R367TER_FSPYBER,                0x00 },
+	{ R367TER_FSPYDISTM,              0x01 },
+	{ R367TER_FSPYDISTL,              0x9f },
+	{ R367TER_FSPYOBS7,               0xc9 },
+	{ R367TER_FSPYOBS6,               0x99 },
+	{ R367TER_FSPYOBS5,               0x08 },
+	{ R367TER_FSPYOBS4,               0xec },
+	{ R367TER_FSPYOBS3,               0x01 },
+	{ R367TER_FSPYOBS2,               0x0f },
+	{ R367TER_FSPYOBS1,               0xf5 },
+	{ R367TER_FSPYOBS0,               0x08 },
+	{ R367TER_SFDEMAP,                0x40 },
+	{ R367TER_SFERROR,                0x00 },
+	{ R367TER_SFAVSR,                 0x30 },
+	{ R367TER_SFECSTATUS,             0xcc },
+	{ R367TER_SFKDIV12,               0x20 },
+	{ R367TER_SFKDIV23,               0x40 },
+	{ R367TER_SFKDIV34,               0x20 },
+	{ R367TER_SFKDIV56,               0x20 },
+	{ R367TER_SFKDIV67,               0x00 },
+	{ R367TER_SFKDIV78,               0x20 },
+	{ R367TER_SFDILSTKM,              0x00 },
+	{ R367TER_SFDILSTKL,              0x00 },
+	{ R367TER_SFSTATUS,               0xb5 },
+	{ R367TER_SFDLYH,                 0x90 },
+	{ R367TER_SFDLYM,                 0x60 },
+	{ R367TER_SFDLYL,                 0x01 },
+	{ R367TER_SFDLYSETH,              0xc0 },
+	{ R367TER_SFDLYSETM,              0x60 },
+	{ R367TER_SFDLYSETL,              0x00 },
+	{ R367TER_SFOBSCFG,               0x00 },
+	{ R367TER_SFOBSM,                 0x47 },
+	{ R367TER_SFOBSL,                 0x05 },
+	{ R367TER_SFECINFO,               0x40 },
+	{ R367TER_SFERRCTRL,              0x74 },
+	{ R367TER_SFERRCNTH,              0x80 },
+	{ R367TER_SFERRCNTM,              0x00 },
+	{ R367TER_SFERRCNTL,              0x00 },
+	{ R367TER_SYMBRATEM,              0x2f },
+	{ R367TER_SYMBRATEL,              0x50 },
+	{ R367TER_SYMBSTATUS,             0x7f },
+	{ R367TER_SYMBCFG,                0x00 },
+	{ R367TER_SYMBFIFOM,              0xf4 },
+	{ R367TER_SYMBFIFOL,              0x0d },
+	{ R367TER_SYMBOFFSM,              0xf0 },
+	{ R367TER_SYMBOFFSL,              0x2d },
 	{ 0x0000, 0x00 } /* EOT */
 };
 
@@ -786,98 +786,98 @@ static int qam_set_modulation(struct stv_state *state)
 
 	switch (state->modulation) {
 	case QAM_16:
-		writereg(state, R367_QAM_EQU_MAPPER,
+		writereg(state, R367CAB_EQU_MAPPER,
 			state->qam_inversion | QAM_MOD_QAM16);
 		/* Set analog AGC reference */
-		writereg(state, R367_QAM_AGC_PWR_REF_L, 0x64);
+		writereg(state, R367CAB_AGC_PWR_REF_L, 0x64);
 		/* Set digital AGC reference */
-		writereg(state, R367_QAM_IQDEM_ADJ_AGC_REF, 0x00);
-		writereg(state, R367_QAM_FSM_STATE, 0x90);
-		writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xc1);
-		writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa7);
-		writereg(state, R367_QAM_EQU_CRL_LD_SEN, 0x95);
-		writereg(state, R367_QAM_EQU_CRL_LIMITER, 0x40);
-		writereg(state, R367_QAM_EQU_PNT_GAIN, 0x8a);
+		writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x00);
+		writereg(state, R367CAB_FSM_STATE, 0x90);
+		writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
+		writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa7);
+		writereg(state, R367CAB_EQU_CRL_LD_SEN, 0x95);
+		writereg(state, R367CAB_EQU_CRL_LIMITER, 0x40);
+		writereg(state, R367CAB_EQU_PNT_GAIN, 0x8a);
 		break;
 	case QAM_32:
-		writereg(state, R367_QAM_EQU_MAPPER,
+		writereg(state, R367CAB_EQU_MAPPER,
 			state->qam_inversion | QAM_MOD_QAM32);
 		/* Set analog AGC reference */
-		writereg(state, R367_QAM_AGC_PWR_REF_L, 0x6e);
+		writereg(state, R367CAB_AGC_PWR_REF_L, 0x6e);
 		/* Set digital AGC reference */
-		writereg(state, R367_QAM_IQDEM_ADJ_AGC_REF, 0x00);
-		writereg(state, R367_QAM_FSM_STATE, 0xb0);
-		writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xc1);
-		writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xb7);
-		writereg(state, R367_QAM_EQU_CRL_LD_SEN, 0x9d);
-		writereg(state, R367_QAM_EQU_CRL_LIMITER, 0x7f);
-		writereg(state, R367_QAM_EQU_PNT_GAIN, 0xa7);
+		writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x00);
+		writereg(state, R367CAB_FSM_STATE, 0xb0);
+		writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
+		writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xb7);
+		writereg(state, R367CAB_EQU_CRL_LD_SEN, 0x9d);
+		writereg(state, R367CAB_EQU_CRL_LIMITER, 0x7f);
+		writereg(state, R367CAB_EQU_PNT_GAIN, 0xa7);
 		break;
 	case QAM_64:
-		writereg(state, R367_QAM_EQU_MAPPER,
+		writereg(state, R367CAB_EQU_MAPPER,
 			state->qam_inversion | QAM_MOD_QAM64);
 		/* Set analog AGC reference */
-		writereg(state, R367_QAM_AGC_PWR_REF_L, 0x5a);
+		writereg(state, R367CAB_AGC_PWR_REF_L, 0x5a);
 		/* Set digital AGC reference */
-		writereg(state, R367_QAM_IQDEM_ADJ_AGC_REF, 0x82);
+		writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x82);
 
 		if (state->symbol_rate > 4500000) {
-			writereg(state, R367_QAM_FSM_STATE, 0xb0);
-			writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xc1);
-			writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa5);
+			writereg(state, R367CAB_FSM_STATE, 0xb0);
+			writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
+			writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa5);
 		} else if (state->symbol_rate > 2500000) { /* 25000000 */
-			writereg(state, R367_QAM_FSM_STATE, 0xa0);
-			writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xc1);
-			writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa6);
+			writereg(state, R367CAB_FSM_STATE, 0xa0);
+			writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
+			writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa6);
 		} else {
-			writereg(state, R367_QAM_FSM_STATE, 0xa0);
-			writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xd1);
-			writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa7);
+			writereg(state, R367CAB_FSM_STATE, 0xa0);
+			writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xd1);
+			writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa7);
 		}
-		writereg(state, R367_QAM_EQU_CRL_LD_SEN, 0x95);
-		writereg(state, R367_QAM_EQU_CRL_LIMITER, 0x40);
-		writereg(state, R367_QAM_EQU_PNT_GAIN, 0x99);
+		writereg(state, R367CAB_EQU_CRL_LD_SEN, 0x95);
+		writereg(state, R367CAB_EQU_CRL_LIMITER, 0x40);
+		writereg(state, R367CAB_EQU_PNT_GAIN, 0x99);
 		break;
 	case QAM_128:
-		writereg(state, R367_QAM_EQU_MAPPER,
+		writereg(state, R367CAB_EQU_MAPPER,
 			state->qam_inversion | QAM_MOD_QAM128);
 		/* Set analog AGC reference */
-		writereg(state, R367_QAM_AGC_PWR_REF_L, 0x76);
+		writereg(state, R367CAB_AGC_PWR_REF_L, 0x76);
 		/* Set digital AGC reference */
-		writereg(state, R367_QAM_IQDEM_ADJ_AGC_REF, 0x00);
-		writereg(state, R367_QAM_FSM_STATE, 0x90);
-		writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xb1);
+		writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x00);
+		writereg(state, R367CAB_FSM_STATE, 0x90);
+		writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xb1);
 		if (state->symbol_rate > 4500000) { /* 45000000 */
-			writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa7);
+			writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa7);
 		} else if (state->symbol_rate > 2500000) { /* 25000000 */
-			writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa6);
+			writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa6);
 		} else {
-			writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0x97);
+			writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0x97);
 		}
-		writereg(state, R367_QAM_EQU_CRL_LD_SEN, 0x8e);
-		writereg(state, R367_QAM_EQU_CRL_LIMITER, 0x7f);
-		writereg(state, R367_QAM_EQU_PNT_GAIN, 0xa7);
+		writereg(state, R367CAB_EQU_CRL_LD_SEN, 0x8e);
+		writereg(state, R367CAB_EQU_CRL_LIMITER, 0x7f);
+		writereg(state, R367CAB_EQU_PNT_GAIN, 0xa7);
 		break;
 	case QAM_256:
-		writereg(state, R367_QAM_EQU_MAPPER,
+		writereg(state, R367CAB_EQU_MAPPER,
 			state->qam_inversion | QAM_MOD_QAM256);
 		/* Set analog AGC reference */
-		writereg(state, R367_QAM_AGC_PWR_REF_L, 0x5a);
+		writereg(state, R367CAB_AGC_PWR_REF_L, 0x5a);
 		/* Set digital AGC reference */
-		writereg(state, R367_QAM_IQDEM_ADJ_AGC_REF, 0x94);
-		writereg(state, R367_QAM_FSM_STATE, 0xa0);
+		writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x94);
+		writereg(state, R367CAB_FSM_STATE, 0xa0);
 
 		if (state->symbol_rate > 4500000) { /* 45000000 */
-			writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xc1);
+			writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
 		} else if (state->symbol_rate > 2500000) { /* 25000000 */
-			writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xc1);
+			writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
 		} else {
-			writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, 0xd1);
+			writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xd1);
 		}
-		writereg(state, R367_QAM_EQU_CRL_LPF_GAIN, 0xa7);
-		writereg(state, R367_QAM_EQU_CRL_LD_SEN, 0x85);
-		writereg(state, R367_QAM_EQU_CRL_LIMITER, 0x40);
-		writereg(state, R367_QAM_EQU_PNT_GAIN, 0xa7);
+		writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa7);
+		writereg(state, R367CAB_EQU_CRL_LD_SEN, 0x85);
+		writereg(state, R367CAB_EQU_CRL_LIMITER, 0x40);
+		writereg(state, R367CAB_EQU_PNT_GAIN, 0xa7);
 		break;
 	default:
 		stat = -EINVAL;
@@ -914,7 +914,7 @@ static int QAM_SetSymbolRate(struct stv_state *state)
 
 	/* Transfer ration */
 	Temp = (256*sr) / state->adc_clock;
-	writereg(state, R367_QAM_EQU_CRL_TFR, (Temp));
+	writereg(state, R367CAB_EQU_CRL_TFR, (Temp));
 
 	/* Symbol rate and SRC gain calculation */
 	/* TRL works at half the system clock */
@@ -941,13 +941,13 @@ static int QAM_SetSymbolRate(struct stv_state *state)
 			* Corr * 9) / 1250000;
 	}
 
-	writereg(state, R367_QAM_SRC_NCO_LL, (Temp));
-	writereg(state, R367_QAM_SRC_NCO_LH, (Temp>>8));
-	writereg(state, R367_QAM_SRC_NCO_HL, (Temp>>16));
-	writereg(state, R367_QAM_SRC_NCO_HH, (Temp>>24));
+	writereg(state, R367CAB_SRC_NCO_LL, (Temp));
+	writereg(state, R367CAB_SRC_NCO_LH, (Temp>>8));
+	writereg(state, R367CAB_SRC_NCO_HL, (Temp>>16));
+	writereg(state, R367CAB_SRC_NCO_HH, (Temp>>24));
 
-	writereg(state, R367_QAM_IQDEM_GAIN_SRC_L, (Temp1));
-	writereg(state, R367_QAM_IQDEM_GAIN_SRC_H, (Temp1>>8));
+	writereg(state, R367CAB_IQDEM_GAIN_SRC_L, (Temp1));
+	writereg(state, R367CAB_IQDEM_GAIN_SRC_H, (Temp1>>8));
 	return status;
 }
 
@@ -966,9 +966,9 @@ static int QAM_SetDerotFrequency(struct stv_state *state, u32 DerotFrequency)
 		if (Sampled_IF > 8388607)
 			Sampled_IF = 8388607;
 
-		writereg(state, R367_QAM_MIX_NCO_LL, (Sampled_IF));
-		writereg(state, R367_QAM_MIX_NCO_HL, (Sampled_IF>>8));
-		writereg(state, R367_QAM_MIX_NCO_HH, (Sampled_IF>>16));
+		writereg(state, R367CAB_MIX_NCO_LL, (Sampled_IF));
+		writereg(state, R367CAB_MIX_NCO_HL, (Sampled_IF>>8));
+		writereg(state, R367CAB_MIX_NCO_HH, (Sampled_IF>>16));
 	} while (0);
 
 	return status;
@@ -987,34 +987,34 @@ static int QAM_Start(struct stv_state *state, s32 offsetFreq,
 	u8 Temp;
 
 	if (state->demod_state != QAMSet) {
-		writereg(state, R367_DEBUG_LT4, 0x00);
-		writereg(state, R367_DEBUG_LT5, 0x01);
-		writereg(state, R367_DEBUG_LT6, 0x06); /* R367_QAM_CTRL_1 */
-		writereg(state, R367_DEBUG_LT7, 0x03); /* R367_QAM_CTRL_2 */
-		writereg(state, R367_DEBUG_LT8, 0x00);
-		writereg(state, R367_DEBUG_LT9, 0x00);
+		writereg(state, R367TER_DEBUG_LT4, 0x00);
+		writereg(state, R367TER_DEBUG_LT5, 0x01);
+		writereg(state, R367TER_DEBUG_LT6, 0x06); /* R367CAB_CTRL_1 */
+		writereg(state, R367TER_DEBUG_LT7, 0x03); /* R367CAB_CTRL_2 */
+		writereg(state, R367TER_DEBUG_LT8, 0x00);
+		writereg(state, R367TER_DEBUG_LT9, 0x00);
 
 		/* Tuner Setup */
 		/* Buffer Q disabled, I Enabled, signed ADC */
-		writereg(state, R367_ANADIGCTRL, 0x8B);
+		writereg(state, R367TER_ANADIGCTRL, 0x8B);
 		/* ADCQ disabled */
-		writereg(state, R367_DUAL_AD12, 0x04);
+		writereg(state, R367TER_DUAL_AD12, 0x04);
 
 		/* Clock setup */
 		/* PLL bypassed and disabled */
-		writereg(state, R367_ANACTRL, 0x0D);
+		writereg(state, R367TER_ANACTRL, 0x0D);
 		/* Set QAM */
-		writereg(state, R367_TOPCTRL, 0x10);
+		writereg(state, R367TER_TOPCTRL, 0x10);
 
 		/* IC runs at 58 MHz with a 27 MHz crystal */
-		writereg(state, R367_PLLMDIV, 27);
-		writereg(state, R367_PLLNDIV, 232);
+		writereg(state, R367TER_PLLMDIV, 27);
+		writereg(state, R367TER_PLLNDIV, 232);
 		/* ADC clock is equal to system clock */
-		writereg(state, R367_PLLSETUP, 0x18);
+		writereg(state, R367TER_PLLSETUP, 0x18);
 
 		msleep(50);
 		/* PLL enabled and used */
-		writereg(state, R367_ANACTRL, 0x00);
+		writereg(state, R367TER_ANACTRL, 0x00);
 
 		state->master_clock = 58000000;
 		state->adc_clock = 58000000;
@@ -1061,21 +1061,21 @@ static int QAM_Start(struct stv_state *state, s32 offsetFreq,
 	state->m_SignalTimeOut = AGCTimeOut + TRLTimeOut;
 
 	/* QAM_AGC_ACCUMRSTSEL = 0 */
-	readreg(state, R367_QAM_AGC_CTL, &state->m_Save_QAM_AGC_CTL);
-	writereg(state, R367_QAM_AGC_CTL, state->m_Save_QAM_AGC_CTL & ~0x0F);
+	readreg(state, R367CAB_AGC_CTL, &state->m_Save_QAM_AGC_CTL);
+	writereg(state, R367CAB_AGC_CTL, state->m_Save_QAM_AGC_CTL & ~0x0F);
 
 	/* QAM_MODULUSMAP_EN = 0 */
-	readreg(state, R367_QAM_EQU_PNT_GAIN, &Temp);
-	writereg(state, R367_QAM_EQU_PNT_GAIN, Temp & ~0x40);
+	readreg(state, R367CAB_EQU_PNT_GAIN, &Temp);
+	writereg(state, R367CAB_EQU_PNT_GAIN, Temp & ~0x40);
 
 	/* QAM_SWEEP_EN = 0 */
-	readreg(state, R367_QAM_EQU_CTR_LPF_GAIN, &Temp);
-	writereg(state, R367_QAM_EQU_CTR_LPF_GAIN, Temp & ~0x08);
+	readreg(state, R367CAB_EQU_CTR_LPF_GAIN, &Temp);
+	writereg(state, R367CAB_EQU_CTR_LPF_GAIN, Temp & ~0x08);
 
 	QAM_SetDerotFrequency(state, IntermediateFrequency);
 
 	/* Release TRL */
-	writereg(state, R367_QAM_CTRL_1, 0x00);
+	writereg(state, R367CAB_CTRL_1, 0x00);
 
 	state->IF = IntermediateFrequency;
 	state->demod_state = QAMStarted;
@@ -1095,32 +1095,32 @@ static int OFDM_Start(struct stv_state *state, s32 offsetFreq,
 
 	if (state->demod_state != OFDMSet) {
 		/* QAM Disable */
-		writereg(state, R367_DEBUG_LT4, 0x00);
-		writereg(state, R367_DEBUG_LT5, 0x00);
-		writereg(state, R367_DEBUG_LT6, 0x00); /* R367_QAM_CTRL_1 */
-		writereg(state, R367_DEBUG_LT7, 0x00); /* R367_QAM_CTRL_2 */
-		writereg(state, R367_DEBUG_LT8, 0x00);
-		writereg(state, R367_DEBUG_LT9, 0x00);
+		writereg(state, R367TER_DEBUG_LT4, 0x00);
+		writereg(state, R367TER_DEBUG_LT5, 0x00);
+		writereg(state, R367TER_DEBUG_LT6, 0x00); /* R367CAB_CTRL_1 */
+		writereg(state, R367TER_DEBUG_LT7, 0x00); /* R367CAB_CTRL_2 */
+		writereg(state, R367TER_DEBUG_LT8, 0x00);
+		writereg(state, R367TER_DEBUG_LT9, 0x00);
 
 		/* Tuner Setup */
 		/* Buffer Q disabled, I Enabled, unsigned ADC */
-		writereg(state, R367_ANADIGCTRL, 0x89);
-		writereg(state, R367_DUAL_AD12, 0x04); /* ADCQ disabled */
+		writereg(state, R367TER_ANADIGCTRL, 0x89);
+		writereg(state, R367TER_DUAL_AD12, 0x04); /* ADCQ disabled */
 
 		/* Clock setup */
 		/* PLL bypassed and disabled */
-		writereg(state, R367_ANACTRL, 0x0D);
-		writereg(state, R367_TOPCTRL, 0x00); /* Set OFDM */
+		writereg(state, R367TER_ANACTRL, 0x0D);
+		writereg(state, R367TER_TOPCTRL, 0x00); /* Set OFDM */
 
 		/* IC runs at 54 MHz with a 27 MHz crystal */
-		writereg(state, R367_PLLMDIV, 1);
-		writereg(state, R367_PLLNDIV, 8);
+		writereg(state, R367TER_PLLMDIV, 1);
+		writereg(state, R367TER_PLLNDIV, 8);
 		/* ADC clock is equal to system clock */
-		writereg(state, R367_PLLSETUP, 0x18);
+		writereg(state, R367TER_PLLSETUP, 0x18);
 
 		msleep(50);
 		/* PLL enabled and used */
-		writereg(state, R367_ANACTRL, 0x00);
+		writereg(state, R367TER_ANACTRL, 0x00);
 
 		state->master_clock = 54000000;
 		state->adc_clock    = 54000000;
@@ -1143,30 +1143,30 @@ static int OFDM_Start(struct stv_state *state, s32 offsetFreq,
 	case 0:
 	case 8000000:
 		/* Normrate = 44384 */
-		writereg(state, R367_OFDM_TRL_CTL, 0x14);
-		writereg(state, R367_OFDM_TRL_NOMRATE1, 0xB0);
-		writereg(state, R367_OFDM_TRL_NOMRATE2, 0x56);
+		writereg(state, R367TER_TRL_CTL, 0x14);
+		writereg(state, R367TER_TRL_NOMRATE1, 0xB0);
+		writereg(state, R367TER_TRL_NOMRATE2, 0x56);
 		/* Gain SRC = 2774 */
-		writereg(state, R367_OFDM_GAIN_SRC1, 0x0A | GAIN_SRC1);
-		writereg(state, R367_OFDM_GAIN_SRC2, 0xD6);
+		writereg(state, R367TER_GAIN_SRC1, 0x0A | GAIN_SRC1);
+		writereg(state, R367TER_GAIN_SRC2, 0xD6);
 		break;
 	case 7000000:
 		/* Normrate = 38836 */
-		writereg(state, R367_OFDM_TRL_CTL, 0x14);
-		writereg(state, R367_OFDM_TRL_NOMRATE1, 0xDA);
-		writereg(state, R367_OFDM_TRL_NOMRATE2, 0x4B);
+		writereg(state, R367TER_TRL_CTL, 0x14);
+		writereg(state, R367TER_TRL_NOMRATE1, 0xDA);
+		writereg(state, R367TER_TRL_NOMRATE2, 0x4B);
 		/* Gain SRC = 2427 */
-		writereg(state, R367_OFDM_GAIN_SRC1, 0x09 | GAIN_SRC1);
-		writereg(state, R367_OFDM_GAIN_SRC2, 0x7B);
+		writereg(state, R367TER_GAIN_SRC1, 0x09 | GAIN_SRC1);
+		writereg(state, R367TER_GAIN_SRC2, 0x7B);
 		break;
 	case 6000000:
 		/* Normrate = 33288 */
-		writereg(state, R367_OFDM_TRL_CTL, 0x14);
-		writereg(state, R367_OFDM_TRL_NOMRATE1, 0x04);
-		writereg(state, R367_OFDM_TRL_NOMRATE2, 0x41);
+		writereg(state, R367TER_TRL_CTL, 0x14);
+		writereg(state, R367TER_TRL_NOMRATE1, 0x04);
+		writereg(state, R367TER_TRL_NOMRATE2, 0x41);
 		/* Gain SRC = 2080 */
-		writereg(state, R367_OFDM_GAIN_SRC1, 0x08 | GAIN_SRC1);
-		writereg(state, R367_OFDM_GAIN_SRC2, 0x20);
+		writereg(state, R367TER_GAIN_SRC1, 0x08 | GAIN_SRC1);
+		writereg(state, R367TER_GAIN_SRC2, 0x20);
 		break;
 	default:
 		return -EINVAL;
@@ -1175,30 +1175,30 @@ static int OFDM_Start(struct stv_state *state, s32 offsetFreq,
 	Derot = ((IntermediateFrequency / 1000) * 65536)
 		/ (state->master_clock / 1000);
 
-	writereg(state, R367_OFDM_INC_DEROT1, (Derot>>8));
-	writereg(state, R367_OFDM_INC_DEROT2, (Derot));
+	writereg(state, R367TER_INC_DEROT1, (Derot>>8));
+	writereg(state, R367TER_INC_DEROT2, (Derot));
 
-	readreg(state, R367_OFDM_SYR_CTL, &SYR_CTL);
+	readreg(state, R367TER_SYR_CTL, &SYR_CTL);
 	SYR_CTL &= ~0x78;
-	writereg(state, R367_OFDM_SYR_CTL, SYR_CTL); /* EchoPos = 0 */
+	writereg(state, R367TER_SYR_CTL, SYR_CTL); /* EchoPos = 0 */
 
 
 	/* Force = 0, Mode = 0, Guard = 3 */
-	writereg(state, R367_OFDM_COR_MODEGUARD, 0x03);
+	writereg(state, R367TER_COR_MODEGUARD, 0x03);
 	SYR_CTL &= 0x01;
-	writereg(state, R367_OFDM_SYR_CTL, SYR_CTL); /* SYR_TR_DIS = 0 */
+	writereg(state, R367TER_SYR_CTL, SYR_CTL); /* SYR_TR_DIS = 0 */
 
 	usleep_range(5000, 6000);
 
-	writereg(state, R367_OFDM_COR_CTL, 0x20); /* Start core */
+	writereg(state, R367TER_COR_CTL, 0x20); /* Start core */
 
 	/* -- Begin M.V.
 	 * Reset FEC and Read Solomon
 	 */
-	readreg(state, R367_OFDM_SFDLYSETH, &tmp1);
-	readreg(state, R367_TSGENERAL, &tmp2);
-	writereg(state, R367_OFDM_SFDLYSETH, tmp1 | 0x08);
-	writereg(state, R367_TSGENERAL, tmp2 | 0x01);
+	readreg(state, R367TER_SFDLYSETH, &tmp1);
+	readreg(state, R367TER_TSGENERAL, &tmp2);
+	writereg(state, R367TER_SFDLYSETH, tmp1 | 0x08);
+	writereg(state, R367TER_TSGENERAL, tmp2 | 0x01);
 	/* -- End M.V. */
 
 	state->m_SignalTimeOut = 200;
@@ -1220,7 +1220,7 @@ static int QAM_GetSignalToNoise(struct stv_state *state, u16 *snr)
 
 	*snr = 0;
 	for (i = 0; i < 10; i += 1) {
-		readregs(state, R367_QAM_EQU_SNR_LO, RegVal, 2);
+		readregs(state, R367CAB_EQU_SNR_LO, RegVal, 2);
 		RegValAvg += RegVal[0] + 256 * RegVal[1];
 	}
 	if (RegValAvg != 0) {
@@ -1261,7 +1261,7 @@ static int OFDM_GetSignalToNoise(struct stv_state *state, u16 *snr)
 
 	*snr = 0;
 
-	if (readreg(state, R367_OFDM_CHC_SNR, &CHC_SNR) >= 0) {
+	if (readreg(state, R367TER_CHC_SNR, &CHC_SNR) >= 0) {
 		/* Note: very unclear documentation on this.
 		 * Datasheet states snr = CHC_SNR/4 dB  -> way to high values!
 		 * Software snr = ( 1000 * CHC_SNR ) / 8 / 32 / 10;
@@ -1280,7 +1280,7 @@ static int attach_init(struct stv_state *state)
 {
 	int stat = 0;
 
-	stat = readreg(state, R367_ID, &state->ID);
+	stat = readreg(state, R367TER_ID, &state->ID);
 	if (stat < 0 || state->ID != 0x60)
 		return -ENODEV;
 
@@ -1288,80 +1288,80 @@ static int attach_init(struct stv_state *state)
 		state->frontend.ops.info.name, state->ID, state->adr,
 		dev_name(&state->i2c->dev));
 
-	writereg(state, R367_TOPCTRL, 0x10);
+	writereg(state, R367TER_TOPCTRL, 0x10);
 	write_init_table(state, base_init);
 	write_init_table(state, qam_init);
 
-	writereg(state, R367_TOPCTRL, 0x00);
+	writereg(state, R367TER_TOPCTRL, 0x00);
 	write_init_table(state, ofdm_init);
 
-	writereg(state, R367_OFDM_GAIN_SRC1, 0x2A);
-	writereg(state, R367_OFDM_GAIN_SRC2, 0xD6);
-	writereg(state, R367_OFDM_INC_DEROT1, 0x55);
-	writereg(state, R367_OFDM_INC_DEROT2, 0x55);
-	writereg(state, R367_OFDM_TRL_CTL, 0x14);
-	writereg(state, R367_OFDM_TRL_NOMRATE1, 0xAE);
-	writereg(state, R367_OFDM_TRL_NOMRATE2, 0x56);
-	writereg(state, R367_OFDM_FEPATH_CFG, 0x0);
+	writereg(state, R367TER_GAIN_SRC1, 0x2A);
+	writereg(state, R367TER_GAIN_SRC2, 0xD6);
+	writereg(state, R367TER_INC_DEROT1, 0x55);
+	writereg(state, R367TER_INC_DEROT2, 0x55);
+	writereg(state, R367TER_TRL_CTL, 0x14);
+	writereg(state, R367TER_TRL_NOMRATE1, 0xAE);
+	writereg(state, R367TER_TRL_NOMRATE2, 0x56);
+	writereg(state, R367TER_FEPATH_CFG, 0x0);
 
 	/* OFDM TS Setup */
 
-	writereg(state, R367_OFDM_TSCFGH, 0x70);
-	writereg(state, R367_OFDM_TSCFGM, 0xC0);
-	writereg(state, R367_OFDM_TSCFGL, 0x20);
-	writereg(state, R367_OFDM_TSSPEED, 0x40); /* Fixed at 54 MHz */
+	writereg(state, R367TER_TSCFGH, 0x70);
+	writereg(state, R367TER_TSCFGM, 0xC0);
+	writereg(state, R367TER_TSCFGL, 0x20);
+	writereg(state, R367TER_TSSPEED, 0x40); /* Fixed at 54 MHz */
 
-	writereg(state, R367_OFDM_TSCFGH, 0x71);
+	writereg(state, R367TER_TSCFGH, 0x71);
 
 	if (state->cont_clock)
-		writereg(state, R367_OFDM_TSCFGH, 0xf0);
+		writereg(state, R367TER_TSCFGH, 0xf0);
 	else
-		writereg(state, R367_OFDM_TSCFGH, 0x70);
+		writereg(state, R367TER_TSCFGH, 0x70);
 
-	writereg(state, R367_TOPCTRL, 0x10);
+	writereg(state, R367TER_TOPCTRL, 0x10);
 
 	/* Also needed for QAM */
-	writereg(state, R367_OFDM_AGC12C, 0x01); /* AGC Pin setup */
+	writereg(state, R367TER_AGC12C, 0x01); /* AGC Pin setup */
 
-	writereg(state, R367_OFDM_AGCCTRL1, 0x8A);
+	writereg(state, R367TER_AGCCTRL1, 0x8A);
 
 	/* QAM TS setup, note exact format also depends on descrambler */
 	/* settings */
 	/* Inverted Clock, Swap, serial */
-	writereg(state, R367_QAM_OUTFORMAT_0, 0x85);
+	writereg(state, R367CAB_OUTFORMAT_0, 0x85);
 
 	/* Clock setup */
-	writereg(state, R367_ANACTRL, 0x0D); /* PLL bypassed and disabled */
+	writereg(state, R367TER_ANACTRL, 0x0D); /* PLL bypassed and disabled */
 
 	if (state->master_clock == 58000000) {
 		/* IC runs at 58 MHz with a 27 MHz crystal */
-		writereg(state, R367_PLLMDIV, 27);
-		writereg(state, R367_PLLNDIV, 232);
+		writereg(state, R367TER_PLLMDIV, 27);
+		writereg(state, R367TER_PLLNDIV, 232);
 	} else {
 		/* IC runs at 54 MHz with a 27 MHz crystal */
-		writereg(state, R367_PLLMDIV, 1);
-		writereg(state, R367_PLLNDIV, 8);
+		writereg(state, R367TER_PLLMDIV, 1);
+		writereg(state, R367TER_PLLNDIV, 8);
 	}
 
 	/* ADC clock is equal to system clock */
-	writereg(state, R367_PLLSETUP, 0x18);
+	writereg(state, R367TER_PLLSETUP, 0x18);
 
 	/* Tuner setup */
 	/* Buffer Q disabled, I Enabled, signed ADC */
-	writereg(state, R367_ANADIGCTRL, 0x8b);
-	writereg(state, R367_DUAL_AD12, 0x04); /* ADCQ disabled */
+	writereg(state, R367TER_ANADIGCTRL, 0x8b);
+	writereg(state, R367TER_DUAL_AD12, 0x04); /* ADCQ disabled */
 
 	/* Improves the C/N lock limit */
-	writereg(state, R367_QAM_FSM_SNR2_HTH, 0x23);
-	writereg(state, R367_QAM_IQ_QAM, 0x01); /* ZIF/IF Automatic mode */
+	writereg(state, R367CAB_FSM_SNR2_HTH, 0x23);
+	writereg(state, R367CAB_IQ_QAM, 0x01); /* ZIF/IF Automatic mode */
 	/* Improving burst noise performances */
-	writereg(state, R367_QAM_EQU_FFE_LEAKAGE, 0x83);
+	writereg(state, R367CAB_EQU_FFE_LEAKAGE, 0x83);
 	/* Improving ACI performances */
-	writereg(state, R367_QAM_IQDEM_ADJ_EN, 0x05);
+	writereg(state, R367CAB_IQDEM_ADJ_EN, 0x05);
 
-	writereg(state, R367_ANACTRL, 0x00); /* PLL enabled and used */
+	writereg(state, R367TER_ANACTRL, 0x00); /* PLL enabled and used */
 
-	writereg(state, R367_I2CRPT, state->I2CRPT);
+	writereg(state, R367TER_I2CRPT, state->I2CRPT);
 	state->demod_state = QAMSet;
 	return stat;
 }
@@ -1381,7 +1381,7 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 
 	if (enable)
 		i2crpt |= 0x80;
-	if (writereg(state, R367_I2CRPT, i2crpt) < 0)
+	if (writereg(state, R367TER_I2CRPT, i2crpt) < 0)
 		return -EIO;
 	state->I2CRPT = i2crpt;
 	return 0;
@@ -1401,12 +1401,12 @@ static int ofdm_lock(struct stv_state *state)
 	u8 TSStatus;
 
 	msleep(state->m_SignalTimeOut);
-	readreg(state, R367_OFDM_STATUS, &OFDM_Status);
+	readreg(state, R367TER_STATUS, &OFDM_Status);
 
 	if (!(OFDM_Status & 0x40))
 		return -EIO;
 
-	readreg(state, R367_OFDM_SYR_STAT, &SYR_STAT);
+	readreg(state, R367TER_SYR_STAT, &SYR_STAT);
 	FFTMode = (SYR_STAT & 0x0C) >> 2;
 
 	switch (FFTMode) {
@@ -1430,17 +1430,17 @@ static int ofdm_lock(struct stv_state *state)
 		break;
 	}
 	state->m_OFDM_FFTMode = FFTMode;
-	readreg(state, R367_OFDM_PPM_CPAMP_DIR, &CPAMPValue);
+	readreg(state, R367TER_PPM_CPAMP_DIR, &CPAMPValue);
 	msleep(DemodTimeOut);
 	{
 	    /* Release FEC and Read Solomon Reset */
 	    u8 tmp1;
 	    u8 tmp2;
 
-	    readreg(state, R367_OFDM_SFDLYSETH, &tmp1);
-	    readreg(state, R367_TSGENERAL, &tmp2);
-	    writereg(state, R367_OFDM_SFDLYSETH, tmp1 & ~0x08);
-	    writereg(state, R367_TSGENERAL, tmp2 & ~0x01);
+	    readreg(state, R367TER_SFDLYSETH, &tmp1);
+	    readreg(state, R367TER_TSGENERAL, &tmp2);
+	    writereg(state, R367TER_SFDLYSETH, tmp1 & ~0x08);
+	    writereg(state, R367TER_TSGENERAL, tmp2 & ~0x01);
 	}
 	msleep(FECTimeOut);
 	if ((OFDM_Status & 0x98) != 0x98)
@@ -1453,39 +1453,39 @@ static int ofdm_lock(struct stv_state *state)
 	    if (Guard < 2) {
 		u8 tmp;
 
-		readreg(state, R367_OFDM_SYR_CTL, &tmp);
+		readreg(state, R367TER_SYR_CTL, &tmp);
 		/* Clear AUTO_LE_EN */
-		writereg(state, R367_OFDM_SYR_CTL, tmp & ~0x04);
-		readreg(state, R367_OFDM_SYR_UPDATE, &tmp);
+		writereg(state, R367TER_SYR_CTL, tmp & ~0x04);
+		readreg(state, R367TER_SYR_UPDATE, &tmp);
 		/* Clear SYR_FILTER */
-		writereg(state, R367_OFDM_SYR_UPDATE, tmp & ~0x10);
+		writereg(state, R367TER_SYR_UPDATE, tmp & ~0x10);
 	    } else {
 		u8 tmp;
 
-		readreg(state, R367_OFDM_SYR_CTL, &tmp);
+		readreg(state, R367TER_SYR_CTL, &tmp);
 		/* Set AUTO_LE_EN */
-		writereg(state, R367_OFDM_SYR_CTL, tmp | 0x04);
-		readreg(state, R367_OFDM_SYR_UPDATE, &tmp);
+		writereg(state, R367TER_SYR_CTL, tmp | 0x04);
+		readreg(state, R367TER_SYR_UPDATE, &tmp);
 		/* Set SYR_FILTER */
-		writereg(state, R367_OFDM_SYR_UPDATE, tmp | 0x10);
+		writereg(state, R367TER_SYR_UPDATE, tmp | 0x10);
 	    }
 
 	    /* apply Sfec workaround if 8K 64QAM CR!=1/2 */
 	    if (FFTMode == 1) {
 		u8 tmp[2];
 
-		readregs(state, R367_OFDM_TPS_RCVD2, tmp, 2);
+		readregs(state, R367TER_TPS_RCVD2, tmp, 2);
 		if (((tmp[0] & 0x03) == 0x02) && ((tmp[1] & 0x07) != 0)) {
-			writereg(state, R367_OFDM_SFDLYSETH, 0xc0);
-			writereg(state, R367_OFDM_SFDLYSETM, 0x60);
-			writereg(state, R367_OFDM_SFDLYSETL, 0x00);
+			writereg(state, R367TER_SFDLYSETH, 0xc0);
+			writereg(state, R367TER_SFDLYSETM, 0x60);
+			writereg(state, R367TER_SFDLYSETL, 0x00);
 		} else {
-			writereg(state, R367_OFDM_SFDLYSETH, 0x00);
+			writereg(state, R367TER_SFDLYSETH, 0x00);
 		}
 	    }
 	}
 	msleep(TSTimeOut);
-	readreg(state, R367_OFDM_TSSTATUS, &TSStatus);
+	readreg(state, R367TER_TSSTATUS, &TSStatus);
 	if ((TSStatus & 0x80) != 0x80)
 		return -EIO;
 
@@ -1548,13 +1548,13 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		u8 FEC_Lock;
 		u8 QAM_Lock;
 
-		readreg(state, R367_QAM_FSM_STS, &QAM_Lock);
+		readreg(state, R367CAB_FSM_STS, &QAM_Lock);
 		QAM_Lock &= 0x0F;
 		if (QAM_Lock > 10)
 			*status |= (FE_HAS_SIGNAL
 				| FE_HAS_CARRIER
 				| FE_HAS_VITERBI);
-		readreg(state, R367_QAM_FEC_STATUS, &FEC_Lock);
+		readreg(state, R367CAB_FEC_STATUS, &FEC_Lock);
 		if (FEC_Lock&2)
 			*status |= (FE_HAS_SIGNAL
 				| FE_HAS_CARRIER
@@ -1564,7 +1564,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (state->m_bFirstTimeLock) {
 			state->m_bFirstTimeLock = false;
 			/* QAM_AGC_ACCUMRSTSEL to Tracking */
-			writereg(state, R367_QAM_AGC_CTL,
+			writereg(state, R367CAB_AGC_CTL,
 				state->m_Save_QAM_AGC_CTL);
 		}
 		break;
@@ -1574,9 +1574,9 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		u8 OFDM_Status;
 		u8 TSStatus;
 
-		readreg(state, R367_OFDM_TSSTATUS, &TSStatus);
+		readreg(state, R367TER_TSSTATUS, &TSStatus);
 
-		readreg(state, R367_OFDM_STATUS, &OFDM_Status);
+		readreg(state, R367TER_STATUS, &OFDM_Status);
 		if (OFDM_Status & 0x40)
 			*status |= FE_HAS_SIGNAL;
 
@@ -1607,15 +1607,15 @@ static int read_ber_ter(struct dvb_frontend *fe, u32 *ber)
 	u32 err;
 	u8 cnth, cntm, cntl;
 
-	readreg(state, R367_OFDM_SFERRCNTH, &cnth);
+	readreg(state, R367TER_SFERRCNTH, &cnth);
 
 	if (cnth & 0x80) {
 		*ber = state->ber;
 		return 0;
 	}
 
-	readreg(state, R367_OFDM_SFERRCNTM, &cntm);
-	readreg(state, R367_OFDM_SFERRCNTL, &cntl);
+	readreg(state, R367TER_SFERRCNTM, &cntm);
+	readreg(state, R367TER_SFERRCNTL, &cntl);
 
 	err = ((cnth & 0x7f) << 16) | (cntm << 8) | cntl;
 
@@ -1629,13 +1629,13 @@ static int read_ber_cab(struct dvb_frontend *fe, u32 *ber)
 	u32 err;
 	u8 cntm, cntl, ctrl;
 
-	readreg(state, R367_QAM_BERT_1, &ctrl);
+	readreg(state, R367CAB_BERT_1, &ctrl);
 	if (!(ctrl & 0x20)) {
-		readreg(state, R367_QAM_BERT_2, &cntl);
-		readreg(state, R367_QAM_BERT_3, &cntm);
+		readreg(state, R367CAB_BERT_2, &cntl);
+		readreg(state, R367CAB_BERT_3, &cntm);
 		err = (cntm << 8) | cntl;
 		state->ber = err;
-		writereg(state, R367_QAM_BERT_1, 0x27);
+		writereg(state, R367CAB_BERT_1, 0x27);
 	}
 	*ber = (u32) state->ber;
 	return 0;
@@ -1688,16 +1688,16 @@ static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 	switch (state->demod_state) {
 	case QAMStarted:
-		readreg(state, R367_QAM_RS_COUNTER_4, &errl);
-		readreg(state, R367_QAM_RS_COUNTER_5, &errm);
+		readreg(state, R367CAB_RS_COUNTER_4, &errl);
+		readreg(state, R367CAB_RS_COUNTER_5, &errm);
 		*ucblocks = (errm << 8) | errl;
 		break;
 	case OFDMStarted:
-		readreg(state, R367_OFDM_SFERRCNTH, &val);
+		readreg(state, R367TER_SFERRCNTH, &val);
 		if ((val & 0x80) == 0) {
-			readreg(state, R367_OFDM_ERRCNT1H, &errh);
-			readreg(state, R367_OFDM_ERRCNT1M, &errl);
-			readreg(state, R367_OFDM_ERRCNT1L, &errm);
+			readreg(state, R367TER_ERRCNT1H, &errh);
+			readreg(state, R367TER_ERRCNT1M, &errl);
+			readreg(state, R367TER_ERRCNT1L, &errm);
 			state->ucblocks = (errh << 16) | (errm << 8) | errl;
 		}
 		*ucblocks = state->ucblocks;
