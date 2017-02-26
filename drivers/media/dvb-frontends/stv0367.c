@@ -2997,21 +2997,64 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 	return -EINVAL;
 }
 
+static void stv0367ddb_read_ucblocks(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 ucblocks = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		stv0367ter_read_ucblocks(fe, &ucblocks);
+		break;
+	case demod_cab:
+		stv0367cab_read_ucblcks(fe, &ucblocks);
+		break;
+	default:
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	p->block_error.stat[0].uvalue = ucblocks;
+}
+
 static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
 				   struct dtv_frontend_properties *p)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
+	int ret = -EINVAL;
+	enum fe_status status = 0;
 
 	switch (state->activedemod) {
 	case demod_ter:
-		return stv0367ter_get_frontend(fe, p);
-	case demod_cab:
-		return stv0367cab_get_frontend(fe, p);
-	default:
+		ret = stv0367ter_get_frontend(fe, p);
 		break;
+	case demod_cab:
+		ret = stv0367cab_get_frontend(fe, p);
+		break;
+	default:
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return ret;
 	}
 
-	return -EINVAL;
+	/* read fe lock status */
+	if (!ret)
+		ret = stv0367ddb_read_status(fe, &status);
+
+	/* stop if get_frontend failed or if demod isn't locked */
+	if (ret || !(status & FE_HAS_LOCK)) {
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return ret;
+	}
+
+	stv0367ddb_read_ucblocks(fe);
+
+	return 0;
 }
 
 static int stv0367ddb_sleep(struct dvb_frontend *fe)
@@ -3035,6 +3078,7 @@ static int stv0367ddb_sleep(struct dvb_frontend *fe)
 static int stv0367ddb_init(struct stv0367_state *state)
 {
 	struct stv0367ter_state *ter_state = state->ter_state;
+	struct dtv_frontend_properties *p = &state->fe.dtv_property_cache;
 
 	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
 
@@ -3108,6 +3152,13 @@ static int stv0367ddb_init(struct stv0367_state *state)
 	ter_state->pBER = 0;
 	ter_state->first_lock = 0;
 	ter_state->unlock_counter = 2;
+
+	p->strength.len = 1;
+	p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.len = 1;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.len = 1;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	return 0;
 }
