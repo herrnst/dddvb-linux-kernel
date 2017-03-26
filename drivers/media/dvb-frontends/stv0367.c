@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
+#include "dvb_math.h"
+
 #include "stv0367.h"
 #include "stv0367_defs.h"
 #include "stv0367_regs.h"
@@ -32,6 +34,9 @@
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
+
+/* snr logarithmic calc */
+#define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
 
 static int stvdebug;
 module_param_named(debug, stvdebug, int, 0644);
@@ -3013,6 +3018,33 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 	return -EINVAL;
 }
 
+static void stv0367ddb_read_snr(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	int cab_pwr;
+	u32 regval, tmpval, snrval = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		snrval = stv0367ter_snr_readreg(fe);
+		break;
+	case demod_cab:
+		cab_pwr = stv0367cab_snr_power(fe);
+		regval = stv0367cab_snr_readreg(fe, 0);
+
+		tmpval = (cab_pwr * 320) / regval;
+		snrval = ((tmpval != 0) ? INTLOG10X100(tmpval) : 0) * 100;
+		break;
+	default:
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	p->cnr.stat[0].uvalue = snrval;
+}
+
 static void stv0367ddb_read_ucblocks(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
@@ -3069,6 +3101,7 @@ static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
 	}
 
 	stv0367ddb_read_ucblocks(fe);
+	stv0367ddb_read_snr(fe);
 
 	return 0;
 }
