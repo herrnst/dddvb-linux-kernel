@@ -1012,6 +1012,10 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 			  0xff);
 	}
 
+	/* p->pls is always gold code! */
+	if (p->pls != NO_SCRAMBLING_CODE)
+		scrambling_code = p->pls | 0x40000;
+
 	if (scrambling_code != state->cur_scrambling_code) {
 		write_reg(state, RSTV0910_P2_PLROOT0 + state->regoff,
 			  scrambling_code & 0xff);
@@ -1744,7 +1748,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->search_range = 16000000;
 	state->demod_bits = 0x10;     /* Inversion : Auto with reset to 0 */
 	state->receive_mode   = RCVMODE_NONE;
-	state->cur_scrambling_code = (~0U);
+	state->cur_scrambling_code = NO_SCRAMBLING_CODE;
 	state->single = cfg->single ? 1 : 0;
 
 	base = match_base(i2c, cfg->adr);
