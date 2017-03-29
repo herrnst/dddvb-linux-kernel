@@ -217,7 +217,7 @@ static void cxd2841er_i2c_debug(struct cxd2841er_priv *priv,
 		(write == 0 ? "read" : "write"), addr, reg, len, len, data);
 }
 
-static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
+static int cxd2841er_i2c_write(struct cxd2841er_priv *priv,
 				u8 addr, u8 reg, const u8 *data, u32 len)
 {
 	int ret;
@@ -255,16 +255,8 @@ static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
 	return 0;
 }
 
-static int cxd2841er_write_reg(struct cxd2841er_priv *priv,
-			       u8 addr, u8 reg, u8 val)
-{
-	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
-
-	return cxd2841er_write_regs(priv, addr, reg, &tmp, 1);
-}
-
-static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
-			       u8 addr, u8 reg, u8 *val, u32 len)
+static int cxd2841er_i2c_read(struct cxd2841er_priv *priv,
+			      u8 addr, u8 reg, u8 *val, u32 len)
 {
 	int ret;
 	u8 i2c_addr = (addr == I2C_SLVX ?
@@ -294,6 +286,24 @@ static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
 	}
 	cxd2841er_i2c_debug(priv, i2c_addr, reg, 0, val, len);
 	return 0;
+}
+
+static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
+			       u8 addr, u8 reg, const u8 *val, u32 len)
+{
+	return cxd2841er_i2c_write(priv, addr, reg, val, len);
+}
+
+static int cxd2841er_write_reg(struct cxd2841er_priv *priv,
+			       u8 addr, u8 reg, const u8 val)
+{
+	return cxd2841er_write_regs(priv, addr, reg, &val, 1);
+}
+
+static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
+			       u8 addr, u8 reg, u8 *val, u32 len)
+{
+	return cxd2841er_i2c_read(priv, addr, reg, val, len);
 }
 
 static int cxd2841er_read_reg(struct cxd2841er_priv *priv,
