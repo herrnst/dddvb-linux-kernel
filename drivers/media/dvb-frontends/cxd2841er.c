@@ -413,6 +413,31 @@ static int cxd2841er_tuner_set(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int cxd2841er_freeze_ctl(struct cxd2841er_priv *priv, u8 freeze)
+{
+	u8 val = (freeze ? 0x01 : 0x00);
+
+	cxd2841er_i2c_write(priv, I2C_SLVT, 0x01, &val, 1);
+	return 0;
+}
+
+static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv)
+{
+	/*
+	 * Freeze registers: ensure multiple separate register reads
+	 * are from the same snapshot
+	 */
+	return cxd2841er_freeze_ctl(priv, 1);
+}
+
+static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv)
+{
+	/*
+	 * un-freeze registers
+	 */
+	return cxd2841er_freeze_ctl(priv, 0);
+}
+
 static int cxd2841er_dvbs2_set_symbol_rate(struct cxd2841er_priv *priv,
 					   u32 symbol_rate)
 {
@@ -1652,29 +1677,6 @@ static int cxd2841er_read_ber_t(struct cxd2841er_priv *priv,
 	 */
 	*bit_count = period / 128;
 	*bit_error *= 78125ULL;
-	return 0;
-}
-
-static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv)
-{
-	/*
-	 * Freeze registers: ensure multiple separate register reads
-	 * are from the same snapshot
-	 */
-	u8 val = 0x01;
-
-	cxd2841er_i2c_write(priv, I2C_SLVT, 0x01, &val, 1);
-	return 0;
-}
-
-static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv)
-{
-	/*
-	 * un-freeze registers
-	 */
-	u8 val = 0x00;
-
-	cxd2841er_i2c_write(priv, I2C_SLVT, 0x01, &val, 1);
 	return 0;
 }
 
