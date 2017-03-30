@@ -320,42 +320,54 @@ static int cxd2841er_switch_bank(struct cxd2841er_priv *priv,
 }
 
 static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
-			       u8 addr, u8 reg, const u8 *val, u32 len)
+		u8 addr, u8 bank, u8 reg, const u8 *val, u32 len)
 {
+	int ret;
+
+	ret = cxd2841er_switch_bank(priv, addr, bank);
+	if (ret)
+		return ret;
+
 	return cxd2841er_i2c_write(priv, addr, reg, val, len);
 }
 
 static int cxd2841er_write_reg(struct cxd2841er_priv *priv,
-			       u8 addr, u8 reg, const u8 val)
+		u8 addr, u8 bank, u8 reg, const u8 val)
 {
-	return cxd2841er_write_regs(priv, addr, reg, &val, 1);
+	return cxd2841er_write_regs(priv, addr, bank, reg, &val, 1);
 }
 
 static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
-			       u8 addr, u8 reg, u8 *val, u32 len)
+		u8 addr, u8 bank, u8 reg, u8 *val, u32 len)
 {
+	int ret;
+
+	ret = cxd2841er_switch_bank(priv, addr, bank);
+	if (ret)
+		return ret;
+
 	return cxd2841er_i2c_read(priv, addr, reg, val, len);
 }
 
 static int cxd2841er_read_reg(struct cxd2841er_priv *priv,
-			      u8 addr, u8 reg, u8 *val)
+		u8 addr, u8 bank, u8 reg, u8 *val)
 {
-	return cxd2841er_read_regs(priv, addr, reg, val, 1);
+	return cxd2841er_read_regs(priv, addr, bank, reg, val, 1);
 }
 
 static int cxd2841er_set_reg_bits(struct cxd2841er_priv *priv,
-				  u8 addr, u8 reg, u8 data, u8 mask)
+		u8 addr, u8 bank, u8 reg, u8 data, u8 mask)
 {
 	int res;
 	u8 rdata;
 
 	if (mask != 0xff) {
-		res = cxd2841er_read_reg(priv, addr, reg, &rdata);
+		res = cxd2841er_read_reg(priv, addr, bank, reg, &rdata);
 		if (res)
 			return res;
 		data = ((data & mask) | (rdata & (mask ^ 0xFF)));
 	}
-	return cxd2841er_write_reg(priv, addr, reg, data);
+	return cxd2841er_write_reg(priv, addr, bank, reg, data);
 }
 
 static u32 cxd2841er_calc_iffreq_xtal(enum cxd2841er_xtal xtal, u32 ifhz)
