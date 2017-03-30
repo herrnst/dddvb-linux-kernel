@@ -30,6 +30,7 @@
 #include <linux/log2.h>
 #include <linux/dynamic_debug.h>
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 
 #include <media/dvb_math.h>
 #include <media/dvb_frontend.h>
@@ -61,6 +62,7 @@ enum cxd2841er_state {
 struct cxd2841er_priv {
 	struct dvb_frontend		frontend;
 	struct i2c_adapter		*i2c;
+	struct mutex			reglock;
 	u8				i2c_addr_slvx;
 	u8				i2c_addr_slvt;
 	u8				curbank_x;
@@ -319,7 +321,7 @@ static int cxd2841er_switch_bank(struct cxd2841er_priv *priv,
 	return 0;
 }
 
-static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
+static int cxd2841er_write_regs_unlocked(struct cxd2841er_priv *priv,
 		u8 addr, u8 bank, u8 reg, const u8 *val, u32 len)
 {
 	int ret;
@@ -331,13 +333,25 @@ static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
 	return cxd2841er_i2c_write(priv, addr, reg, val, len);
 }
 
+static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
+		u8 addr, u8 bank, u8 reg, const u8 *val, u32 len)
+{
+	int ret;
+
+	mutex_lock(&priv->reglock);
+	ret = cxd2841er_write_regs_unlocked(priv, addr, bank, reg, val, len);
+	mutex_unlock(&priv->reglock);
+
+	return ret;
+}
+
 static int cxd2841er_write_reg(struct cxd2841er_priv *priv,
 		u8 addr, u8 bank, u8 reg, const u8 val)
 {
 	return cxd2841er_write_regs(priv, addr, bank, reg, &val, 1);
 }
 
-static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
+static int cxd2841er_read_regs_unlocked(struct cxd2841er_priv *priv,
 		u8 addr, u8 bank, u8 reg, u8 *val, u32 len)
 {
 	int ret;
@@ -349,6 +363,18 @@ static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
 	return cxd2841er_i2c_read(priv, addr, reg, val, len);
 }
 
+static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
+		u8 addr, u8 bank, u8 reg, u8 *val, u32 len)
+{
+	int ret;
+
+	mutex_lock(&priv->reglock);
+	ret = cxd2841er_read_regs_unlocked(priv, addr, bank, reg, val, len);
+	mutex_unlock(&priv->reglock);
+
+	return ret;
+}
+
 static int cxd2841er_read_reg(struct cxd2841er_priv *priv,
 		u8 addr, u8 bank, u8 reg, u8 *val)
 {
@@ -358,16 +384,24 @@ static int cxd2841er_read_reg(struct cxd2841er_priv *priv,
 static int cxd2841er_set_reg_bits(struct cxd2841er_priv *priv,
 		u8 addr, u8 bank, u8 reg, u8 data, u8 mask)
 {
-	int res;
+	int res = 0;
 	u8 rdata;
 
+	mutex_lock(&priv->reglock);
+
 	if (mask != 0xff) {
-		res = cxd2841er_read_reg(priv, addr, bank, reg, &rdata);
-		if (res)
-			return res;
-		data = ((data & mask) | (rdata & (mask ^ 0xFF)));
+		res = cxd2841er_read_regs_unlocked(priv, addr, bank,
+			reg, &rdata, 1);
+		if (!res)
+			data = ((data & mask) | (rdata & (mask ^ 0xFF)));
 	}
-	return cxd2841er_write_reg(priv, addr, bank, reg, data);
+	if (!res)
+		res = cxd2841er_write_regs_unlocked(priv, addr, bank,
+			reg, &data, 1);
+
+	mutex_unlock(&priv->reglock);
+
+	return res;
 }
 
 static u32 cxd2841er_calc_iffreq_xtal(enum cxd2841er_xtal xtal, u32 ifhz)
@@ -427,6 +461,7 @@ static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv)
 	 * Freeze registers: ensure multiple separate register reads
 	 * are from the same snapshot
 	 */
+	mutex_lock(&priv->reglock);
 	return cxd2841er_freeze_ctl(priv, 1);
 }
 
@@ -435,7 +470,11 @@ static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv)
 	/*
 	 * un-freeze registers
 	 */
-	return cxd2841er_freeze_ctl(priv, 0);
+	int ret = 0;
+
+	ret = cxd2841er_freeze_ctl(priv, 0);
+	mutex_unlock(&priv->reglock);
+	return ret;
 }
 
 static int cxd2841er_dvbs2_set_symbol_rate(struct cxd2841er_priv *priv,
@@ -1499,8 +1538,8 @@ static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
 	}
 
 	cxd2841er_freeze_regs(priv);
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x60, 0x5B, pktnum, sizeof(pktnum));
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x60, 0x16, data, sizeof(data));
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x60, 0x5B, pktnum, sizeof(pktnum));
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x60, 0x16, data, sizeof(data));
 	cxd2841er_unfreeze_regs(priv);
 
 	if (!pktnum[0] && !pktnum[1]) {
@@ -1696,7 +1735,7 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 	 * <SLV-T>    A1h       11h       [4:0]   ICPM_QUICKCNDT[12:8]
 	 * <SLV-T>    A1h       12h       [7:0]   ICPM_QUICKCNDT[7:0]
 	 */
-	cxd2841er_read_regs(priv, I2C_SLVT, 0xa1, 0x10, data, 3);
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0xa1, 0x10, data, 3);
 	cxd2841er_unfreeze_regs(priv);
 
 	if (data[0] & 0x01) {
@@ -1766,9 +1805,9 @@ static int cxd2841er_read_snr_c(struct cxd2841er_priv *priv, u32 *snr)
 	}
 
 	cxd2841er_freeze_regs(priv);
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x40, 0x19, data, 1);
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x40, 0x19, data, 1);
 	qam = (enum sony_dvbc_constellation_t) (data[0] & 0x07);
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x40, 0x4C, data, 2);
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x40, 0x4C, data, 2);
 	cxd2841er_unfreeze_regs(priv);
 
 	reg = ((u32)(data[0]&0x1f) << 8) | (u32)data[1];
@@ -1814,7 +1853,7 @@ static int cxd2841er_read_snr_t(struct cxd2841er_priv *priv, u32 *snr)
 	}
 
 	cxd2841er_freeze_regs(priv);
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x10, 0x28, data, sizeof(data));
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x10, 0x28, data, sizeof(data));
 	cxd2841er_unfreeze_regs(priv);
 
 	reg = ((u32)data[0] << 8) | (u32)data[1];
@@ -1842,7 +1881,7 @@ static int cxd2841er_read_snr_t2(struct cxd2841er_priv *priv, u32 *snr)
 	}
 
 	cxd2841er_freeze_regs(priv);
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x20, 0x28, data, sizeof(data));
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x20, 0x28, data, sizeof(data));
 	cxd2841er_unfreeze_regs(priv);
 
 	reg = ((u32)data[0] << 8) | (u32)data[1];
@@ -1871,7 +1910,7 @@ static int cxd2841er_read_snr_i(struct cxd2841er_priv *priv, u32 *snr)
 	}
 
 	cxd2841er_freeze_regs(priv);
-	cxd2841er_read_regs(priv, I2C_SLVT, 0x60, 0x28, data, sizeof(data));
+	cxd2841er_read_regs_unlocked(priv, I2C_SLVT, 0x60, 0x28, data, sizeof(data));
 	cxd2841er_unfreeze_regs(priv);
 
 	reg = ((u32)data[0] << 8) | (u32)data[1];
@@ -3769,6 +3808,8 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	priv->xtal = cfg->xtal;
 	priv->flags = cfg->flags;
 	priv->frontend.demodulator_priv = priv;
+	mutex_init(&priv->reglock);
+
 	dev_info(&priv->i2c->dev,
 		"%s(): I2C adapter %p SLVX addr %x SLVT addr %x\n",
 		__func__, priv->i2c,
