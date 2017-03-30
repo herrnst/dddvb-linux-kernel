@@ -63,6 +63,8 @@ struct cxd2841er_priv {
 	struct i2c_adapter		*i2c;
 	u8				i2c_addr_slvx;
 	u8				i2c_addr_slvt;
+	u8				curbank_x;
+	u8				curbank_t;
 	const struct cxd2841er_config	*config;
 	enum cxd2841er_state		state;
 	u8				system;
@@ -285,6 +287,35 @@ static int cxd2841er_i2c_read(struct cxd2841er_priv *priv,
 		return ret;
 	}
 	cxd2841er_i2c_debug(priv, i2c_addr, reg, 0, val, len);
+	return 0;
+}
+
+static int cxd2841er_switch_bank(struct cxd2841er_priv *priv,
+	u8 addr, u8 bank)
+{
+	int ret;
+	u8 *curbank;
+
+	switch (addr) {
+	case I2C_SLVX:
+		curbank = &priv->curbank_x;
+		break;
+	case I2C_SLVT:
+		curbank = &priv->curbank_t;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (bank != 0xff && *curbank != bank) {
+		ret = cxd2841er_i2c_write(priv, addr, 0x00, &bank, 1);
+		if (ret) {
+			*curbank = 0xff;
+			return ret;
+		}
+		*curbank = bank;
+	}
+
 	return 0;
 }
 
@@ -3863,6 +3894,8 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	priv->config = cfg;
 	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> 1;
 	priv->i2c_addr_slvt = (cfg->i2c_addr) >> 1;
+	priv->curbank_x = 0xff;
+	priv->curbank_t = 0xff;
 	priv->xtal = cfg->xtal;
 	priv->flags = cfg->flags;
 	priv->frontend.demodulator_priv = priv;
