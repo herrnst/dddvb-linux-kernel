@@ -1379,6 +1379,19 @@ static int max_set_input_unlocked(struct dvb_frontend *fe, int in)
 	return res;
 }
 
+static int max_set_input(struct dvb_frontend *fe, int in)
+{
+	struct ddb_input *input = fe->sec_priv;
+	struct ddb_port *port = input->port;
+	struct ddb *dev = input->port->dev;
+	int res;
+
+	mutex_lock(&dev->link[port->lnr].lnb.lock);
+	res = max_set_input_unlocked(fe, in);
+	mutex_unlock(&dev->link[port->lnr].lnb.lock);
+	return res;
+}
+
 static int max_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct ddb_input *input = fe->sec_priv;
@@ -1560,26 +1573,16 @@ static int fe_attach_mxl5xx(struct ddb_input *input)
 
 	cfg = mxl5xx;
 	cfg.fw_priv = link;
-	dvb->set_input = NULL;
 
 	demod = input->nr;
 	tuner = demod & 3;
 	if (fmode == 3)
 		tuner = 0;
-
-	dvb->fe = dvb_attach(mxl5xx_attach, i2c, &cfg,
-		demod, tuner, &dvb->set_input);
-
+	dvb->fe = dvb_attach(mxl5xx_attach, i2c, &cfg, demod, tuner);
 	if (!dvb->fe) {
 		pr_err("No MXL5XX found!\n");
 		return -ENODEV;
 	}
-
-	if (!dvb->set_input) {
-		pr_err("No mxl5xx_set_input function pointer!\n");
-		return -ENODEV;
-	}
-
 	if (input->nr < 4) {
 		lnb_command(dev, port->lnr, input->nr, LNB_CMD_INIT);
 		lnb_set_voltage(dev, port->lnr, input->nr, SEC_VOLTAGE_OFF);
@@ -1593,6 +1596,8 @@ static int fe_attach_mxl5xx(struct ddb_input *input)
 	dvb->fe->ops.diseqc_send_master_cmd = max_send_master_cmd;
 	dvb->fe->ops.diseqc_send_burst = max_send_burst;
 	dvb->fe->sec_priv = input;
+	dvb->set_input = dvb->fe->ops.set_input;
+	dvb->fe->ops.set_input = max_set_input;
 	dvb->input = tuner;
 	return 0;
 }
