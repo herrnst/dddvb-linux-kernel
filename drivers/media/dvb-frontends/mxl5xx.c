@@ -86,7 +86,6 @@ struct mxl {
 	u32                  demod;
 	u32                  tuner;
 	u32                  tuner_in_use;
-	u8                   xbar[3];
 
 	unsigned long        tune_time;
 };
@@ -750,13 +749,15 @@ static int get_frontend(struct dvb_frontend *fe,
 static int set_input(struct dvb_frontend *fe, int input)
 {
 	struct mxl *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	state->tuner = input;
+	state->tuner = p->input = input;
 	return 0;
 }
 
 static struct dvb_frontend_ops mxl_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
+	.xbar   = { 4, 0, 8 }, /* tuner_max, demod id, demod_max */
 	.info = {
 		.name			= "MaxLinear MxL5xx DVB-S/S2 tuner-demodulator",
 		.frequency_min		= 300000,
@@ -777,6 +778,7 @@ static struct dvb_frontend_ops mxl_ops = {
 	.read_status			= read_status,
 	.sleep				= sleep,
 	.get_frontend                   = get_frontend,
+	.set_input                      = set_input,
 	.diseqc_send_master_cmd		= send_master_cmd,
 };
 
@@ -1811,8 +1813,8 @@ static int probe(struct mxl *state, struct mxl5xx_cfg *cfg)
 }
 
 struct dvb_frontend *mxl5xx_attach(struct i2c_adapter *i2c,
-	struct mxl5xx_cfg *cfg, u32 demod, u32 tuner,
-	int (**fn_set_input)(struct dvb_frontend *, int))
+				   struct mxl5xx_cfg *cfg,
+				   u32 demod, u32 tuner)
 {
 	struct mxl *state;
 	struct mxl_base *base;
@@ -1853,12 +1855,9 @@ struct dvb_frontend *mxl5xx_attach(struct i2c_adapter *i2c,
 		list_add(&base->mxllist, &mxllist);
 	}
 	state->fe.ops               = mxl_ops;
-	state->xbar[0]              = 4;
-	state->xbar[1]              = demod;
-	state->xbar[2]              = 8;
+	state->fe.ops.xbar[1]       = demod;
 	state->fe.demodulator_priv  = state;
-	*fn_set_input               = set_input;
-
+	state->fe.dtv_property_cache.input = tuner;
 	list_add(&state->mxl, &base->mxls);
 	return &state->fe;
 
