@@ -64,6 +64,24 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /******************************************************************************/
 
+static inline void ddbwritel(struct ddb *dev, u32 val, u32 adr)
+{
+	writel(val, (char *) (dev->regs+(adr)));
+}
+
+static inline u32 ddbreadl(struct ddb *dev, u32 adr)
+{
+	return readl((char *) (dev->regs+(adr)));
+}
+
+#define ddbcpyto(_dev, _adr, _src, _count)  memcpy_toio((char *) \
+	(_dev->regs + (_adr)), (_src), (_count))
+
+#define ddbcpyfrom(_dev, _dst, _adr, _count) memcpy_fromio((_dst), (char *) \
+	(_dev->regs + (_adr)), (_count))
+
+/******************************************************************************/
+
 static int i2c_io(struct i2c_adapter *adapter, u8 adr,
 		  u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
 {
@@ -125,7 +143,7 @@ static int i2c_write_reg(struct i2c_adapter *adap, u8 adr,
 
 static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)
 {
-	u32 val = ddbreadl(adr);
+	u32 val = ddbreadl(dev, adr);
 
 	/* (ddb)readl returns (uint)-1 (all bits set) on failure, catch that */
 	if (val == ~0) {
@@ -143,18 +161,18 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 	u32 val;
 
 	i2c->done = 0;
-	ddbwritel((adr << 9) | cmd, i2c->regs + I2C_COMMAND);
+	ddbwritel(dev, (adr << 9) | cmd, i2c->regs + I2C_COMMAND);
 	stat = wait_event_timeout(i2c->wq, i2c->done == 1, HZ);
 	if (stat == 0) {
 		dev_err(&dev->pdev->dev, "I2C timeout\n");
 		{ /* MSI debugging*/
-			u32 istat = ddbreadl(INTERRUPT_STATUS);
+			u32 istat = ddbreadl(dev, INTERRUPT_STATUS);
 			dev_err(&dev->pdev->dev, "IRS %08x\n", istat);
-			ddbwritel(istat, INTERRUPT_ACK);
+			ddbwritel(dev, istat, INTERRUPT_ACK);
 		}
 		return -EIO;
 	}
-	val = ddbreadl(i2c->regs+I2C_COMMAND);
+	val = ddbreadl(dev, i2c->regs+I2C_COMMAND);
 	if (val & 0x70000)
 		return -EIO;
 	return 0;
@@ -174,7 +192,7 @@ static int ddb_i2c_master_xfer(struct i2c_adapter *adapter,
 	    !(msg[0].flags & I2C_M_RD)) {
 		memcpy_toio(dev->regs + I2C_TASKMEM_BASE + i2c->wbuf,
 			    msg[0].buf, msg[0].len);
-		ddbwritel(msg[0].len|(msg[1].len << 16),
+		ddbwritel(dev, msg[0].len|(msg[1].len << 16),
 			  i2c->regs+I2C_TASKLENGTH);
 		if (!ddb_i2c_cmd(i2c, addr, 1)) {
 			memcpy_fromio(msg[1].buf,
@@ -185,15 +203,16 @@ static int ddb_i2c_master_xfer(struct i2c_adapter *adapter,
 	}
 
 	if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
-		ddbcpyto(I2C_TASKMEM_BASE + i2c->wbuf, msg[0].buf, msg[0].len);
-		ddbwritel(msg[0].len, i2c->regs + I2C_TASKLENGTH);
+		ddbcpyto(dev, I2C_TASKMEM_BASE + i2c->wbuf, msg[0].buf,
+			 msg[0].len);
+		ddbwritel(dev, msg[0].len, i2c->regs + I2C_TASKLENGTH);
 		if (!ddb_i2c_cmd(i2c, addr, 2))
 			return num;
 	}
 	if (num == 1 && (msg[0].flags & I2C_M_RD)) {
-		ddbwritel(msg[0].len << 16, i2c->regs + I2C_TASKLENGTH);
+		ddbwritel(dev, msg[0].len << 16, i2c->regs + I2C_TASKLENGTH);
 		if (!ddb_i2c_cmd(i2c, addr, 3)) {
-			ddbcpyfrom(msg[0].buf,
+			ddbcpyfrom(dev, msg[0].buf,
 				   I2C_TASKMEM_BASE + i2c->rbuf, msg[0].len);
 			return num;
 		}
@@ -238,8 +257,8 @@ static int ddb_i2c_init(struct ddb *dev)
 		i2c->wbuf = i * (I2C_TASKMEM_SIZE / 4);
 		i2c->rbuf = i2c->wbuf + (I2C_TASKMEM_SIZE / 8);
 		i2c->regs = 0x80 + i * 0x20;
-		ddbwritel(I2C_SPEED_100, i2c->regs + I2C_TIMING);
-		ddbwritel((i2c->rbuf << 16) | i2c->wbuf,
+		ddbwritel(dev, I2C_SPEED_100, i2c->regs + I2C_TIMING);
+		ddbwritel(dev, (i2c->rbuf << 16) | i2c->wbuf,
 			  i2c->regs + I2C_TASKADDRESS);
 		init_waitqueue_head(&i2c->wq);
 
@@ -284,8 +303,8 @@ static void set_table(struct ddb *dev, u32 off,
 	base = DMA_BASE_ADDRESS_TABLE + off;
 	for (i = 0; i < num; i++) {
 		mem = pbuf[i];
-		ddbwritel(mem & 0xffffffff, base + i * 8);
-		ddbwritel(mem >> 32, base + i * 8 + 4);
+		ddbwritel(dev, mem & 0xffffffff, base + i * 8);
+		ddbwritel(dev, mem >> 32, base + i * 8 + 4);
 	}
 }
 #endif
@@ -301,8 +320,8 @@ static void ddb_address_table(struct ddb *dev)
 		pbuf = dev->input[i].pbuf;
 		for (j = 0; j < dev->input[i].dma_buf_num; j++) {
 			mem = pbuf[j];
-			ddbwritel(mem & 0xffffffff, base + j * 8);
-			ddbwritel(mem >> 32, base + j * 8 + 4);
+			ddbwritel(dev, mem & 0xffffffff, base + j * 8);
+			ddbwritel(dev, mem >> 32, base + j * 8 + 4);
 		}
 	}
 	for (i = 0; i < dev->info->port_num; i++) {
@@ -310,8 +329,8 @@ static void ddb_address_table(struct ddb *dev)
 		pbuf = dev->output[i].pbuf;
 		for (j = 0; j < dev->output[i].dma_buf_num; j++) {
 			mem = pbuf[j];
-			ddbwritel(mem & 0xffffffff, base + j * 8);
-			ddbwritel(mem >> 32, base + j * 8 + 4);
+			ddbwritel(dev, mem & 0xffffffff, base + j * 8);
+			ddbwritel(dev, mem >> 32, base + j * 8 + 4);
 		}
 	}
 }
@@ -413,19 +432,19 @@ static void ddb_input_start(struct ddb_input *input)
 	input->coff = 0;
 
 	/* reset */
-	ddbwritel(0, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(2, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(0, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 2, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
 
-	ddbwritel((1 << 16) |
+	ddbwritel(dev, (1 << 16) |
 		  (input->dma_buf_num << 11) |
 		  (input->dma_buf_size >> 7),
 		  DMA_BUFFER_SIZE(input->nr));
-	ddbwritel(0, DMA_BUFFER_ACK(input->nr));
+	ddbwritel(dev, 0, DMA_BUFFER_ACK(input->nr));
 
-	ddbwritel(1, DMA_BASE_WRITE);
-	ddbwritel(3, DMA_BUFFER_CONTROL(input->nr));
-	ddbwritel(9, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 1, DMA_BASE_WRITE);
+	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->nr));
+	ddbwritel(dev, 9, TS_INPUT_CONTROL(input->nr));
 	input->running = 1;
 	spin_unlock_irq(&input->lock);
 }
@@ -435,8 +454,8 @@ static void ddb_input_stop(struct ddb_input *input)
 	struct ddb *dev = input->port->dev;
 
 	spin_lock_irq(&input->lock);
-	ddbwritel(0, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(0, DMA_BUFFER_CONTROL(input->nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->nr));
 	input->running = 0;
 	spin_unlock_irq(&input->lock);
 }
@@ -448,20 +467,20 @@ static void ddb_output_start(struct ddb_output *output)
 	spin_lock_irq(&output->lock);
 	output->cbuf = 0;
 	output->coff = 0;
-	ddbwritel(0, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(2, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(0, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(0x3c, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel((1 << 16) |
+	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, 0x3c, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, (1 << 16) |
 		  (output->dma_buf_num << 11) |
 		  (output->dma_buf_size >> 7),
 		  DMA_BUFFER_SIZE(output->nr + 8));
-	ddbwritel(0, DMA_BUFFER_ACK(output->nr + 8));
+	ddbwritel(dev, 0, DMA_BUFFER_ACK(output->nr + 8));
 
-	ddbwritel(1, DMA_BASE_READ);
-	ddbwritel(3, DMA_BUFFER_CONTROL(output->nr + 8));
-	/* ddbwritel(0xbd, TS_OUTPUT_CONTROL(output->nr)); */
-	ddbwritel(0x1d, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, 1, DMA_BASE_READ);
+	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->nr + 8));
+	/* ddbwritel(dev, 0xbd, TS_OUTPUT_CONTROL(output->nr)); */
+	ddbwritel(dev, 0x1d, TS_OUTPUT_CONTROL(output->nr));
 	output->running = 1;
 	spin_unlock_irq(&output->lock);
 }
@@ -471,8 +490,8 @@ static void ddb_output_stop(struct ddb_output *output)
 	struct ddb *dev = output->port->dev;
 
 	spin_lock_irq(&output->lock);
-	ddbwritel(0, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(0, DMA_BUFFER_CONTROL(output->nr + 8));
+	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->nr + 8));
 	output->running = 0;
 	spin_unlock_irq(&output->lock);
 }
@@ -539,7 +558,7 @@ static ssize_t ddb_output_write(struct ddb_output *output,
 			output->coff = 0;
 			output->cbuf = ((output->cbuf + 1) % output->dma_buf_num);
 		}
-		ddbwritel((output->cbuf << 11) | (output->coff >> 7),
+		ddbwritel(dev, (output->cbuf << 11) | (output->coff >> 7),
 			  DMA_BUFFER_ACK(output->nr + 8));
 	}
 	return count - left;
@@ -549,14 +568,14 @@ static u32 ddb_input_avail(struct ddb_input *input)
 {
 	struct ddb *dev = input->port->dev;
 	u32 idx, off, stat = input->stat;
-	u32 ctrl = ddbreadl(DMA_BUFFER_CONTROL(input->nr));
+	u32 ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(input->nr));
 
 	idx = (stat >> 11) & 0x1f;
 	off = (stat & 0x7ff) << 7;
 
 	if (ctrl & 4) {
 		dev_err(&dev->pdev->dev, "IA %d %d %08x\n", idx, off, ctrl);
-		ddbwritel(input->stat, DMA_BUFFER_ACK(input->nr));
+		ddbwritel(dev, input->stat, DMA_BUFFER_ACK(input->nr));
 		return 0;
 	}
 	if (input->cbuf != idx)
@@ -589,7 +608,7 @@ static ssize_t ddb_input_read(struct ddb_input *input, __user u8 *buf, size_t co
 			input->cbuf = (input->cbuf+1) % input->dma_buf_num;
 		}
 		left -= free;
-		ddbwritel((input->cbuf << 11) | (input->coff >> 7),
+		ddbwritel(dev, (input->cbuf << 11) | (input->coff >> 7),
 			  DMA_BUFFER_ACK(input->nr));
 	}
 	return count;
@@ -1365,10 +1384,10 @@ static void input_tasklet(unsigned long data)
 		spin_unlock(&input->lock);
 		return;
 	}
-	input->stat = ddbreadl(DMA_BUFFER_CURRENT(input->nr));
+	input->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(input->nr));
 
 	if (input->port->class == DDB_PORT_TUNER) {
-		if (4&ddbreadl(DMA_BUFFER_CONTROL(input->nr)))
+		if (4&ddbreadl(dev, DMA_BUFFER_CONTROL(input->nr)))
 			dev_err(&dev->pdev->dev, "Overflow input %d\n", input->nr);
 		while (input->cbuf != ((input->stat >> 11) & 0x1f)
 		       || (4 & safe_ddbreadl(dev, DMA_BUFFER_CONTROL(input->nr)))) {
@@ -1377,9 +1396,10 @@ static void input_tasklet(unsigned long data)
 						 input->dma_buf_size / 188);
 
 			input->cbuf = (input->cbuf + 1) % input->dma_buf_num;
-			ddbwritel((input->cbuf << 11),
+			ddbwritel(dev, (input->cbuf << 11),
 				  DMA_BUFFER_ACK(input->nr));
-			input->stat = ddbreadl(DMA_BUFFER_CURRENT(input->nr));
+			input->stat = ddbreadl(dev,
+				DMA_BUFFER_CURRENT(input->nr));
 		       }
 	}
 	if (input->port->class == DDB_PORT_CI)
@@ -1397,7 +1417,7 @@ static void output_tasklet(unsigned long data)
 		spin_unlock(&output->lock);
 		return;
 	}
-	output->stat = ddbreadl(DMA_BUFFER_CURRENT(output->nr + 8));
+	output->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(output->nr + 8));
 	wake_up(&output->wq);
 	spin_unlock(&output->lock);
 }
@@ -1639,12 +1659,12 @@ static void ddb_port_probe(struct ddb_port *port)
 	if (port_has_ci(port)) {
 		modname = "CI";
 		port->class = DDB_PORT_CI;
-		ddbwritel(I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_xo2(port, &xo2_type, &xo2_id)) {
 		dev_dbg(&dev->pdev->dev, "Port %d (TAB %d): XO2 type: %d, id: %d\n",
 			port->nr, port->nr+1, xo2_type, xo2_id);
 
-		ddbwritel(I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 
 		switch (xo2_type) {
 		case DDB_XO2_TYPE_DUOFLEX:
@@ -1718,12 +1738,12 @@ static void ddb_port_probe(struct ddb_port *port)
 			modname = "Unknown CXD28xx tuner";
 			break;
 		}
-		ddbwritel(I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_stv0900(port)) {
 		modname = "DUAL DVB-S2";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBS_ST;
-		ddbwritel(I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_stv0900_aa(port, &stv_id)) {
 		modname = "DUAL DVB-S2";
 		port->class = DDB_PORT_TUNER;
@@ -1739,17 +1759,17 @@ static void ddb_port_probe(struct ddb_port *port)
 			port->type = DDB_TUNER_DVBS_ST_AA;
 			break;
 		}
-		ddbwritel(I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_drxks(port)) {
 		modname = "DUAL DVB-C/T";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBCT_TR;
-		ddbwritel(I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_stv0367(port)) {
 		modname = "DUAL DVB-C/T";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBCT_ST;
-		ddbwritel(I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
+		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
 	}
 
 	dev_info(&dev->pdev->dev, "Port %d (TAB %d): %s\n",
@@ -1765,10 +1785,10 @@ static void ddb_input_init(struct ddb_port *port, int nr)
 	input->port = port;
 	input->dma_buf_num = INPUT_DMA_BUFS;
 	input->dma_buf_size = INPUT_DMA_SIZE;
-	ddbwritel(0, TS_INPUT_CONTROL(nr));
-	ddbwritel(2, TS_INPUT_CONTROL(nr));
-	ddbwritel(0, TS_INPUT_CONTROL(nr));
-	ddbwritel(0, DMA_BUFFER_ACK(nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(nr));
+	ddbwritel(dev, 2, TS_INPUT_CONTROL(nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(nr));
+	ddbwritel(dev, 0, DMA_BUFFER_ACK(nr));
 	tasklet_init(&input->tasklet, input_tasklet, (unsigned long) input);
 	spin_lock_init(&input->lock);
 	init_waitqueue_head(&input->wq);
@@ -1783,9 +1803,9 @@ static void ddb_output_init(struct ddb_port *port, int nr)
 	output->dma_buf_num = OUTPUT_DMA_BUFS;
 	output->dma_buf_size = OUTPUT_DMA_SIZE;
 
-	ddbwritel(0, TS_OUTPUT_CONTROL(nr));
-	ddbwritel(2, TS_OUTPUT_CONTROL(nr));
-	ddbwritel(0, TS_OUTPUT_CONTROL(nr));
+	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
+	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(nr));
+	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
 	tasklet_init(&output->tasklet, output_tasklet, (unsigned long) output);
 	init_waitqueue_head(&output->wq);
 }
@@ -1841,13 +1861,13 @@ static void irq_handle_i2c(struct ddb *dev, int n)
 static irqreturn_t irq_handler(int irq, void *dev_id)
 {
 	struct ddb *dev = (struct ddb *) dev_id;
-	u32 s = ddbreadl(INTERRUPT_STATUS);
+	u32 s = ddbreadl(dev, INTERRUPT_STATUS);
 
 	if (!s)
 		return IRQ_NONE;
 
 	do {
-		ddbwritel(s, INTERRUPT_ACK);
+		ddbwritel(dev, s, INTERRUPT_ACK);
 
 		if (s & 0x00000001)
 			irq_handle_i2c(dev, 0);
@@ -1885,7 +1905,7 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 			tasklet_schedule(&dev->output[3].tasklet);
 
 		/* if (s & 0x000f0000)	printk(KERN_DEBUG "%08x\n", istat); */
-	} while ((s = ddbreadl(INTERRUPT_STATUS)));
+	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
 
 	return IRQ_HANDLED;
 }
@@ -1899,21 +1919,23 @@ static int flashio(struct ddb *dev, u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
 	u32 data, shift;
 
 	if (wlen > 4)
-		ddbwritel(1, SPI_CONTROL);
+		ddbwritel(dev, 1, SPI_CONTROL);
 	while (wlen > 4) {
 		/* FIXME: check for big-endian */
 		data = swab32(*(u32 *)wbuf);
 		wbuf += 4;
 		wlen -= 4;
-		ddbwritel(data, SPI_DATA);
+		ddbwritel(dev, data, SPI_DATA);
 		while (safe_ddbreadl(dev, SPI_CONTROL) & 0x0004)
 			;
 	}
 
 	if (rlen)
-		ddbwritel(0x0001 | ((wlen << (8 + 3)) & 0x1f00), SPI_CONTROL);
+		ddbwritel(dev,
+			0x0001 | ((wlen << (8 + 3)) & 0x1f00), SPI_CONTROL);
 	else
-		ddbwritel(0x0003 | ((wlen << (8 + 3)) & 0x1f00), SPI_CONTROL);
+		ddbwritel(dev,
+			0x0003 | ((wlen << (8 + 3)) & 0x1f00), SPI_CONTROL);
 
 	data = 0;
 	shift = ((4 - wlen) * 8);
@@ -1925,33 +1947,33 @@ static int flashio(struct ddb *dev, u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
 	}
 	if (shift)
 		data <<= shift;
-	ddbwritel(data, SPI_DATA);
+	ddbwritel(dev, data, SPI_DATA);
 	while (safe_ddbreadl(dev, SPI_CONTROL) & 0x0004)
 		;
 
 	if (!rlen) {
-		ddbwritel(0, SPI_CONTROL);
+		ddbwritel(dev, 0, SPI_CONTROL);
 		return 0;
 	}
 	if (rlen > 4)
-		ddbwritel(1, SPI_CONTROL);
+		ddbwritel(dev, 1, SPI_CONTROL);
 
 	while (rlen > 4) {
-		ddbwritel(0xffffffff, SPI_DATA);
+		ddbwritel(dev, 0xffffffff, SPI_DATA);
 		while (safe_ddbreadl(dev, SPI_CONTROL) & 0x0004)
 			;
-		data = ddbreadl(SPI_DATA);
+		data = ddbreadl(dev, SPI_DATA);
 		*(u32 *) rbuf = swab32(data);
 		rbuf += 4;
 		rlen -= 4;
 	}
-	ddbwritel(0x0003 | ((rlen << (8 + 3)) & 0x1F00), SPI_CONTROL);
-	ddbwritel(0xffffffff, SPI_DATA);
+	ddbwritel(dev, 0x0003 | ((rlen << (8 + 3)) & 0x1F00), SPI_CONTROL);
+	ddbwritel(dev, 0xffffffff, SPI_DATA);
 	while (safe_ddbreadl(dev, SPI_CONTROL) & 0x0004)
 		;
 
-	data = ddbreadl(SPI_DATA);
-	ddbwritel(0, SPI_CONTROL);
+	data = ddbreadl(dev, SPI_DATA);
+	ddbwritel(dev, 0, SPI_CONTROL);
 
 	if (rlen < 4)
 		data <<= ((4 - rlen) * 8);
@@ -2102,7 +2124,7 @@ static void ddb_remove(struct pci_dev *pdev)
 	ddb_ports_detach(dev);
 	ddb_i2c_release(dev);
 
-	ddbwritel(0, INTERRUPT_ENABLE);
+	ddbwritel(dev, 0, INTERRUPT_ENABLE);
 	free_irq(dev->pdev->irq, dev);
 #ifdef CONFIG_PCI_MSI
 	if (dev->msi)
@@ -2142,7 +2164,7 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		stat = -ENOMEM;
 		goto fail;
 	}
-	dev_info(&pdev->dev, "HW %08x FW %08x\n", ddbreadl(0), ddbreadl(4));
+	dev_info(&pdev->dev, "HW %08x FW %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
 
 #ifdef CONFIG_PCI_MSI
 	if (pci_msi_enabled())
@@ -2158,20 +2180,20 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			   irq_flag, "DDBridge", (void *) dev);
 	if (stat < 0)
 		goto fail1;
-	ddbwritel(0, DMA_BASE_WRITE);
-	ddbwritel(0, DMA_BASE_READ);
-	ddbwritel(0xffffffff, INTERRUPT_ACK);
-	ddbwritel(0xfff0f, INTERRUPT_ENABLE);
-	ddbwritel(0, MSI1_ENABLE);
+	ddbwritel(dev, 0, DMA_BASE_WRITE);
+	ddbwritel(dev, 0, DMA_BASE_READ);
+	ddbwritel(dev, 0xffffffff, INTERRUPT_ACK);
+	ddbwritel(dev, 0xfff0f, INTERRUPT_ENABLE);
+	ddbwritel(dev, 0, MSI1_ENABLE);
 
 	/* board control */
 	if (dev->info->board_control) {
-		ddbwritel(0, DDB_LINK_TAG(0) | BOARD_CONTROL);
+		ddbwritel(dev, 0, DDB_LINK_TAG(0) | BOARD_CONTROL);
 		msleep(100);
-		ddbwritel(dev->info->board_control_2,
+		ddbwritel(dev, dev->info->board_control_2,
 			DDB_LINK_TAG(0) | BOARD_CONTROL);
 		usleep_range(2000, 3000);
-		ddbwritel(dev->info->board_control_2
+		ddbwritel(dev, dev->info->board_control_2
 			| dev->info->board_control,
 			DDB_LINK_TAG(0) | BOARD_CONTROL);
 		usleep_range(2000, 3000);
