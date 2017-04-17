@@ -125,7 +125,7 @@ static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr, u8 reg, u8 *val)
 static int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
 			  u16 reg, u8 *val)
 {
-	u8 msg[2] = {reg>>8, reg&0xff};
+	u8 msg[2] = {reg >> 8, reg & 0xff};
 	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
 				   .buf  = msg, .len   = 2},
 				  {.addr = adr, .flags = I2C_M_RD,
@@ -157,13 +157,13 @@ static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)
 static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 {
 	struct ddb *dev = i2c->dev;
-	long stat;
+	int stat;
 	u32 val;
 
 	i2c->done = 0;
 	ddbwritel(dev, (adr << 9) | cmd, i2c->regs + I2C_COMMAND);
 	stat = wait_event_timeout(i2c->wq, i2c->done == 1, HZ);
-	if (stat == 0) {
+	if (stat <= 0) {
 		dev_err(&dev->pdev->dev, "I2C timeout\n");
 		{ /* MSI debugging*/
 			u32 istat = ddbreadl(dev, INTERRUPT_STATUS);
@@ -181,7 +181,7 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 static int ddb_i2c_master_xfer(struct i2c_adapter *adapter,
 			       struct i2c_msg msg[], int num)
 {
-	struct ddb_i2c *i2c = (struct ddb_i2c *)i2c_get_adapdata(adapter);
+	struct ddb_i2c *i2c = (struct ddb_i2c *) i2c_get_adapdata(adapter);
 	struct ddb *dev = i2c->dev;
 	u8 addr = 0;
 
@@ -192,8 +192,8 @@ static int ddb_i2c_master_xfer(struct i2c_adapter *adapter,
 	    !(msg[0].flags & I2C_M_RD)) {
 		memcpy_toio(dev->regs + I2C_TASKMEM_BASE + i2c->wbuf,
 			    msg[0].buf, msg[0].len);
-		ddbwritel(dev, msg[0].len|(msg[1].len << 16),
-			  i2c->regs+I2C_TASKLENGTH);
+		ddbwritel(dev, msg[0].len | (msg[1].len << 16),
+			  i2c->regs + I2C_TASKLENGTH);
 		if (!ddb_i2c_cmd(i2c, addr, 1)) {
 			memcpy_fromio(msg[1].buf,
 				      dev->regs + I2C_TASKMEM_BASE + i2c->rbuf,
