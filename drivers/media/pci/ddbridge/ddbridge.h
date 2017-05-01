@@ -70,36 +70,41 @@ struct ddb_info {
 
 /* DMA_SIZE MUST be divisible by 188 and 128 !!! */
 
-#define INPUT_DMA_MAX_BUFS 32      /* hardware table limit */
+#define DMA_MAX_BUFS 32      /* hardware table limit */
+
 #define INPUT_DMA_BUFS 8
 #define INPUT_DMA_SIZE (128*47*21)
+#define INPUT_DMA_IRQ_DIV 1
 
-#define OUTPUT_DMA_MAX_BUFS 32
 #define OUTPUT_DMA_BUFS 8
 #define OUTPUT_DMA_SIZE (128*47*21)
+#define OUTPUT_DMA_IRQ_DIV 1
 
 struct ddb;
 struct ddb_port;
 
-struct ddb_input {
-	struct ddb_port       *port;
+struct ddb_dma {
+	void                  *io;
 	u32                    nr;
-	int                    attached;
-
-	dma_addr_t             pbuf[INPUT_DMA_MAX_BUFS];
-	u8                    *vbuf[INPUT_DMA_MAX_BUFS];
-	u32                    dma_buf_num;
-	u32                    dma_buf_size;
+	dma_addr_t             pbuf[DMA_MAX_BUFS];
+	u8                    *vbuf[DMA_MAX_BUFS];
+	u32                    num;
+	u32                    size;
+	u32                    bufreg;
 
 	struct tasklet_struct  tasklet;
 	spinlock_t             lock;
 	wait_queue_head_t      wq;
 	int                    running;
 	u32                    stat;
+	u32                    ctrl;
 	u32                    cbuf;
 	u32                    coff;
+};
 
-	struct dvb_adapter     adap;
+struct ddb_dvb {
+	struct dvb_adapter    *adap;
+	int                    adap_registered;
 	struct dvb_device     *dev;
 	struct i2c_client     *i2c_client[1];
 	struct dvb_frontend   *fe;
@@ -111,32 +116,28 @@ struct ddb_input {
 	struct dmx_frontend    mem_frontend;
 	int                    users;
 	int (*gate_ctrl)(struct dvb_frontend *, int);
+	int                    attached;
+};
+
+struct ddb_input {
+	struct ddb_port       *port;
+	u32                    nr;
+	struct ddb_dma        *dma;
+	struct ddb_input      *redirect;
+
+	struct ddb_dvb         dvb;
 };
 
 struct ddb_output {
 	struct ddb_port       *port;
 	u32                    nr;
-	dma_addr_t             pbuf[OUTPUT_DMA_MAX_BUFS];
-	u8                    *vbuf[OUTPUT_DMA_MAX_BUFS];
-	u32                    dma_buf_num;
-	u32                    dma_buf_size;
-	struct tasklet_struct  tasklet;
-	spinlock_t             lock;
-	wait_queue_head_t      wq;
-	int                    running;
-	u32                    stat;
-	u32                    cbuf;
-	u32                    coff;
-
-	struct dvb_adapter     adap;
-	struct dvb_device     *dev;
+	struct ddb_dma        *dma;
 };
 
 struct ddb_i2c {
 	struct ddb            *dev;
 	u32                    nr;
 	struct i2c_adapter     adap;
-	struct i2c_adapter     adap2;
 	u32                    regs;
 	u32                    rbuf;
 	u32                    wbuf;
@@ -186,9 +187,11 @@ struct ddb {
 	struct ddb_i2c         i2c[DDB_MAX_I2C];
 	struct ddb_input       input[DDB_MAX_INPUT];
 	struct ddb_output      output[DDB_MAX_OUTPUT];
+	struct dvb_adapter     adap[DDB_MAX_INPUT];
+	struct ddb_dma         dma[DDB_MAX_INPUT + DDB_MAX_OUTPUT];
 
 	struct device         *ddb_dev;
-	int                    nr;
+	u32                    nr;
 	u8                     iobuf[1028];
 
 	struct ddb_info       *info;
