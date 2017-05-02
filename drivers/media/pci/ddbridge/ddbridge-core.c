@@ -623,7 +623,7 @@ static struct ddb_input *fe2input(struct ddb *dev, struct dvb_frontend *fe)
 }
 #endif
 
-static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
+static int locked_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct ddb_input *input = fe->sec_priv;
 	struct ddb_port *port = input->port;
@@ -658,7 +658,7 @@ static int demod_attach_drxk(struct ddb_input *input)
 	}
 	fe->sec_priv = input;
 	input->dvb.gate_ctrl = fe->ops.i2c_gate_ctrl;
-	fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 	return 0;
 }
 
@@ -719,7 +719,7 @@ static int demod_attach_stv0367(struct ddb_input *input)
 
 	fe->sec_priv = input;
 	input->dvb.gate_ctrl = fe->ops.i2c_gate_ctrl;
-	fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 
 	return 0;
 }
@@ -775,7 +775,7 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 
 	fe->sec_priv = input;
 	input->dvb.gate_ctrl = fe->ops.i2c_gate_ctrl;
-	fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 
 	return 0;
 }
