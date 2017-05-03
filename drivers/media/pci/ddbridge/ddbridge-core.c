@@ -151,6 +151,14 @@ static int i2c_write_reg(struct i2c_adapter *adap, u8 adr,
 	return i2c_write(adap, adr, msg, 2);
 }
 
+static int i2c_write_reg16(struct i2c_adapter *adap, u8 adr,
+			   u16 reg, u8 val)
+{
+	u8 msg[3] = {reg >> 8, reg & 0xff, val};
+
+	return i2c_write(adap, adr, msg, 3);
+}
+
 static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)
 {
 	u32 val = ddbreadl(dev, adr);
@@ -1789,9 +1797,11 @@ static void ddb_port_probe(struct ddb_port *port)
 	u8 xo2_type, xo2_id, cxd_id, stv_id;
 
 	port->class = DDB_PORT_NONE;
+	port->type_name = "NONE";
 
 	if (port_has_ci(port)) {
 		modname = "CI";
+		port->type_name = "CXD2099";
 		port->class = DDB_PORT_CI;
 		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_xo2(port, &xo2_type, &xo2_id)) {
@@ -1808,31 +1818,37 @@ static void ddb_port_probe(struct ddb_port *port)
 				modname = "DUAL DVB-S2";
 				port->class = DDB_PORT_TUNER;
 				port->type = DDB_TUNER_XO2_DVBS_STV0910;
+				port->type_name = "XO2_DVBS_ST";
 				break;
 			case 1:
 				modname = "DUAL DVB-C/T/T2";
 				port->class = DDB_PORT_TUNER;
 				port->type = DDB_TUNER_XO2_DVBCT2_SONY;
+				port->type_name = "XO2_DVBCT2_SONY";
 				break;
 			case 2:
 				modname = "DUAL DVB-ISDBT";
 				port->class = DDB_PORT_TUNER;
 				port->type = DDB_TUNER_XO2_ISDBT_SONY;
+				port->type_name = "XO2_ISDBT_SONY";
 				break;
 			case 3:
 				modname = "DUAL DVB-C/C2/T/T2";
 				port->class = DDB_PORT_TUNER;
 				port->type = DDB_TUNER_XO2_DVBC2T2_SONY;
+				port->type_name = "XO2_DVBC2T2_SONY";
 				break;
 			case 4:
 				modname = "DUAL ATSC (unsupported)";
 				port->class = DDB_PORT_NONE;
 				port->type = DDB_TUNER_XO2_ATSC_ST;
+				port->type_name = "XO2_ATSC_ST";
 				break;
 			case 5:
 				modname = "DUAL DVB-C/C2/T/T2/ISDBT";
 				port->class = DDB_PORT_TUNER;
 				port->type = DDB_TUNER_XO2_DVBC2T2I_SONY;
+				port->type_name = "XO2_DVBC2T2I_SONY";
 				break;
 			default:
 				modname = "Unknown XO2 DuoFlex module\n";
@@ -1852,21 +1868,25 @@ static void ddb_port_probe(struct ddb_port *port)
 			modname = "DUAL DVB-C2T2 CXD2843";
 			port->class = DDB_PORT_TUNER;
 			port->type = DDB_TUNER_DVBC2T2_SONY_P;
+			port->type_name = "DVBC2T2_SONY";
 			break;
 		case 0xb1:
 			modname = "DUAL DVB-CT2 CXD2837";
 			port->class = DDB_PORT_TUNER;
 			port->type = DDB_TUNER_DVBCT2_SONY_P;
+			port->type_name = "DVBCT2_SONY";
 			break;
 		case 0xb0:
 			modname = "DUAL ISDB-T CXD2838";
 			port->class = DDB_PORT_TUNER;
 			port->type = DDB_TUNER_ISDBT_SONY_P;
+			port->type_name = "ISDBT_SONY";
 			break;
 		case 0xc1:
 			modname = "DUAL DVB-C2T2 ISDB-T CXD2854";
 			port->class = DDB_PORT_TUNER;
 			port->type = DDB_TUNER_DVBC2T2I_SONY_P;
+			port->type_name = "DVBC2T2_ISDBT_SONY";
 			break;
 		default:
 			modname = "Unknown CXD28xx tuner";
@@ -1877,6 +1897,7 @@ static void ddb_port_probe(struct ddb_port *port)
 		modname = "DUAL DVB-S2";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBS_ST;
+		port->type_name = "DVBS_ST";
 		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_stv0900_aa(port, &stv_id)) {
 		modname = "DUAL DVB-S2";
@@ -1888,9 +1909,11 @@ static void ddb_port_probe(struct ddb_port *port)
 				port->type = DDB_TUNER_DVBS_STV0910_PR;
 			else
 				port->type = DDB_TUNER_DVBS_STV0910_P;
+			port->type_name = "DVBS_ST_0910";
 			break;
 		default:
 			port->type = DDB_TUNER_DVBS_ST_AA;
+			port->type_name = "DVBS_ST_AA";
 			break;
 		}
 		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
@@ -1898,15 +1921,18 @@ static void ddb_port_probe(struct ddb_port *port)
 		modname = "DUAL DVB-C/T";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBCT_TR;
+		port->type_name = "DVBCT_TR";
 		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_stv0367(port)) {
 		modname = "DUAL DVB-C/T";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBCT_ST;
+		port->type_name = "DVBCT_ST";
 		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
 	} else if (port->nr == ts_loop) {
 		modname = "TS LOOP";
 		port->class = DDB_PORT_LOOP;
+		port->type_name = "PORT_LOOP";
 		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	}
 
@@ -2160,13 +2186,20 @@ struct ddb_flashio {
 	__u32 read_len;
 };
 
+struct ddb_gpio {
+	__u32 mask;
+	__u32 data;
+};
+
 #define IOCTL_DDB_FLASHIO  _IOWR(DDB_MAGIC, 0x00, struct ddb_flashio)
+#define IOCTL_DDB_GPIO_IN  _IOWR(DDB_MAGIC, 0x01, struct ddb_gpio)
+#define IOCTL_DDB_GPIO_OUT _IOWR(DDB_MAGIC, 0x02, struct ddb_gpio)
 
 #define DDB_NAME "ddbridge"
 
 static u32 ddb_num;
-static struct class *ddb_class;
 static int ddb_major;
+static DEFINE_MUTEX(ddb_mutex);
 
 static int ddb_open(struct inode *inode, struct file *file)
 {
@@ -2180,7 +2213,7 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct ddb *dev = file->private_data;
 	__user void *parg = (__user void *)arg;
-	int res;
+	int res = -EFAULT;
 
 	switch (cmd) {
 	case IOCTL_DDB_FLASHIO:
@@ -2189,29 +2222,39 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		u8 *rbuf, *wbuf;
 
 		if (copy_from_user(&fio, parg, sizeof(fio)))
-			return -EFAULT;
-
-		if (fio.write_len > 1028 || fio.read_len > 1028)
-			return -EINVAL;
-		if (fio.write_len + fio.read_len > 1028)
-			return -EINVAL;
+			break;
+		if (fio.write_len + fio.read_len > 1028) {
+			dev_err(&dev->pdev->dev, "IOBUF too small\n");
+			return -ENOMEM;
+		}
 
 		wbuf = &dev->iobuf[0];
 		rbuf = wbuf + fio.write_len;
 
 		if (copy_from_user(wbuf, fio.write_buf, fio.write_len))
-			return -EFAULT;
-		res = flashio(dev, wbuf, fio.write_len, rbuf, fio.read_len);
-		if (res)
-			return res;
+			break;
+
+		res = flashio(dev, wbuf, fio.write_len,
+			      rbuf, fio.read_len);
 		if (copy_to_user(fio.read_buf, rbuf, fio.read_len))
-			return -EFAULT;
+			res = -EFAULT;
+		break;
+	}
+	case IOCTL_DDB_GPIO_OUT:
+	{
+		struct ddb_gpio gpio;
+
+		if (copy_from_user(&gpio, parg, sizeof(gpio)))
+			break;
+		ddbwritel(dev, gpio.mask, GPIO_DIRECTION);
+		ddbwritel(dev, gpio.data, GPIO_OUTPUT);
+		res = 0;
 		break;
 	}
 	default:
-		return -ENOTTY;
+		break;
 	}
-	return 0;
+	return res;
 }
 
 static const struct file_operations ddb_fops = {
@@ -2226,47 +2269,241 @@ static char *ddb_devnode(struct device *device, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "ddbridge/card%d", dev->nr);
 }
 
+static ssize_t ports_show(struct device *device,
+			  struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%d\n", dev->info->port_num);
+}
+
+static ssize_t ts_irq_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%d\n", dev->ts_irq);
+}
+
+static ssize_t i2c_irq_show(struct device *device,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%d\n", dev->i2c_irq);
+}
+
+/* DDB_PORT_* defines */
+static char *class_name[] = {
+	"NONE", "CI", "TUNER", "LOOP"
+};
+
+static ssize_t fan_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	u32 val;
+
+	val = ddbreadl(dev, GPIO_OUTPUT) & 1;
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t fan_store(struct device *device, struct device_attribute *d,
+			 const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+	ddbwritel(dev, 1, GPIO_DIRECTION);
+	ddbwritel(dev, val & 1, GPIO_OUTPUT);
+	return count;
+}
+
+static ssize_t temp_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int temp;
+	u8 tmp[2];
+
+	if (!dev->info->temp_num)
+		return sprintf(buf, "no sensor\n");
+	if (i2c_read_regs(&dev->i2c[0].adap, 0x48, 0, tmp, 2) < 0)
+		return sprintf(buf, "read_error\n");
+	temp = (tmp[0] << 3) | (tmp[1] >> 5);
+	temp *= 125;
+	return sprintf(buf, "%d\n", temp);
+}
+
+static ssize_t mod_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+
+	return sprintf(buf, "%s:%s\n",
+		       class_name[dev->port[num].class],
+		       dev->port[num].type_name);
+}
+
+static ssize_t led_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+
+	return sprintf(buf, "%d\n", dev->leds & (1 << num) ? 1 : 0);
+}
+
+static void ddb_set_led(struct ddb *dev, int num, int val)
+{
+	if (!dev->info->led_num)
+		return;
+	switch (dev->port[num].class) {
+	case DDB_PORT_TUNER:
+		switch (dev->port[num].type) {
+		case DDB_TUNER_DVBS_ST:
+			dev_dbg(&dev->pdev->dev, "LED %d %d\n", num, val);
+			i2c_write_reg16(&dev->i2c[num].adap,
+					0x69, 0xf14c, val ? 2 : 0);
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static ssize_t led_store(struct device *device, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+	if (val)
+		dev->leds |= (1 << num);
+	else
+		dev->leds &= ~(1 << num);
+	ddb_set_led(dev, num, val);
+	return count;
+}
+
+static ssize_t redirect_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t redirect_store(struct device *device,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
+{
+	unsigned int i, p;
+	int res;
+
+	if (sscanf(buf, "%x %x\n", &i, &p) != 2)
+		return -EINVAL;
+	dev_info(device, "redirect: %02x, %02x\n", i, p);
+	res = set_redirect(i, p);
+	if (res < 0)
+		return res;
+	return count;
+}
+
+#define __ATTR_MRO(_name, _show) {                              \
+	.attr   = { .name = __stringify(_name), .mode = 0444 }, \
+	.show   = _show,                                        \
+}
+
+static struct device_attribute ddb_attrs[] = {
+	__ATTR_RO(ports),
+	__ATTR_RO(ts_irq),
+	__ATTR_RO(i2c_irq),
+	__ATTR_MRO(mod0, mod_show),
+	__ATTR_MRO(mod1, mod_show),
+	__ATTR_MRO(mod2, mod_show),
+	__ATTR_MRO(mod3, mod_show),
+	__ATTR_RO(temp),
+	__ATTR(fan, 0664, fan_show, fan_store),
+	__ATTR(led0, 0664, led_show, led_store),
+	__ATTR(led1, 0664, led_show, led_store),
+	__ATTR(led2, 0664, led_show, led_store),
+	__ATTR(led3, 0664, led_show, led_store),
+	__ATTR(redirect, 0664, redirect_show, redirect_store),
+	__ATTR_NULL
+};
+
+static struct class ddb_class = {
+	.name           = "ddbridge",
+	.owner          = THIS_MODULE,
+	.devnode        = ddb_devnode,
+};
+
 static int ddb_class_create(void)
 {
 	ddb_major = register_chrdev(0, DDB_NAME, &ddb_fops);
 	if (ddb_major < 0)
 		return ddb_major;
-
-	ddb_class = class_create(THIS_MODULE, DDB_NAME);
-	if (IS_ERR(ddb_class)) {
-		unregister_chrdev(ddb_major, DDB_NAME);
-		return PTR_ERR(ddb_class);
-	}
-	ddb_class->devnode = ddb_devnode;
+	if (class_register(&ddb_class) < 0)
+		return -1;
 	return 0;
 }
 
 static void ddb_class_destroy(void)
 {
-	class_destroy(ddb_class);
+	class_unregister(&ddb_class);
 	unregister_chrdev(ddb_major, DDB_NAME);
+}
+
+static void ddb_device_attrs_del(struct ddb *dev)
+{
+	int i;
+
+	for (i = 0; ddb_attrs[i].attr.name != NULL; i++)
+		device_remove_file(dev->ddb_dev, &ddb_attrs[i]);
+}
+
+static int ddb_device_attrs_add(struct ddb *dev)
+{
+	int i;
+
+	for (i = 0; ddb_attrs[i].attr.name != NULL; i++)
+		if (device_create_file(dev->ddb_dev, &ddb_attrs[i]))
+			goto fail;
+
+	return 0;
+fail:
+	return -1;
 }
 
 static int ddb_device_create(struct ddb *dev)
 {
+	mutex_lock(&ddb_mutex);
 	dev->nr = ddb_num++;
-	dev->ddb_dev = device_create(ddb_class, NULL,
+	ddbs[dev->nr] = dev;
+	mutex_unlock(&ddb_mutex);
+	dev->ddb_dev = device_create(&ddb_class, &dev->pdev->dev,
 				     MKDEV(ddb_major, dev->nr),
 				     dev, "ddbridge%d", dev->nr);
-	ddbs[dev->nr] = dev;
 	if (IS_ERR(dev->ddb_dev))
 		return -1;
+
+	ddb_device_attrs_add(dev);
 	return 0;
 }
 
 static void ddb_device_destroy(struct ddb *dev)
 {
-	ddb_num--;
 	if (IS_ERR(dev->ddb_dev))
 		return;
-	device_destroy(ddb_class, MKDEV(ddb_major, 0));
+	ddb_device_attrs_del(dev);
+	device_destroy(&ddb_class, MKDEV(ddb_major, dev->nr));
 }
-
 
 /****************************************************************************/
 /****************************************************************************/
@@ -2372,8 +2609,13 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ddb_ports_attach(dev) < 0)
 		goto fail3;
 	ddb_device_create(dev);
-	return 0;
 
+	if (dev->info->fan_num) {
+		ddbwritel(dev, 1, GPIO_DIRECTION);
+		ddbwritel(dev, 1, GPIO_OUTPUT);
+	}
+
+	return 0;
 fail3:
 	ddb_ports_detach(dev);
 	dev_err(&pdev->dev, "fail3\n");
@@ -2420,6 +2662,9 @@ static const struct ddb_info ddb_octopus_oem = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus OEM",
 	.port_num = 4,
+	.led_num  = 1,
+	.fan_num  = 1,
+	.temp_num = 1,
 };
 
 static const struct ddb_info ddb_octopus_mini = {

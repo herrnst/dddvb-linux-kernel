@@ -32,6 +32,10 @@
 #define SPI_CONTROL     0x10
 #define SPI_DATA        0x14
 
+#define GPIO_OUTPUT     0x20
+#define GPIO_INPUT      0x24
+#define GPIO_DIRECTION  0x28
+
 /* ------------------------------------------------------------------------- */
 
 #define BOARD_CONTROL    0x30

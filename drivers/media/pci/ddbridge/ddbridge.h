@@ -59,7 +59,9 @@ struct ddb_info {
 #define DDB_OCTOPUS_MAX_CT	6
 	char *name;
 	int   port_num;
-	u32   port_type[DDB_MAX_PORT];
+	int   led_num;
+	int   fan_num;
+	int   temp_num;
 	u32   board_control;
 	u32   board_control_2;
 	u8    ts_quirks;
@@ -155,6 +157,7 @@ struct ddb_port {
 #define DDB_PORT_CI             1
 #define DDB_PORT_TUNER          2
 #define DDB_PORT_LOOP           3
+	char                  *type_name;
 	u32                    type;
 #define DDB_TUNER_NONE			0
 #define DDB_TUNER_DVBS_ST		1
@@ -197,6 +200,9 @@ struct ddb {
 
 	struct ddb_info       *info;
 	int                    msi;
+
+	u8                     leds;
+
 	u32                    ts_irq;
 	u32                    i2c_irq;
 };
