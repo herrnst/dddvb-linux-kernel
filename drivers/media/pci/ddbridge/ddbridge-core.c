@@ -2564,7 +2564,7 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		stat = -ENOMEM;
 		goto fail;
 	}
-	dev_info(&pdev->dev, "HW %08x FW %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
+	dev_info(&pdev->dev, "HW %08x REG %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
 
 #ifdef CONFIG_PCI_MSI
 	if (pci_msi_enabled())
@@ -2623,6 +2623,7 @@ fail3:
 fail2:
 	dev_err(&pdev->dev, "fail2\n");
 	ddb_buffers_free(dev);
+	ddb_i2c_release(dev);
 fail1:
 	dev_err(&pdev->dev, "fail1\n");
 	if (dev->msi)
@@ -2831,17 +2832,16 @@ static struct pci_driver ddb_pci_driver = {
 
 static __init int module_init_ddbridge(void)
 {
-	int ret;
+	int stat;
 
 	pr_info("Digital Devices PCIE bridge driver, Copyright (C) 2010-11 Digital Devices GmbH\n");
 
-	ret = ddb_class_create();
-	if (ret < 0)
-		return ret;
-	ret = pci_register_driver(&ddb_pci_driver);
-	if (ret < 0)
+	if (ddb_class_create())
+		return -1;
+	stat = pci_register_driver(&ddb_pci_driver);
+	if (stat < 0)
 		ddb_class_destroy();
-	return ret;
+	return stat;
 }
 
 static __exit void module_exit_ddbridge(void)
