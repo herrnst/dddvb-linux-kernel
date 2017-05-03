@@ -61,6 +61,10 @@ static int adapter_alloc;
 module_param(adapter_alloc, int, 0444);
 MODULE_PARM_DESC(adapter_alloc, "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
 
+static int ts_loop = -1;
+module_param(ts_loop, int, 0444);
+MODULE_PARM_DESC(ts_loop, "TS in/out on port ts_loop");
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct ddb *ddbs[32];
@@ -395,6 +399,7 @@ static int ddb_buffers_alloc(struct ddb *dev)
 				return -1;
 			break;
 		case DDB_PORT_CI:
+		case DDB_PORT_LOOP:
 			if (dma_alloc(dev->pdev, port->input[0]->dma) < 0)
 				return -1;
 			if (dma_alloc(dev->pdev, port->output->dma) < 0)
@@ -473,7 +478,10 @@ static void ddb_output_start(struct ddb_output *output)
 
 	ddbwritel(dev, 1, DMA_BASE_READ);
 	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->dma->nr));
-	ddbwritel(dev, 0x1d, TS_OUTPUT_CONTROL(output->nr));
+	if (output->port->input[0]->port->class == DDB_PORT_LOOP)
+		ddbwritel(dev, 0x05, TS_OUTPUT_CONTROL(output->nr));
+	else
+		ddbwritel(dev, 0x1d, TS_OUTPUT_CONTROL(output->nr));
 	output->dma->running = 1;
 	spin_unlock_irq(&output->dma->lock);
 }
@@ -1169,6 +1177,7 @@ static int dvb_register_adapters(struct ddb *dev)
 			break;
 
 		case DDB_PORT_CI:
+		case DDB_PORT_LOOP:
 			adap = port->input[0]->dvb.adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
@@ -1450,7 +1459,7 @@ static int set_redirect(u32 i, u32 p)
 		return -EINVAL;
 
 	port = &pdev->port[p & 3];
-	if (port->class != DDB_PORT_CI)
+	if (port->class != DDB_PORT_CI && port->class != DDB_PORT_LOOP)
 		return -EINVAL;
 
 	ddb_unredirect(port);
@@ -1524,7 +1533,7 @@ static void input_tasklet(unsigned long data)
 		else
 			wake_up(&dma->wq);
 	}
-	if (input->port->class == DDB_PORT_CI)
+	if (input->port->class == DDB_PORT_LOOP)
 		wake_up(&dma->wq);
 	spin_unlock(&dma->lock);
 }
@@ -1582,6 +1591,7 @@ static int ddb_port_attach(struct ddb_port *port)
 		ret = ddb_ci_attach(port);
 		if (ret < 0)
 			break;
+	case DDB_PORT_LOOP:
 		ddb_input_start(port->input[0]);
 		ddb_output_start(port->output);
 		ret = dvb_register_device(port->input[0]->dvb.adap,
@@ -1627,6 +1637,7 @@ static void ddb_ports_detach(struct ddb *dev)
 			dvb_input_detach(port->input[1]);
 			break;
 		case DDB_PORT_CI:
+		case DDB_PORT_LOOP:
 			if (port->input[0]->dvb.dev)
 				dvb_unregister_device(port->input[0]->dvb.dev);
 			ddb_input_stop(port->input[0]);
@@ -1891,6 +1902,10 @@ static void ddb_port_probe(struct ddb_port *port)
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DVBCT_ST;
 		ddbwritel(dev, I2C_SPEED_100, port->i2c->regs + I2C_TIMING);
+	} else if (port->nr == ts_loop) {
+		modname = "TS LOOP";
+		port->class = DDB_PORT_LOOP;
+		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	}
 
 	dev_info(&dev->pdev->dev, "Port %d (TAB %d): %s\n",

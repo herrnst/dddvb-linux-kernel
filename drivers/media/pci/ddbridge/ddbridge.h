@@ -154,6 +154,7 @@ struct ddb_port {
 #define DDB_PORT_NONE           0
 #define DDB_PORT_CI             1
 #define DDB_PORT_TUNER          2
+#define DDB_PORT_LOOP           3
 	u32                    type;
 #define DDB_TUNER_NONE			0
 #define DDB_TUNER_DVBS_ST		1
