@@ -1435,9 +1435,11 @@ static const struct file_operations ci_fops = {
 	.open    = dvb_generic_open,
 	.release = dvb_generic_release,
 	.poll    = ts_poll,
+	.mmap    = 0,
 };
 
 static struct dvb_device dvbdev_ci = {
+	.priv    = NULL,
 	.readers = -1,
 	.writers = -1,
 	.users   = -1,
