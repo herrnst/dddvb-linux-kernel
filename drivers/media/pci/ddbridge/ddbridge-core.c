@@ -63,6 +63,8 @@ MODULE_PARM_DESC(adapter_alloc, "0-one adapter per io, 1-one per tab with io, 2-
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+static struct ddb *ddbs[32];
+
 /* MSI had problems with lost interrupts, fixed but needs testing */
 #undef CONFIG_PCI_MSI
 
@@ -1437,6 +1439,65 @@ static struct dvb_device dvbdev_ci = {
 /****************************************************************************/
 /****************************************************************************/
 
+static int set_redirect(u32 i, u32 p)
+{
+	struct ddb *idev = ddbs[(i >> 4) & 0x1f];
+	struct ddb_input *input;
+	struct ddb *pdev = ddbs[(p >> 4) & 0x1f];
+	struct ddb_port *port;
+
+	if (!idev || !pdev)
+		return -EINVAL;
+
+	port = &pdev->port[p & 3];
+	if (port->class != DDB_PORT_CI)
+		return -EINVAL;
+
+	ddb_unredirect(port);
+	if (i == 8)
+		return 0;
+	input = &idev->input[i & 7];
+	if (input->port->class != DDB_PORT_TUNER)
+		return -EINVAL;
+	input->redirect = port->input[0];
+	port->input[0]->redirect = input;
+
+	ddb_redirect_dma(input->port->dev, input->dma, port->output->dma);
+	return 0;
+}
+
+static void input_write_output(struct ddb_input *input,
+			       struct ddb_output *output)
+{
+	ddbwritel(output->port->dev,
+		input->dma->stat, DMA_BUFFER_ACK(output->dma->nr));
+}
+
+static void output_ack_input(struct ddb_output *output,
+			     struct ddb_input *input)
+{
+	ddbwritel(input->port->dev,
+		output->dma->stat, DMA_BUFFER_ACK(input->dma->nr));
+}
+
+static void input_write_dvb(struct ddb_input *input, struct ddb_dvb *dvb)
+{
+	struct ddb_dma *dma = input->dma;
+	struct ddb *dev = input->port->dev;
+
+	if (4 & ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr)))
+		dev_err(&dev->pdev->dev, "Overflow dma %d\n", dma->nr);
+	while (dma->cbuf != ((dma->stat >> 11) & 0x1f)
+		|| (4 & safe_ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr)))) {
+		dvb_dmx_swfilter_packets(&dvb->demux,
+					 dma->vbuf[dma->cbuf],
+					 dma->size / 188);
+		dma->cbuf = (dma->cbuf + 1) % dma->num;
+		ddbwritel(dev, (dma->cbuf << 11),  DMA_BUFFER_ACK(dma->nr));
+		dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
+	}
+}
+
 static void input_tasklet(unsigned long data)
 {
 	struct ddb_input *input = (struct ddb_input *) data;
@@ -1451,19 +1512,17 @@ static void input_tasklet(unsigned long data)
 	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
 
 	if (input->port->class == DDB_PORT_TUNER) {
-		if (4&ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr)))
-			dev_err(&dev->pdev->dev, "Overflow input %d\n", dma->nr);
-		while (dma->cbuf != ((dma->stat >> 11) & 0x1f)
-		       || (4 & safe_ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr)))) {
-			dvb_dmx_swfilter_packets(&input->dvb.demux,
-						 dma->vbuf[dma->cbuf],
-						 dma->size / 188);
-
-			dma->cbuf = (dma->cbuf + 1) % dma->num;
-			ddbwritel(dev, (dma->cbuf << 11),
-				  DMA_BUFFER_ACK(dma->nr));
-			dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
-		}
+		if (input->redirect)
+			input_write_output(input,
+				input->redirect->port->output);
+		else
+			input_write_dvb(input, &input->dvb);
+	}
+	if (input->port->class == DDB_PORT_CI) {
+		if (input->redirect)
+			input_write_dvb(input, &input->redirect->dvb);
+		else
+			wake_up(&dma->wq);
 	}
 	if (input->port->class == DDB_PORT_CI)
 		wake_up(&dma->wq);
@@ -1481,11 +1540,13 @@ static void output_tasklet(unsigned long data)
 		spin_unlock(&dma->lock);
 		return;
 	}
-	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr + 8));
+	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
+	dma->ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr));
+	if (output->port->input[0]->redirect)
+		output_ack_input(output, output->port->input[0]->redirect);
 	wake_up(&dma->wq);
 	spin_unlock(&dma->lock);
 }
-
 
 static struct cxd2099_cfg cxd_cfg = {
 	.bitrate =  62000,
@@ -2087,7 +2148,6 @@ struct ddb_flashio {
 #define DDB_NAME "ddbridge"
 
 static u32 ddb_num;
-static struct ddb *ddbs[32];
 static struct class *ddb_class;
 static int ddb_major;
 
