@@ -1880,6 +1880,11 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	do {
 		ddbwritel(dev, s, INTERRUPT_ACK);
 
+		if (s & 0x0000000f)
+			dev->i2c_irq++;
+		if (s & 0x000fff00)
+			dev->ts_irq++;
+
 		if (s & 0x00000001)
 			irq_handle_i2c(dev, 0);
 		if (s & 0x00000002)
