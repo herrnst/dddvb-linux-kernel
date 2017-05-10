@@ -63,7 +63,7 @@ MODULE_PARM_DESC(adapter_alloc, "0-one adapter per io, 1-one per tab with io, 2-
 
 static int ts_loop = -1;
 module_param(ts_loop, int, 0444);
-MODULE_PARM_DESC(ts_loop, "TS in/out on port ts_loop");
+MODULE_PARM_DESC(ts_loop, "TS in/out test loop on port ts_loop");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
