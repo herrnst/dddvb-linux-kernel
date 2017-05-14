@@ -3304,4 +3304,4 @@ module_exit(module_exit_ddbridge);
 MODULE_DESCRIPTION("Digital Devices PCIe Bridge");
 MODULE_AUTHOR("Ralph Metzler");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.8");
+MODULE_VERSION("0.8.5");
