@@ -2434,6 +2434,13 @@ static int flashio(struct ddb *dev, u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
 	return 0;
 }
 
+static int flashread(struct ddb *dev, u8 *buf, u32 addr, u32 len)
+{
+	u8 cmd[4] = { 0x03, (addr>>24) & 0xff, (addr >> 16) & 0xff, addr & 0xff};
+
+	return flashio(dev, cmd, 4, buf, len);
+}
+
 #define DDB_MAGIC 'd'
 
 struct ddb_flashio {
@@ -2659,6 +2666,48 @@ static ssize_t led_store(struct device *device, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t snr_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	char snr[32];
+	int num = attr->attr.name[3] - 0x30;
+
+	/* serial number at 0x100-0x11f */
+	if (i2c_read_regs16(&dev->i2c[num].adap, 0x50, 0x100, snr, 32) < 0)
+		if (i2c_read_regs16(&dev->i2c[num].adap,
+				    0x57, 0x100, snr, 32) < 0)
+			return sprintf(buf, "NO SNR\n");
+	snr[31] = 0; /* in case it is not terminated on EEPROM */
+	return sprintf(buf, "%s\n", snr);
+}
+
+static ssize_t snr_store(struct device *device, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+	u8 snr[34] = { 0x01, 0x00 };
+
+	if (count > 31)
+		return -EINVAL;
+	memcpy(snr + 2, buf, count);
+	i2c_write(&dev->i2c[num].adap, 0x57, snr, 34);
+	i2c_write(&dev->i2c[num].adap, 0x50, snr, 34);
+	return count;
+}
+
+static ssize_t bsnr_show(struct device *device, struct device_attribute *attr,
+			 char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	char snr[16];
+
+	flashread(dev, snr, 0x10, 15);
+	snr[15] = 0; /* in case it is not terminated on EEPROM */
+	return sprintf(buf, "%s\n", snr);
+}
+
 static ssize_t redirect_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
@@ -2700,6 +2749,11 @@ static struct device_attribute ddb_attrs[] = {
 	__ATTR(led1, 0664, led_show, led_store),
 	__ATTR(led2, 0664, led_show, led_store),
 	__ATTR(led3, 0664, led_show, led_store),
+	__ATTR(snr0, 0664, snr_show, snr_store),
+	__ATTR(snr1, 0664, snr_show, snr_store),
+	__ATTR(snr2, 0664, snr_show, snr_store),
+	__ATTR(snr3, 0664, snr_show, snr_store),
+	__ATTR_MRO(snr, bsnr_show),
 	__ATTR(redirect, 0664, redirect_show, redirect_store),
 	__ATTR_NULL
 };
