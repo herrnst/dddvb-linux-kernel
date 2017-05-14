@@ -1489,21 +1489,53 @@ static unsigned int ts_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
+static int ts_release(struct inode *inode, struct file *file)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ddb_output *output = dvbdev->priv;
+	struct ddb_input *input = output->port->input[0];
+
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
+		ddb_input_stop(input);
+	else
+		ddb_output_stop(output);
+
+	return dvb_generic_release(inode, file);
+}
+
+static int ts_open(struct inode *inode, struct file *file)
+{
+	int err;
+	struct dvb_device *dvbdev = file->private_data;
+	struct ddb_output *output = dvbdev->priv;
+	struct ddb_input *input = output->port->input[0];
+
+	if ((err = dvb_generic_open(inode, file)) < 0)
+		return err;
+
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
+		ddb_input_start(input);
+	else
+		ddb_output_start(output);
+
+	return err;
+}
+
 static const struct file_operations ci_fops = {
 	.owner   = THIS_MODULE,
 	.read    = ts_read,
 	.write   = ts_write,
-	.open    = dvb_generic_open,
-	.release = dvb_generic_release,
+	.open    = ts_open,
+	.release = ts_release,
 	.poll    = ts_poll,
 	.mmap    = 0,
 };
 
 static struct dvb_device dvbdev_ci = {
 	.priv    = NULL,
-	.readers = -1,
-	.writers = -1,
-	.users   = -1,
+	.readers = 1,
+	.writers = 1,
+	.users   = 2,
 	.fops    = &ci_fops,
 };
 
@@ -1663,8 +1695,6 @@ static int ddb_port_attach(struct ddb_port *port)
 		if (ret < 0)
 			break;
 	case DDB_PORT_LOOP:
-		ddb_input_start(port->input[0]);
-		ddb_output_start(port->output);
 		ret = dvb_register_device(port->input[0]->dvb.adap,
 					  &port->input[0]->dvb.dev,
 					  &dvbdev_ci, (void *) port->output,
@@ -1711,8 +1741,6 @@ static void ddb_ports_detach(struct ddb *dev)
 		case DDB_PORT_LOOP:
 			if (port->input[0]->dvb.dev)
 				dvb_unregister_device(port->input[0]->dvb.dev);
-			ddb_input_stop(port->input[0]);
-			ddb_output_stop(port->output);
 			if (port->en) {
 				dvb_ca_en50221_release(port->en);
 				kfree(port->en);
