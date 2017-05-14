@@ -2629,6 +2629,12 @@ static void ddb_set_led(struct ddb *dev, int num, int val)
 			i2c_write_reg16(&dev->i2c[num].adap,
 					0x69, 0xf14c, val ? 2 : 0);
 			break;
+		case DDB_TUNER_DVBCT_ST:
+			i2c_write_reg16(&dev->i2c[num].adap,
+					0x1f, 0xf00e, 0);
+			i2c_write_reg16(&dev->i2c[num].adap,
+					0x1f, 0xf00f, val ? 1 : 0);
+			break;
 		}
 		break;
 	default:
