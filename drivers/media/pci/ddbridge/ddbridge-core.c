@@ -1660,21 +1660,179 @@ static void output_tasklet(unsigned long data)
 	spin_unlock(&dma->lock);
 }
 
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
+static int wait_ci_ready(struct ddb_ci *ci)
+{
+	u32 count = 10;
+
+	do {
+		if (ddbreadl(ci->port->dev, CI_CONTROL(ci->nr)) & CI_READY)
+			break;
+		msleep(1);
+		if ((--count) == 0)
+			return -1;
+	} while (1);
+	return 0;
+}
+
+static int read_attribute_mem(struct dvb_ca_en50221 *ca,
+			      int slot, int address)
+{
+	struct ddb_ci *ci = ca->data;
+	u32 val, off = (address >> 1) & (CI_BUFFER_SIZE-1);
+
+	if (address > CI_BUFFER_SIZE)
+		return -1;
+	ddbwritel(ci->port->dev, CI_READ_CMD | (1 << 16) | address,
+		  CI_DO_READ_ATTRIBUTES(ci->nr));
+	wait_ci_ready(ci);
+	val = 0xff & ddbreadl(ci->port->dev, CI_BUFFER(ci->nr) + off);
+	return val;
+}
+
+static int write_attribute_mem(struct dvb_ca_en50221 *ca, int slot,
+			       int address, u8 value)
+{
+	struct ddb_ci *ci = ca->data;
+
+	ddbwritel(ci->port->dev, CI_WRITE_CMD | (value << 16) | address,
+		  CI_DO_ATTRIBUTE_RW(ci->nr));
+	wait_ci_ready(ci);
+	return 0;
+}
+
+static int read_cam_control(struct dvb_ca_en50221 *ca,
+			    int slot, u8 address)
+{
+	u32 count = 100;
+	struct ddb_ci *ci = ca->data;
+	u32 res;
+
+	ddbwritel(ci->port->dev, CI_READ_CMD | address, CI_DO_IO_RW(ci->nr));
+
+	do {
+		res = ddbreadl(ci->port->dev, CI_READDATA(ci->nr));
+		if (res & CI_READY)
+			break;
+		msleep(1);
+		if ((--count) == 0)
+			return -1;
+	} while (1);
+	return (0xff & res);
+}
+
+static int write_cam_control(struct dvb_ca_en50221 *ca, int slot,
+			     u8 address, u8 value)
+{
+	struct ddb_ci *ci = ca->data;
+
+	ddbwritel(ci->port->dev, CI_WRITE_CMD | (value << 16) | address,
+		  CI_DO_IO_RW(ci->nr));
+	wait_ci_ready(ci);
+	return 0;
+}
+
+static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
+{
+	struct ddb_ci *ci = ca->data;
+
+	ddbwritel(ci->port->dev, CI_POWER_ON,
+		  CI_CONTROL(ci->nr));
+	msleep(300);
+	ddbwritel(ci->port->dev, CI_POWER_ON | CI_RESET_CAM,
+		  CI_CONTROL(ci->nr));
+	ddbwritel(ci->port->dev, CI_ENABLE | CI_POWER_ON | CI_RESET_CAM,
+		  CI_CONTROL(ci->nr));
+	udelay(20);
+	ddbwritel(ci->port->dev, CI_ENABLE | CI_POWER_ON,
+		  CI_CONTROL(ci->nr));
+	return 0;
+}
+
+static int slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
+{
+	struct ddb_ci *ci = ca->data;
+
+	ddbwritel(ci->port->dev, 0, CI_CONTROL(ci->nr));
+	return 0;
+}
+
+static int slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
+{
+	struct ddb_ci *ci = ca->data;
+	u32 val = ddbreadl(ci->port->dev, CI_CONTROL(ci->nr));
+
+	ddbwritel(ci->port->dev, val | CI_BYPASS_DISABLE,
+		  CI_CONTROL(ci->nr));
+	return 0;
+}
+
+static int poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open)
+{
+	struct ddb_ci *ci = ca->data;
+	u32 val = ddbreadl(ci->port->dev, CI_CONTROL(ci->nr));
+	int stat = 0;
+
+	if (val & CI_CAM_DETECT)
+		stat |= DVB_CA_EN50221_POLL_CAM_PRESENT;
+	if (val & CI_CAM_READY)
+		stat |= DVB_CA_EN50221_POLL_CAM_READY;
+	return stat;
+}
+
+static struct dvb_ca_en50221 en_templ = {
+	.read_attribute_mem  = read_attribute_mem,
+	.write_attribute_mem = write_attribute_mem,
+	.read_cam_control    = read_cam_control,
+	.write_cam_control   = write_cam_control,
+	.slot_reset          = slot_reset,
+	.slot_shutdown       = slot_shutdown,
+	.slot_ts_enable      = slot_ts_enable,
+	.poll_slot_status    = poll_slot_status,
+};
+
+static void ci_attach(struct ddb_port *port)
+{
+	struct ddb_ci *ci = 0;
+
+	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
+	if (!ci)
+		return;
+	memcpy(&ci->en, &en_templ, sizeof(en_templ));
+	ci->en.data = ci;
+	port->en = &ci->en;
+	ci->port = port;
+	ci->nr = port->nr - 2;
+}
+
 static struct cxd2099_cfg cxd_cfg = {
-	.bitrate =  62000,
-	.adr     =  0x40,
-	.polarity = 1,
+	.bitrate    = 62000,
+	.adr        = 0x40,
+	.polarity   = 1,
 	.clock_mode = 1,
 	.max_i2c = 512,
 };
 
 static int ddb_ci_attach(struct ddb_port *port)
 {
-	port->en = cxd2099_attach(&cxd_cfg, port, &port->i2c->adap);
-	if (!port->en)
-		return -ENODEV;
-	dvb_ca_en50221_init(port->input[0]->dvb.adap,
-			    port->en, 0, 1);
+	if (port->type == DDB_CI_EXTERNAL_SONY) {
+		port->en = cxd2099_attach(&cxd_cfg, port, &port->i2c->adap);
+		if (!port->en)
+			return -ENODEV;
+		dvb_ca_en50221_init(port->input[0]->dvb.adap,
+				    port->en, 0, 1);
+	}
+
+	if (port->type == DDB_CI_INTERNAL) {
+		ci_attach(port);
+		if (!port->en)
+			return -ENODEV;
+		dvb_ca_en50221_init(port->input[0]->dvb.adap, port->en, 0, 1);
+	}
+
 	return 0;
 }
 
@@ -2095,8 +2253,14 @@ static void ddb_ports_init(struct ddb *dev)
 
 		mutex_init(&port->i2c_gate_lock);
 		ddb_port_probe(port);
-		ddb_input_init(port, 2 * i, 0);
-		ddb_input_init(port, 2 * i + 1, 1);
+		if (i >= 2 && dev->info->type == DDB_OCTOPUS_CI) {
+			ddb_input_init(port, 2 + i, 0);
+			ddb_input_init(port, 4 + i, 1);
+		} else {
+			ddb_input_init(port, 2 * i, 0);
+			ddb_input_init(port, 2 * i + 1, 1);
+		}
+
 		ddb_output_init(port, i);
 	}
 }

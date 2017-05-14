@@ -17,11 +17,12 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/* DD-DVBBridgeV1.h 273 2010-09-17 05:03:16Z manfred */
+/* DD-DVBBridgeV1.h 388 2011-07-13 20:47:08Z manfred */
 
 /* Register Definitions */
 
-#define CUR_REGISTERMAP_VERSION 0x10000
+#define CUR_REGISTERMAP_VERSION		0x10003
+#define CUR_REGISTERMAP_VERSION_CI	0x10000
 
 #define HARDWARE_VERSION       0x00
 #define REGISTERMAP_VERSION    0x04
@@ -31,6 +32,9 @@
 
 #define SPI_CONTROL     0x10
 #define SPI_DATA        0x14
+
+/* ------------------------------------------------------------------------- */
+/* GPIO */
 
 #define GPIO_OUTPUT     0x20
 #define GPIO_INPUT      0x24
@@ -142,6 +146,7 @@
 
 #define TS_OUTPUT_BASE       (0x280)
 #define TS_OUTPUT_CONTROL(i)         (TS_OUTPUT_BASE + (i) * 16 + 0x00)
+#define TS_OUTPUT_CONTROL2(i)        (TS_OUTPUT_BASE + (i) * 16 + 0x04)
 
 #define DMA_BUFFER_BASE     (0x300)
 
@@ -153,3 +158,30 @@
 #define DMA_BASE_ADDRESS_TABLE  (0x2000)
 #define DMA_BASE_ADDRESS_TABLE_ENTRIES (512)
 
+/* ------------------------------------------------------------------------- */
+/* CI Interface (only CI-Bridge) */
+
+#define CI_BASE                         (0x400)
+#define CI_CONTROL(i)                   (CI_BASE + (i) * 32 + 0x00)
+
+#define CI_DO_ATTRIBUTE_RW(i)           (CI_BASE + (i) * 32 + 0x04)
+#define CI_DO_IO_RW(i)                  (CI_BASE + (i) * 32 + 0x08)
+#define CI_READDATA(i)                  (CI_BASE + (i) * 32 + 0x0c)
+#define CI_DO_READ_ATTRIBUTES(i)        (CI_BASE + (i) * 32 + 0x10)
+
+#define CI_RESET_CAM                    (0x00000001)
+#define CI_POWER_ON                     (0x00000002)
+#define CI_ENABLE                       (0x00000004)
+#define CI_BYPASS_DISABLE               (0x00000010)
+
+#define CI_CAM_READY                    (0x00010000)
+#define CI_CAM_DETECT                   (0x00020000)
+#define CI_READY                        (0x80000000)
+
+#define CI_READ_CMD                     (0x40000000)
+#define CI_WRITE_CMD                    (0x80000000)
+
+#define CI_BUFFER_BASE                  (0x3000)
+#define CI_BUFFER_SIZE                  (0x0800)
+
+#define CI_BUFFER(i)                    (CI_BUFFER_BASE + (i) * CI_BUFFER_SIZE )

@@ -56,6 +56,7 @@ struct ddb_info {
 	int   type;
 #define DDB_NONE		0
 #define DDB_OCTOPUS		1
+#define DDB_OCTOPUS_CI		2
 #define DDB_OCTOPUS_MAX_CT	6
 	char *name;
 	int   port_num;
@@ -123,6 +124,13 @@ struct ddb_dvb {
 	int                    attached;
 };
 
+struct ddb_ci {
+	struct dvb_ca_en50221  en;
+	struct ddb_port       *port;
+	u32                    nr;
+	struct mutex           lock;
+};
+
 struct ddb_input {
 	struct ddb_port       *port;
 	u32                    nr;
@@ -167,6 +175,8 @@ struct ddb_port {
 #define DDB_TUNER_DVBS_ST_AA		2
 #define DDB_TUNER_DVBCT_TR		3
 #define DDB_TUNER_DVBCT_ST		4
+#define DDB_CI_INTERNAL			5
+#define DDB_CI_EXTERNAL_SONY		6
 #define DDB_TUNER_DVBCT2_SONY_P		7
 #define DDB_TUNER_DVBC2T2_SONY_P	8
 #define DDB_TUNER_ISDBT_SONY_P		9
