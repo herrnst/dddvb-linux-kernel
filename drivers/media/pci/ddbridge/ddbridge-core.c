@@ -182,7 +182,7 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 	ddbwritel(dev, (adr << 9) | cmd, i2c->regs + I2C_COMMAND);
 	stat = wait_event_timeout(i2c->wq, i2c->done == 1, HZ);
 	if (stat <= 0) {
-		dev_err(&dev->pdev->dev, "I2C timeout\n");
+		dev_err(&dev->pdev->dev, "I2C timeout, card %d, port %d\n", dev->nr, i2c->nr);
 		{ /* MSI debugging*/
 			u32 istat = ddbreadl(dev, INTERRUPT_STATUS);
 			dev_err(&dev->pdev->dev, "IRS %08x\n", istat);
@@ -255,7 +255,7 @@ static void ddb_i2c_release(struct ddb *dev)
 	struct ddb_i2c *i2c;
 	struct i2c_adapter *adap;
 
-	for (i = 0; i < dev->info->port_num; i++) {
+	for (i = 0; i < dev->info->i2c_num; i++) {
 		i2c = &dev->i2c[i];
 		adap = &i2c->adap;
 		i2c_del_adapter(adap);
@@ -268,7 +268,7 @@ static int ddb_i2c_init(struct ddb *dev)
 	struct ddb_i2c *i2c;
 	struct i2c_adapter *adap;
 
-	for (i = 0; i < dev->info->port_num; i++) {
+	for (i = 0; i < dev->info->i2c_num; i++) {
 		i2c = &dev->i2c[i];
 		i2c->dev = dev;
 		i2c->nr = i;
@@ -2651,18 +2651,21 @@ static const struct ddb_info ddb_octopus = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus DVB adapter",
 	.port_num = 4,
+	.i2c_num  = 4,
 };
 
 static const struct ddb_info ddb_octopus_le = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus LE DVB adapter",
 	.port_num = 2,
+	.i2c_num  = 2,
 };
 
 static const struct ddb_info ddb_octopus_oem = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus OEM",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.led_num  = 1,
 	.fan_num  = 1,
 	.temp_num = 1,
@@ -2672,23 +2675,27 @@ static const struct ddb_info ddb_octopus_mini = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus Mini",
 	.port_num = 4,
+	.i2c_num  = 4,
 };
 
 static const struct ddb_info ddb_v6 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine S2 V6 DVB adapter",
 	.port_num = 3,
+	.i2c_num  = 3,
 };
 static const struct ddb_info ddb_v6_5 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine S2 V6.5 DVB adapter",
 	.port_num = 4,
+	.i2c_num  = 4,
 };
 
 static const struct ddb_info ddb_v7 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine S2 V7 DVB adapter",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 2,
 	.board_control_2 = 4,
 	.ts_quirks = TS_QUIRK_REVERSED,
@@ -2698,6 +2705,7 @@ static const struct ddb_info ddb_v7a = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine S2 V7 Advanced DVB adapter",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 2,
 	.board_control_2 = 4,
 	.ts_quirks = TS_QUIRK_REVERSED,
@@ -2707,12 +2715,14 @@ static const struct ddb_info ddb_dvbct = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices DVBCT V6.1 DVB adapter",
 	.port_num = 3,
+	.i2c_num  = 3,
 };
 
 static const struct ddb_info ddb_ctv7 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine CT V7 DVB adapter",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 3,
 	.board_control_2 = 4,
 };
@@ -2721,12 +2731,14 @@ static const struct ddb_info ddb_satixS2v3 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Mystique SaTiX-S2 V3 DVB adapter",
 	.port_num = 3,
+	.i2c_num  = 3,
 };
 
 static const struct ddb_info ddb_octopusv3 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus V3 DVB adapter",
 	.port_num = 4,
+	.i2c_num  = 4,
 };
 
 /*** MaxA8 adapters ***********************************************************/
@@ -2735,6 +2747,7 @@ static struct ddb_info ddb_ct2_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX A8 CT2",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
 	.ts_quirks = TS_QUIRK_SERIAL,
@@ -2744,6 +2757,7 @@ static struct ddb_info ddb_c2t2_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX A8 C2T2",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
 	.ts_quirks = TS_QUIRK_SERIAL,
@@ -2753,6 +2767,7 @@ static struct ddb_info ddb_isdbt_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX A8 ISDBT",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
 	.ts_quirks = TS_QUIRK_SERIAL,
@@ -2762,6 +2777,7 @@ static struct ddb_info ddb_c2t2i_v0_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX A8 C2T2I V0",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
 	.ts_quirks = TS_QUIRK_SERIAL | TS_QUIRK_ALT_OSC,
@@ -2771,6 +2787,7 @@ static struct ddb_info ddb_c2t2i_8 = {
 	.type     = DDB_OCTOPUS_MAX_CT,
 	.name     = "Digital Devices MAX A8 C2T2I",
 	.port_num = 4,
+	.i2c_num  = 4,
 	.board_control   = 0x0ff,
 	.board_control_2 = 0xf00,
 	.ts_quirks = TS_QUIRK_SERIAL,

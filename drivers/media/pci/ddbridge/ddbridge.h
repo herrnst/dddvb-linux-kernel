@@ -59,6 +59,7 @@ struct ddb_info {
 #define DDB_OCTOPUS_MAX_CT	6
 	char *name;
 	int   port_num;
+	int   i2c_num;
 	int   led_num;
 	int   fan_num;
 	int   temp_num;
