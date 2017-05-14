@@ -198,26 +198,27 @@ struct ddb_port {
 };
 
 struct ddb {
-	struct pci_dev        *pdev;
-	unsigned char __iomem *regs;
-	struct ddb_port        port[DDB_MAX_PORT];
-	struct ddb_i2c         i2c[DDB_MAX_I2C];
-	struct ddb_input       input[DDB_MAX_INPUT];
-	struct ddb_output      output[DDB_MAX_OUTPUT];
-	struct dvb_adapter     adap[DDB_MAX_INPUT];
-	struct ddb_dma         dma[DDB_MAX_INPUT + DDB_MAX_OUTPUT];
+	struct pci_dev             *pdev;
+	const struct pci_device_id *id;
+	unsigned char __iomem      *regs;
+	struct ddb_port             port[DDB_MAX_PORT];
+	struct ddb_i2c              i2c[DDB_MAX_I2C];
+	struct ddb_input            input[DDB_MAX_INPUT];
+	struct ddb_output           output[DDB_MAX_OUTPUT];
+	struct dvb_adapter          adap[DDB_MAX_INPUT];
+	struct ddb_dma              dma[DDB_MAX_INPUT + DDB_MAX_OUTPUT];
 
-	struct device         *ddb_dev;
-	u32                    nr;
-	u8                     iobuf[1028];
+	struct device              *ddb_dev;
+	u32                         nr;
+	u8                          iobuf[1028];
 
-	struct ddb_info       *info;
-	int                    msi;
+	struct ddb_info            *info;
+	int                         msi;
 
-	u8                     leds;
+	u8                          leds;
 
-	u32                    ts_irq;
-	u32                    i2c_irq;
+	u32                         ts_irq;
+	u32                         i2c_irq;
 };
 
 /****************************************************************************/

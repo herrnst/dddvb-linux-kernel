@@ -2455,9 +2455,19 @@ struct ddb_gpio {
 	__u32 data;
 };
 
+struct ddb_id {
+	__u16 vendor;
+	__u16 device;
+	__u16 subvendor;
+	__u16 subdevice;
+	__u32 hw;
+	__u32 regmap;
+};
+
 #define IOCTL_DDB_FLASHIO  _IOWR(DDB_MAGIC, 0x00, struct ddb_flashio)
 #define IOCTL_DDB_GPIO_IN  _IOWR(DDB_MAGIC, 0x01, struct ddb_gpio)
 #define IOCTL_DDB_GPIO_OUT _IOWR(DDB_MAGIC, 0x02, struct ddb_gpio)
+#define IOCTL_DDB_ID       _IOR(DDB_MAGIC, 0x03, struct ddb_id)
 
 #define DDB_NAME "ddbridge"
 
@@ -2516,6 +2526,20 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		ddbwritel(dev, gpio.mask, GPIO_DIRECTION);
 		ddbwritel(dev, gpio.data, GPIO_OUTPUT);
+		break;
+	}
+	case IOCTL_DDB_ID:
+	{
+		struct ddb_id ddbid;
+
+		ddbid.vendor = dev->id->vendor;
+		ddbid.device = dev->id->device;
+		ddbid.subvendor = dev->id->subvendor;
+		ddbid.subdevice = dev->id->subdevice;
+		ddbid.hw = ddbreadl(dev, 0);
+		ddbid.regmap = ddbreadl(dev, 4);
+		if (copy_to_user(parg, &ddbid, sizeof(ddbid)))
+			return -EFAULT;
 		break;
 	}
 	default:
@@ -2875,6 +2899,7 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
+	dev->id = id;
 	dev->info = (struct ddb_info *) id->driver_data;
 	dev_info(&pdev->dev, "Detected %s\n", dev->info->name);
 
