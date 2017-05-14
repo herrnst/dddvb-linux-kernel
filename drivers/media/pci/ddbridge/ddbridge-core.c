@@ -2470,7 +2470,7 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct ddb *dev = file->private_data;
 	__user void *parg = (__user void *)arg;
-	int res = -EFAULT;
+	int res;
 
 	switch (cmd) {
 	case IOCTL_DDB_FLASHIO:
@@ -2479,22 +2479,26 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		u8 *rbuf, *wbuf;
 
 		if (copy_from_user(&fio, parg, sizeof(fio)))
-			break;
-		if (fio.write_len + fio.read_len > 1028) {
-			dev_err(&dev->pdev->dev, "IOBUF too small\n");
-			return -ENOMEM;
-		}
+			return -EFAULT;
+
+		if (fio.write_len > 1028 || fio.read_len > 1028)
+			return -EINVAL;
+		if (fio.write_len + fio.read_len > 1028)
+			return -EINVAL;
 
 		wbuf = &dev->iobuf[0];
 		rbuf = wbuf + fio.write_len;
 
 		if (copy_from_user(wbuf, fio.write_buf, fio.write_len))
-			break;
+			return -EFAULT;
 
 		res = flashio(dev, wbuf, fio.write_len,
 			      rbuf, fio.read_len);
+		if (res)
+			return res;
+
 		if (copy_to_user(fio.read_buf, rbuf, fio.read_len))
-			res = -EFAULT;
+			return -EFAULT;
 		break;
 	}
 	case IOCTL_DDB_GPIO_OUT:
@@ -2502,16 +2506,15 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct ddb_gpio gpio;
 
 		if (copy_from_user(&gpio, parg, sizeof(gpio)))
-			break;
+			return -EFAULT;
 		ddbwritel(dev, gpio.mask, GPIO_DIRECTION);
 		ddbwritel(dev, gpio.data, GPIO_OUTPUT);
-		res = 0;
 		break;
 	}
 	default:
-		break;
+		return -ENOTTY;
 	}
-	return res;
+	return 0;
 }
 
 static const struct file_operations ddb_fops = {
