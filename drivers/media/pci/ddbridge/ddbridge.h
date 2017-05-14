@@ -93,6 +93,7 @@ struct ddb_dma {
 	u8                    *vbuf[DMA_MAX_BUFS];
 	u32                    num;
 	u32                    size;
+	u32                    div;
 	u32                    bufreg;
 
 	struct tasklet_struct  tasklet;
@@ -135,6 +136,7 @@ struct ddb_output {
 	struct ddb_port       *port;
 	u32                    nr;
 	struct ddb_dma        *dma;
+	struct ddb_input      *redirect;
 };
 
 struct ddb_i2c {

@@ -72,6 +72,8 @@ static struct ddb *ddbs[32];
 /* MSI had problems with lost interrupts, fixed but needs testing */
 #undef CONFIG_PCI_MSI
 
+DEFINE_MUTEX(redirect_lock);
+
 /******************************************************************************/
 
 static inline void ddbwritel(struct ddb *dev, u32 val, u32 adr)
@@ -322,12 +324,18 @@ static void ddb_set_dma_table(struct ddb *dev, struct ddb_dma *dma)
 	u32 i, base;
 	u64 mem;
 
+	if (!dma)
+		return;
+
 	base = DMA_BASE_ADDRESS_TABLE + dma->nr * 0x100;
 	for (i = 0; i < dma->num; i++) {
 		mem = dma->pbuf[i];
 		ddbwritel(dev, mem & 0xffffffff, base + i * 8);
 		ddbwritel(dev, mem >> 32, base + i * 8 + 4);
 	}
+	dma->bufreg = (dma->div << 16) |
+		((dma->num & 0x1f) << 11) |
+		((dma->size >> 7) & 0x7ff);
 }
 
 static void ddb_set_dma_tables(struct ddb *dev)
@@ -343,6 +351,9 @@ static void ddb_set_dma_tables(struct ddb *dev)
 static void dma_free(struct pci_dev *pdev, struct ddb_dma *dma)
 {
 	int i;
+
+	if (!dma)
+		return;
 
 	for (i = 0; i < dma->num; i++) {
 		if (dma->vbuf[i]) {
@@ -371,23 +382,33 @@ static void ddb_redirect_dma(struct ddb *dev,
 
 static void ddb_unredirect(struct ddb_port *port)
 {
-	struct ddb_input *red;
+	struct ddb_input *ored, *ired;
 
-	red = port->input[0]->redirect;
+	mutex_lock(&redirect_lock);
+	ored = port->output->redirect;
+	ired = port->input[0]->redirect;
 
-	if (!red)
-		return;
-	red->dma->bufreg = (INPUT_DMA_IRQ_DIV << 16) |
-		((red->dma->num & 0x1f) << 11) |
-		((red->dma->size >> 7) & 0x7ff);
-	ddb_set_dma_table(red->port->dev, red->dma);
-	red->redirect = 0;
+	if (!ored || !ired)
+		goto done;
+	if (ired->port->output->redirect == port->input[0]) {
+		ired->port->output->redirect = ored;
+		ddb_set_dma_table(port->dev, port->input[0]->dma);
+		ddb_redirect_dma(ored->port->dev, ored->dma, ired->port->output->dma);
+	} else
+		ddb_set_dma_table(ored->port->dev, ored->dma);
+	ored->redirect = ired;
 	port->input[0]->redirect = 0;
+	port->output->redirect = 0;
+done:
+	mutex_unlock(&redirect_lock);
 }
 
 static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma)
 {
 	int i;
+
+	if (!dma)
+		return 0;
 
 	for (i = 0; i < dma->num; i++) {
 		dma->vbuf[i] = pci_alloc_consistent(pdev, dma->size,
@@ -451,6 +472,7 @@ static void ddb_input_start(struct ddb_input *input)
 	input->dma->coff = 0;
 
 	/* reset */
+	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 2, TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
@@ -483,6 +505,8 @@ static void ddb_output_start(struct ddb_output *output)
 	spin_lock_irq(&output->dma->lock);
 	output->dma->cbuf = 0;
 	output->dma->coff = 0;
+
+	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
@@ -509,6 +533,32 @@ static void ddb_output_stop(struct ddb_output *output)
 	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
 	output->dma->running = 0;
 	spin_unlock_irq(&output->dma->lock);
+}
+
+static void ddb_input_start_all(struct ddb_input *input)
+{
+	struct ddb_input *next = input;
+
+	mutex_lock(&redirect_lock);
+	while ((next = next->redirect) && next != input) {
+		ddb_input_start(next);
+		ddb_output_start(next->port->output);
+	}
+	ddb_input_start(input);
+	mutex_unlock(&redirect_lock);
+}
+
+static void ddb_input_stop_all(struct ddb_input *input)
+{
+	struct ddb_input *next = input;
+
+	mutex_lock(&redirect_lock);
+	ddb_input_stop(input);
+	while ((next = next->redirect) && next != input) {
+		ddb_input_stop(next);
+		ddb_output_stop(next->port->output);
+	}
+	mutex_unlock(&redirect_lock);
 }
 
 static u32 ddb_output_free(struct ddb_output *output)
@@ -551,12 +601,9 @@ static ssize_t ddb_output_write(struct ddb_output *output,
 		}
 		if (output->dma->cbuf == idx) {
 			if (off > output->dma->coff) {
-#if 1
 				len = off - output->dma->coff;
 				len -= (len % 188);
 				if (len <= 188)
-
-#endif
 					break;
 				len -= 188;
 			}
@@ -1080,7 +1127,7 @@ static int start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct ddb_input *input = dvbdmx->priv;
 
 	if (!input->dvb.users)
-		ddb_input_start(input);
+		ddb_input_start_all(input);
 
 	return ++input->dvb.users;
 }
@@ -1093,7 +1140,7 @@ static int stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (--input->dvb.users)
 		return input->dvb.users;
 
-	ddb_input_stop(input);
+	ddb_input_stop_all(input);
 	return 0;
 }
 
@@ -1482,12 +1529,16 @@ static int set_redirect(u32 i, u32 p)
 	if (i == 8)
 		return 0;
 	input = &idev->input[i & 7];
+	mutex_lock(&redirect_lock);
 	if (input->port->class != DDB_PORT_TUNER)
-		return -EINVAL;
+		port->input[0]->redirect = input->redirect;
+	else
+		port->input[0]->redirect = input;
 	input->redirect = port->input[0];
-	port->input[0]->redirect = input;
+	port->output->redirect = input;
 
 	ddb_redirect_dma(input->port->dev, input->dma, port->output->dma);
+	mutex_unlock(&redirect_lock);
 	return 0;
 }
 
@@ -1543,14 +1594,18 @@ static void input_tasklet(unsigned long data)
 		else
 			input_write_dvb(input, &input->dvb);
 	}
-	if (input->port->class == DDB_PORT_CI) {
-		if (input->redirect)
-			input_write_dvb(input, &input->redirect->dvb);
-		else
+	if (input->port->class == DDB_PORT_CI ||
+	    input->port->class == DDB_PORT_LOOP) {
+		if (input->redirect) {
+			if (input->redirect->port->class == DDB_PORT_TUNER)
+				input_write_dvb(input, &input->redirect->dvb);
+			else
+				input_write_output(input,
+					input->redirect->port->output);
+		} else
 			wake_up(&dma->wq);
 	}
-	if (input->port->class == DDB_PORT_LOOP)
-		wake_up(&dma->wq);
+
 	spin_unlock(&dma->lock);
 }
 
@@ -1567,8 +1622,8 @@ static void output_tasklet(unsigned long data)
 	}
 	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
 	dma->ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr));
-	if (output->port->input[0]->redirect)
-		output_ack_input(output, output->port->input[0]->redirect);
+	if (output->redirect)
+		output_ack_input(output, output->redirect);
 	wake_up(&dma->wq);
 	spin_unlock(&dma->lock);
 }
@@ -1958,24 +2013,21 @@ static void ddb_dma_init(struct ddb_dma *dma, int nr, void *io)
 		tasklet_init(&dma->tasklet, output_tasklet, priv);
 		dma->num = OUTPUT_DMA_BUFS;
 		dma->size = OUTPUT_DMA_SIZE;
-		dma->bufreg = ((OUTPUT_DMA_IRQ_DIV & 0xf) << 16) |
-			((dma->num & 0x1f) << 11) |
-			((dma->size >> 7) & 0x7ff);
+		dma->div = OUTPUT_DMA_IRQ_DIV;
 	} else {
 		tasklet_init(&dma->tasklet, input_tasklet, priv);
 		dma->num = INPUT_DMA_BUFS;
 		dma->size = INPUT_DMA_SIZE;
-		dma->bufreg = ((INPUT_DMA_IRQ_DIV & 0xf) << 16) |
-			((dma->num & 0x1f) << 11) |
-			((dma->size >> 7) & 0x7ff);
+		dma->div = INPUT_DMA_IRQ_DIV;
 	}
 }
 
-static void ddb_input_init(struct ddb_port *port, int nr)
+static void ddb_input_init(struct ddb_port *port, int nr, int pnr)
 {
 	struct ddb *dev = port->dev;
 	struct ddb_input *input = &dev->input[nr];
 
+	port->input[pnr] = input;
 	input->nr = nr;
 	input->port = port;
 	input->dma = &dev->dma[nr];
@@ -1992,6 +2044,7 @@ static void ddb_output_init(struct ddb_port *port, int nr)
 	struct ddb *dev = port->dev;
 	struct ddb_output *output = &dev->output[nr];
 
+	port->output = output;
 	output->nr = nr;
 	output->port = port;
 	output->dma = &dev->dma[nr + 8];
@@ -2011,14 +2064,11 @@ static void ddb_ports_init(struct ddb *dev)
 		port->dev = dev;
 		port->nr = i;
 		port->i2c = &dev->i2c[i];
-		port->input[0] = &dev->input[2 * i];
-		port->input[1] = &dev->input[2 * i + 1];
-		port->output = &dev->output[i];
 
 		mutex_init(&port->i2c_gate_lock);
 		ddb_port_probe(port);
-		ddb_input_init(port, 2 * i);
-		ddb_input_init(port, 2 * i + 1);
+		ddb_input_init(port, 2 * i, 0);
+		ddb_input_init(port, 2 * i + 1, 1);
 		ddb_output_init(port, i);
 	}
 }
@@ -2031,9 +2081,12 @@ static void ddb_ports_release(struct ddb *dev)
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
 		port->dev = dev;
-		tasklet_kill(&port->input[0]->dma->tasklet);
-		tasklet_kill(&port->input[1]->dma->tasklet);
-		tasklet_kill(&port->output->dma->tasklet);
+		if (port->input[0])
+			tasklet_kill(&port->input[0]->dma->tasklet);
+		if (port->input[1])
+			tasklet_kill(&port->input[1]->dma->tasklet);
+		if (port->output)
+			tasklet_kill(&port->output->dma->tasklet);
 	}
 }
 
