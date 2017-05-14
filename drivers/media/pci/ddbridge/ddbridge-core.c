@@ -1978,7 +1978,7 @@ static int port_has_xo2(struct ddb_port *port, u8 *type, u8 *id)
 /****************************************************************************/
 /****************************************************************************/
 
-static int port_has_ci(struct ddb_port *port)
+static int port_has_cxd2099(struct ddb_port *port)
 {
 	u8 val;
 	return i2c_read_reg(&port->i2c->adap, 0x40, 0, &val) ? 0 : 1;
@@ -2046,10 +2046,16 @@ static void ddb_port_probe(struct ddb_port *port)
 	port->class = DDB_PORT_NONE;
 	port->type_name = "NONE";
 
-	if (port_has_ci(port)) {
+	if (port->nr > 1 && dev->info->type == DDB_OCTOPUS_CI) {
+		modname = "CI internal";
+		port->class = DDB_PORT_CI;
+		port->type = DDB_CI_INTERNAL;
+		port->type_name = "CI_INTERNAL";
+	} else if (port_has_cxd2099(port)) {
 		modname = "CI";
 		port->type_name = "CXD2099";
 		port->class = DDB_PORT_CI;
+		port->type = DDB_CI_EXTERNAL_SONY;
 		ddbwritel(dev, I2C_SPEED_400, port->i2c->regs + I2C_TIMING);
 	} else if (port_has_xo2(port, &xo2_type, &xo2_id)) {
 		dev_dbg(&dev->pdev->dev, "Port %d (TAB %d): XO2 type: %d, id: %d\n",
@@ -2992,6 +2998,13 @@ static const struct ddb_info ddb_octopusv3 = {
 	.i2c_num  = 4,
 };
 
+static const struct ddb_info ddb_ci = {
+	.type     = DDB_OCTOPUS_CI,
+	.name     = "Digital Devices Octopus CI",
+	.port_num = 4,
+	.i2c_num  = 2,
+};
+
 /*** MaxA8 adapters ***********************************************************/
 
 static struct ddb_info ddb_ct2_8 = {
@@ -3076,6 +3089,8 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0037, ddb_c2t2i_v0_8),
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0038, ddb_c2t2i_8),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0039, ddb_ctv7),
+	DDB_ID(DDVID, 0x0011, DDVID, 0x0040, ddb_ci),
+	DDB_ID(DDVID, 0x0012, DDVID, 0x0042, ddb_ci),
 	/* in case sub-ids got deleted in flash */
 	DDB_ID(DDVID, 0x0003, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
 	DDB_ID(DDVID, 0x0005, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
