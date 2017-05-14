@@ -65,6 +65,10 @@ static int ts_loop = -1;
 module_param(ts_loop, int, 0444);
 MODULE_PARM_DESC(ts_loop, "TS in/out test loop on port ts_loop");
 
+static int msi;
+module_param(msi, int, 0444);
+MODULE_PARM_DESC(msi, "Control MSI interrupts: 0-disable (default), 1-enable");
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct ddb *ddbs[32];
@@ -2959,7 +2963,7 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "HW %08x REGMAP %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
 
 #ifdef CONFIG_PCI_MSI
-	if (pci_msi_enabled()) {
+	if (msi && pci_msi_enabled()) {
 		stat = pci_alloc_irq_vectors(dev->pdev, 1, 2, PCI_IRQ_MSI);
 		if (stat >= 1) {
 			irq_flag = 0;
