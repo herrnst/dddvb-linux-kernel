@@ -69,9 +69,6 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct ddb *ddbs[32];
 
-/* MSI had problems with lost interrupts, fixed but needs testing */
-#undef CONFIG_PCI_MSI
-
 DEFINE_MUTEX(redirect_lock);
 
 /******************************************************************************/
@@ -2292,12 +2289,90 @@ static void ddb_ports_release(struct ddb *dev)
 /****************************************************************************/
 /****************************************************************************/
 
-static void irq_handle_i2c(struct ddb *dev, int n)
+static inline void irq_handle_i2c(struct ddb *dev, int n)
 {
 	struct ddb_i2c *i2c = &dev->i2c[n];
 
 	i2c->done = 1;
 	wake_up(&i2c->wq);
+}
+
+static void irq_handle_i2cs(struct ddb *dev, u32 s)
+{
+	dev->i2c_irq++;
+
+	if (s & 0x00000001)
+		irq_handle_i2c(dev, 0);
+	if (s & 0x00000002)
+		irq_handle_i2c(dev, 1);
+	if (s & 0x00000004)
+		irq_handle_i2c(dev, 2);
+	if (s & 0x00000008)
+		irq_handle_i2c(dev, 3);
+}
+
+static void irq_handle_io(struct ddb *dev, u32 s)
+{
+	dev->ts_irq++;
+
+	if (s & 0x00000100)
+		tasklet_schedule(&dev->dma[0].tasklet);
+	if (s & 0x00000200)
+		tasklet_schedule(&dev->dma[1].tasklet);
+	if (s & 0x00000400)
+		tasklet_schedule(&dev->dma[2].tasklet);
+	if (s & 0x00000800)
+		tasklet_schedule(&dev->dma[3].tasklet);
+	if (s & 0x00001000)
+		tasklet_schedule(&dev->dma[4].tasklet);
+	if (s & 0x00002000)
+		tasklet_schedule(&dev->dma[5].tasklet);
+	if (s & 0x00004000)
+		tasklet_schedule(&dev->dma[6].tasklet);
+	if (s & 0x00008000)
+		tasklet_schedule(&dev->dma[7].tasklet);
+	if (s & 0x00010000)
+		tasklet_schedule(&dev->dma[8].tasklet);
+	if (s & 0x00020000)
+		tasklet_schedule(&dev->dma[9].tasklet);
+	if (s & 0x00040000)
+		tasklet_schedule(&dev->dma[10].tasklet);
+	if (s & 0x00080000)
+		tasklet_schedule(&dev->dma[11].tasklet);
+}
+
+static irqreturn_t irq_handler0(int irq, void *dev_id)
+{
+	struct ddb *dev = (struct ddb *) dev_id;
+	u32 s = ddbreadl(dev, INTERRUPT_STATUS);
+
+	do {
+		if (s & 0x80000000)
+			return IRQ_NONE;
+		if (!(s & 0xfff00))
+			return IRQ_NONE;
+		ddbwritel(dev, s, INTERRUPT_ACK);
+		irq_handle_io(dev, s);
+	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t irq_handler1(int irq, void *dev_id)
+{
+	struct ddb *dev = (struct ddb *) dev_id;
+	u32 s = ddbreadl(dev, INTERRUPT_STATUS);
+
+	do {
+		if (s & 0x80000000)
+			return IRQ_NONE;
+		if (!(s & 0x0000f))
+			return IRQ_NONE;
+		ddbwritel(dev, s, INTERRUPT_ACK);
+		irq_handle_i2cs(dev, s);
+	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t irq_handler(int irq, void *dev_id)
@@ -2309,49 +2384,15 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	do {
+		if (s & 0x80000000)
+			return IRQ_NONE;
+
 		ddbwritel(dev, s, INTERRUPT_ACK);
 
 		if (s & 0x0000000f)
-			dev->i2c_irq++;
+			irq_handle_i2cs(dev, s);
 		if (s & 0x000fff00)
-			dev->ts_irq++;
-
-		if (s & 0x00000001)
-			irq_handle_i2c(dev, 0);
-		if (s & 0x00000002)
-			irq_handle_i2c(dev, 1);
-		if (s & 0x00000004)
-			irq_handle_i2c(dev, 2);
-		if (s & 0x00000008)
-			irq_handle_i2c(dev, 3);
-
-		if (s & 0x00000100)
-			tasklet_schedule(&dev->dma[0].tasklet);
-		if (s & 0x00000200)
-			tasklet_schedule(&dev->dma[1].tasklet);
-		if (s & 0x00000400)
-			tasklet_schedule(&dev->dma[2].tasklet);
-		if (s & 0x00000800)
-			tasklet_schedule(&dev->dma[3].tasklet);
-		if (s & 0x00001000)
-			tasklet_schedule(&dev->dma[4].tasklet);
-		if (s & 0x00002000)
-			tasklet_schedule(&dev->dma[5].tasklet);
-		if (s & 0x00004000)
-			tasklet_schedule(&dev->dma[6].tasklet);
-		if (s & 0x00008000)
-			tasklet_schedule(&dev->dma[7].tasklet);
-
-		if (s & 0x00010000)
-			tasklet_schedule(&dev->dma[8].tasklet);
-		if (s & 0x00020000)
-			tasklet_schedule(&dev->dma[9].tasklet);
-		if (s & 0x00040000)
-			tasklet_schedule(&dev->dma[10].tasklet);
-		if (s & 0x00080000)
-			tasklet_schedule(&dev->dma[11].tasklet);
-
-		/* if (s & 0x000f0000)	printk(KERN_DEBUG "%08x\n", istat); */
+			irq_handle_io(dev, s);
 	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
 
 	return IRQ_HANDLED;
@@ -2869,6 +2910,8 @@ static void ddb_remove(struct pci_dev *pdev)
 	ddb_i2c_release(dev);
 
 	ddbwritel(dev, 0, INTERRUPT_ENABLE);
+	if (dev->msi == 2)
+		free_irq(dev->pdev->irq + 1, dev);
 	free_irq(dev->pdev->irq, dev);
 #ifdef CONFIG_PCI_MSI
 	if (dev->msi)
@@ -2882,7 +2925,6 @@ static void ddb_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
-
 
 static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -2909,27 +2951,56 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		stat = -ENOMEM;
 		goto fail;
 	}
-	dev_info(&pdev->dev, "HW %08x REG %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
+	if (ddbreadl(dev, 0) == 0xffffffff) {
+		stat = -ENODEV;
+		goto fail;
+	}
+
+	dev_info(&pdev->dev, "HW %08x REGMAP %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
 
 #ifdef CONFIG_PCI_MSI
-	if (pci_msi_enabled())
-		stat = pci_enable_msi(dev->pdev);
-	if (stat) {
-		dev_info(&pdev->dev, "MSI not available.\n");
-	} else {
-		irq_flag = 0;
-		dev->msi = 1;
+	if (pci_msi_enabled()) {
+		stat = pci_alloc_irq_vectors(dev->pdev, 1, 2, PCI_IRQ_MSI);
+		if (stat >= 1) {
+			irq_flag = 0;
+			dev->msi = 1;
+			dev_info(&pdev->dev, "Using %d MSI interrupts\n", stat);
+		}
+		if (stat < 0)
+			dev_info(&pdev->dev, "MSI not available.\n");
+		if (stat > 1)
+			dev->msi++;
 	}
 #endif
-	stat = request_irq(dev->pdev->irq, irq_handler,
-			   irq_flag, "DDBridge", (void *) dev);
-	if (stat < 0)
-		goto fail1;
+	if (dev->msi == 2) {
+		stat = request_irq(dev->pdev->irq, irq_handler0,
+			0, "DDBridge", (void *) dev);
+		if (stat < 0)
+			goto fail0;
+		stat = request_irq(dev->pdev->irq + 1, irq_handler1,
+			0, "DDBridge", (void *) dev);
+		if (stat < 0) {
+			free_irq(dev->pdev->irq, dev);
+			goto fail0;
+		}
+	} else {
+		stat = request_irq(dev->pdev->irq, irq_handler,
+			irq_flag, "DDBridge", (void *) dev);
+		if (stat < 0)
+			goto fail0;
+	}
+
 	ddbwritel(dev, 0, DMA_BASE_WRITE);
 	ddbwritel(dev, 0, DMA_BASE_READ);
 	ddbwritel(dev, 0xffffffff, INTERRUPT_ACK);
-	ddbwritel(dev, 0xfff0f, INTERRUPT_ENABLE);
-	ddbwritel(dev, 0, MSI1_ENABLE);
+
+	if (dev->msi == 2) {
+		ddbwritel(dev, 0xfff00, INTERRUPT_ENABLE);
+		ddbwritel(dev, 0x0000f, MSI1_ENABLE);
+	} else {
+		ddbwritel(dev, 0xfff0f, INTERRUPT_ENABLE);
+		ddbwritel(dev, 0x00000, MSI1_ENABLE);
+	}
 
 	/* board control */
 	if (dev->info->board_control) {
@@ -2971,10 +3042,12 @@ fail2:
 	ddb_i2c_release(dev);
 fail1:
 	dev_err(&pdev->dev, "fail1\n");
+	free_irq(dev->pdev->irq, dev);
+	if (dev->msi == 2)
+		free_irq(dev->pdev->irq + 1, dev);
+fail0:
 	if (dev->msi)
 		pci_disable_msi(dev->pdev);
-	if (stat == 0)
-		free_irq(dev->pdev->irq, dev);
 fail:
 	dev_err(&pdev->dev, "fail\n");
 	ddb_unmap(dev);
