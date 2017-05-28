@@ -70,6 +70,7 @@ struct ddb_info {
 #define TS_QUIRK_SERIAL   1
 #define TS_QUIRK_REVERSED 2
 #define TS_QUIRK_ALT_OSC  8
+	int   temp_bus;
 };
 
 /* DMA_SIZE MUST be divisible by 188 and 128 !!! */
