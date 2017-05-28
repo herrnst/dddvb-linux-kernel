@@ -208,6 +208,9 @@ struct ddb {
 	struct dvb_adapter          adap[DDB_MAX_INPUT];
 	struct ddb_dma              dma[DDB_MAX_INPUT + DDB_MAX_OUTPUT];
 
+	void                        (*handler[20])(unsigned long);
+	unsigned long               handler_data[20];
+
 	struct device              *ddb_dev;
 	u32                         nr;
 	u8                          iobuf[1028];

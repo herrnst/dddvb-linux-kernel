@@ -271,6 +271,14 @@ static void ddb_i2c_release(struct ddb *dev)
 	}
 }
 
+static void i2c_handler(unsigned long priv)
+{
+	struct ddb_i2c *i2c = (struct ddb_i2c *) priv;
+
+	i2c->done = 1;
+	wake_up(&i2c->wq);
+}
+
 static int ddb_i2c_init(struct ddb *dev)
 {
 	int i, j, stat = 0;
@@ -279,6 +287,8 @@ static int ddb_i2c_init(struct ddb *dev)
 
 	for (i = 0; i < dev->info->i2c_num; i++) {
 		i2c = &dev->i2c[i];
+		dev->handler[i] = i2c_handler;
+		dev->handler_data[i] = (unsigned long) i2c;
 		i2c->dev = dev;
 		i2c->nr = i;
 		i2c->wbuf = i * (I2C_TASKMEM_SIZE / 4);
@@ -1642,7 +1652,22 @@ static void input_tasklet(unsigned long data)
 	spin_unlock(&dma->lock);
 }
 
+static void input_handler(unsigned long data)
+{
+	struct ddb_input *input = (struct ddb_input *) data;
+	struct ddb_dma *dma = input->dma;
+
+	if (input->redirect)
+		tasklet_schedule(&dma->tasklet);
+	else
+		input_tasklet(data);
+}
+
 static void output_tasklet(unsigned long data)
+{
+}
+
+static void output_handler(unsigned long data)
 {
 	struct ddb_output *output = (struct ddb_output *) data;
 	struct ddb_dma *dma = output->dma;
@@ -2220,6 +2245,8 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr)
 	struct ddb *dev = port->dev;
 	struct ddb_input *input = &dev->input[nr];
 
+	dev->handler[nr + 8] = input_handler;
+	dev->handler_data[nr + 8] = (unsigned long) input;
 	port->input[pnr] = input;
 	input->nr = nr;
 	input->port = port;
@@ -2237,6 +2264,8 @@ static void ddb_output_init(struct ddb_port *port, int nr)
 	struct ddb *dev = port->dev;
 	struct ddb_output *output = &dev->output[nr];
 
+	dev->handler[nr + 8] = output_handler;
+	dev->handler_data[nr + 8] = (unsigned long) output;
 	port->output = output;
 	output->nr = nr;
 	output->port = port;
@@ -2293,56 +2322,35 @@ static void ddb_ports_release(struct ddb *dev)
 /****************************************************************************/
 /****************************************************************************/
 
-static inline void irq_handle_i2c(struct ddb *dev, int n)
-{
-	struct ddb_i2c *i2c = &dev->i2c[n];
+#define IRQ_HANDLE(_nr) if ((s & (1UL << _nr)) && dev->handler[_nr]) \
+		dev->handler[_nr](dev->handler_data[_nr]);
 
-	i2c->done = 1;
-	wake_up(&i2c->wq);
-}
-
-static void irq_handle_i2cs(struct ddb *dev, u32 s)
+static void irq_handle_msg(struct ddb *dev, u32 s)
 {
 	dev->i2c_irq++;
 
-	if (s & 0x00000001)
-		irq_handle_i2c(dev, 0);
-	if (s & 0x00000002)
-		irq_handle_i2c(dev, 1);
-	if (s & 0x00000004)
-		irq_handle_i2c(dev, 2);
-	if (s & 0x00000008)
-		irq_handle_i2c(dev, 3);
+	IRQ_HANDLE(0);
+	IRQ_HANDLE(1);
+	IRQ_HANDLE(2);
+	IRQ_HANDLE(3);
 }
 
 static void irq_handle_io(struct ddb *dev, u32 s)
 {
 	dev->ts_irq++;
 
-	if (s & 0x00000100)
-		tasklet_schedule(&dev->dma[0].tasklet);
-	if (s & 0x00000200)
-		tasklet_schedule(&dev->dma[1].tasklet);
-	if (s & 0x00000400)
-		tasklet_schedule(&dev->dma[2].tasklet);
-	if (s & 0x00000800)
-		tasklet_schedule(&dev->dma[3].tasklet);
-	if (s & 0x00001000)
-		tasklet_schedule(&dev->dma[4].tasklet);
-	if (s & 0x00002000)
-		tasklet_schedule(&dev->dma[5].tasklet);
-	if (s & 0x00004000)
-		tasklet_schedule(&dev->dma[6].tasklet);
-	if (s & 0x00008000)
-		tasklet_schedule(&dev->dma[7].tasklet);
-	if (s & 0x00010000)
-		tasklet_schedule(&dev->dma[8].tasklet);
-	if (s & 0x00020000)
-		tasklet_schedule(&dev->dma[9].tasklet);
-	if (s & 0x00040000)
-		tasklet_schedule(&dev->dma[10].tasklet);
-	if (s & 0x00080000)
-		tasklet_schedule(&dev->dma[11].tasklet);
+	IRQ_HANDLE(8);
+	IRQ_HANDLE(9);
+	IRQ_HANDLE(10);
+	IRQ_HANDLE(11);
+	IRQ_HANDLE(12);
+	IRQ_HANDLE(13);
+	IRQ_HANDLE(14);
+	IRQ_HANDLE(15);
+	IRQ_HANDLE(16);
+	IRQ_HANDLE(17);
+	IRQ_HANDLE(18);
+	IRQ_HANDLE(19);
 }
 
 static irqreturn_t irq_handler0(int irq, void *dev_id)
@@ -2373,7 +2381,7 @@ static irqreturn_t irq_handler1(int irq, void *dev_id)
 		if (!(s & 0x0000f))
 			return IRQ_NONE;
 		ddbwritel(dev, s, INTERRUPT_ACK);
-		irq_handle_i2cs(dev, s);
+		irq_handle_msg(dev, s);
 	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
 
 	return IRQ_HANDLED;
@@ -2394,7 +2402,7 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 		ddbwritel(dev, s, INTERRUPT_ACK);
 
 		if (s & 0x0000000f)
-			irq_handle_i2cs(dev, s);
+			irq_handle_msg(dev, s);
 		if (s & 0x000fff00)
 			irq_handle_io(dev, s);
 	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
