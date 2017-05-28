@@ -1771,10 +1771,11 @@ static int wait_ci_ready(struct ddb_ci *ci)
 {
 	u32 count = 10;
 
+	ndelay(500);
 	do {
 		if (ddbreadl(ci->port->dev, CI_CONTROL(ci->nr)) & CI_READY)
 			break;
-		msleep(1);
+		usleep_range(1, 2);
 		if ((--count) == 0)
 			return -1;
 	} while (1);
@@ -1815,12 +1816,12 @@ static int read_cam_control(struct dvb_ca_en50221 *ca,
 	u32 res;
 
 	ddbwritel(ci->port->dev, CI_READ_CMD | address, CI_DO_IO_RW(ci->nr));
-
+	ndelay(500);
 	do {
 		res = ddbreadl(ci->port->dev, CI_READDATA(ci->nr));
 		if (res & CI_READY)
 			break;
-		msleep(1);
+		usleep_range(1, 2);
 		if ((--count) == 0)
 			return -1;
 	} while (1);
@@ -1844,7 +1845,7 @@ static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
 
 	ddbwritel(ci->port->dev, CI_POWER_ON,
 		  CI_CONTROL(ci->nr));
-	msleep(300);
+	msleep(100);
 	ddbwritel(ci->port->dev, CI_POWER_ON | CI_RESET_CAM,
 		  CI_CONTROL(ci->nr));
 	ddbwritel(ci->port->dev, CI_ENABLE | CI_POWER_ON | CI_RESET_CAM,
@@ -1860,6 +1861,7 @@ static int slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 	struct ddb_ci *ci = ca->data;
 
 	ddbwritel(ci->port->dev, 0, CI_CONTROL(ci->nr));
+	msleep(300);
 	return 0;
 }
 
