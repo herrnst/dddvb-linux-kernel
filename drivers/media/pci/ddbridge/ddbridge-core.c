@@ -3123,7 +3123,10 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto fail;
 	}
 
-	dev_info(&pdev->dev, "HW %08x REGMAP %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
+	dev->hwid = ddbreadl(dev, 0);
+	dev->regmap = ddbreadl(dev, 4);
+
+	dev_info(&pdev->dev, "HW %08x REGMAP %08x\n", dev->hwid, dev->regmap);
 
 #ifdef CONFIG_PCI_MSI
 	if (msi && pci_msi_enabled()) {
