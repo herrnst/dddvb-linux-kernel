@@ -3257,6 +3257,7 @@ static const struct ddb_info ddb_octopus_oem = {
 	.led_num  = 1,
 	.fan_num  = 1,
 	.temp_num = 1,
+	.temp_bus = 0,
 };
 
 static const struct ddb_info ddb_octopus_mini = {
@@ -3333,6 +3334,13 @@ static const struct ddb_info ddb_ci = {
 	.type     = DDB_OCTOPUS_CI,
 	.name     = "Digital Devices Octopus CI",
 	.port_num = 4,
+	.i2c_num  = 2,
+};
+
+static const struct ddb_info ddb_cis = {
+	.type     = DDB_OCTOPUS_CI,
+	.name     = "Digital Devices Octopus CI single",
+	.port_num = 3,
 	.i2c_num  = 2,
 };
 
@@ -3421,6 +3429,7 @@ static const struct pci_device_id ddb_id_tbl[] = {
 	DDB_ID(DDVID, 0x0008, DDVID, 0x0038, ddb_c2t2i_8),
 	DDB_ID(DDVID, 0x0006, DDVID, 0x0039, ddb_ctv7),
 	DDB_ID(DDVID, 0x0011, DDVID, 0x0040, ddb_ci),
+	DDB_ID(DDVID, 0x0011, DDVID, 0x0041, ddb_cis),
 	DDB_ID(DDVID, 0x0012, DDVID, 0x0042, ddb_ci),
 	/* in case sub-ids got deleted in flash */
 	DDB_ID(DDVID, 0x0003, PCI_ANY_ID, PCI_ANY_ID, ddb_none),
