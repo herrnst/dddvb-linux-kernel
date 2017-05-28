@@ -2580,7 +2580,7 @@ static int flashio(struct ddb *dev, u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
 
 static int flashread(struct ddb *dev, u8 *buf, u32 addr, u32 len)
 {
-	u8 cmd[4] = { 0x03, (addr>>24) & 0xff, (addr >> 16) & 0xff, addr & 0xff};
+	u8 cmd[4] = { 0x03, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff };
 
 	return flashio(dev, cmd, 4, buf, len);
 }
