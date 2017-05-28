@@ -375,6 +375,10 @@ static void dma_free(struct pci_dev *pdev, struct ddb_dma *dma)
 	}
 }
 
+/******************************************************************************/
+/******************************************************************************/
+/******************************************************************************/
+
 static void ddb_redirect_dma(struct ddb *dev,
 			     struct ddb_dma *sdma,
 			     struct ddb_dma *ddma)
@@ -391,28 +395,95 @@ static void ddb_redirect_dma(struct ddb *dev,
 	}
 }
 
-static void ddb_unredirect(struct ddb_port *port)
+static int ddb_unredirect(struct ddb_port *port)
 {
-	struct ddb_input *ored, *ired;
+	struct ddb_input *oredi, *iredi = NULL;
+	struct ddb_output *iredo = NULL;
+
+	dev_dbg(&port->dev->pdev->dev, "unredirect %d.%d\n",
+		port->dev->nr, port->nr);
 
 	mutex_lock(&redirect_lock);
-	ored = port->output->redirect;
-	ired = port->input[0]->redirect;
 
-	if (!ored || !ired)
-		goto done;
-	if (ired->port->output->redirect == port->input[0]) {
-		ired->port->output->redirect = ored;
-		ddb_set_dma_table(port->dev, port->input[0]->dma);
-		ddb_redirect_dma(ored->port->dev, ored->dma, ired->port->output->dma);
-	} else
-		ddb_set_dma_table(ored->port->dev, ored->dma);
-	ored->redirect = ired;
-	port->input[0]->redirect = 0;
-	port->output->redirect = 0;
+	if (port->output->dma->running) {
+		mutex_unlock(&redirect_lock);
+		return -EBUSY;
+	}
+	oredi = port->output->redi;
+	if (!oredi)
+                goto done;
+	if (port->input[0]) {
+		iredi = port->input[0]->redi;
+		iredo = port->input[0]->redo;
+
+		if (iredo) {
+			iredo->port->output->redi = oredi;
+			if (iredo->port->input[0]) {
+				iredo->port->input[0]->redi = iredi;
+				ddb_redirect_dma(oredi->port->dev,
+						 oredi->dma, iredo->dma);
+			}
+			port->input[0]->redo = 0;
+			ddb_set_dma_table(port->dev, port->input[0]->dma);
+		}
+		oredi->redi = iredi;
+		port->input[0]->redi = 0;
+	}
+	oredi->redo = 0;
+	port->output->redi = 0;
+
+	ddb_set_dma_table(oredi->port->dev, oredi->dma);
 done:
 	mutex_unlock(&redirect_lock);
+	return 0;
 }
+
+static int ddb_redirect(u32 i, u32 p)
+{
+	struct ddb *idev = ddbs[(i >> 4) & 0x1f];
+	struct ddb_input *input, *input2;
+	struct ddb *pdev = ddbs[(p >> 4) & 0x1f];
+	struct ddb_port *port;
+
+	if (!idev || !pdev)
+		return -EINVAL;
+
+	port = &pdev->port[p & 0x0f];
+	if (!port->output)
+		return -EINVAL;
+	if (ddb_unredirect(port))
+		return -EBUSY;
+
+	if (i == 8)
+		return 0;
+
+	input = &idev->input[i & 7];
+	if (!input)
+		return -EINVAL;
+
+	mutex_lock(&redirect_lock);
+	if (port->output->dma->running || input->dma->running) {
+		mutex_unlock(&redirect_lock);
+		return -EBUSY;
+	}
+	if ((input2 = port->input[0])) {
+		if (input->redi) {
+			input2->redi = input->redi;
+			input->redi = 0;
+		} else
+			input2->redi = input;
+	}
+	input->redo = port->output;
+	port->output->redi = input;
+
+	ddb_redirect_dma(input->port->dev, input->dma, port->output->dma);
+	mutex_unlock(&redirect_lock);
+	return 0;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+/******************************************************************************/
 
 static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma)
 {
@@ -1553,37 +1624,6 @@ static struct dvb_device dvbdev_ci = {
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
-
-static int set_redirect(u32 i, u32 p)
-{
-	struct ddb *idev = ddbs[(i >> 4) & 0x1f];
-	struct ddb_input *input;
-	struct ddb *pdev = ddbs[(p >> 4) & 0x1f];
-	struct ddb_port *port;
-
-	if (!idev || !pdev)
-		return -EINVAL;
-
-	port = &pdev->port[p & 3];
-	if (port->class != DDB_PORT_CI && port->class != DDB_PORT_LOOP)
-		return -EINVAL;
-
-	ddb_unredirect(port);
-	if (i == 8)
-		return 0;
-	input = &idev->input[i & 7];
-	mutex_lock(&redirect_lock);
-	if (input->port->class != DDB_PORT_TUNER)
-		port->input[0]->redirect = input->redirect;
-	else
-		port->input[0]->redirect = input;
-	input->redirect = port->input[0];
-	port->output->redirect = input;
-
-	ddb_redirect_dma(input->port->dev, input->dma, port->output->dma);
-	mutex_unlock(&redirect_lock);
-	return 0;
-}
 
 static void input_write_output(struct ddb_input *input,
 			       struct ddb_output *output)
@@ -2801,7 +2841,7 @@ static ssize_t redirect_store(struct device *device,
 	if (sscanf(buf, "%x %x\n", &i, &p) != 2)
 		return -EINVAL;
 	dev_info(device, "redirect: %02x, %02x\n", i, p);
-	res = set_redirect(i, p);
+	res = ddb_redirect(i, p);
 	if (res < 0)
 		return res;
 	return count;
