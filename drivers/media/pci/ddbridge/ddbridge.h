@@ -40,11 +40,11 @@
 #include "cxd2099.h"
 
 #define DDB_MAX_I2C     4
-#define DDB_MAX_PORT    4
+#define DDB_MAX_PORT    10
 #define DDB_MAX_INPUT   8
-#define DDB_MAX_OUTPUT  4
+#define DDB_MAX_OUTPUT  10
 #define DDB_MAX_LINK    4
-#define DDB_LINK_SHIFT 28
+#define DDB_LINK_SHIFT  28
 
 #define DDB_LINK_TAG(_x) (_x << DDB_LINK_SHIFT)
 
@@ -73,7 +73,8 @@ struct ddb_info {
 	int   temp_bus;
 };
 
-/* DMA_SIZE MUST be divisible by 188 and 128 !!! */
+/* DMA_SIZE MUST be smaller than 256k and
+   MUST be divisible by 188 and 128 !!! */
 
 #define DMA_MAX_BUFS 32      /* hardware table limit */
 
