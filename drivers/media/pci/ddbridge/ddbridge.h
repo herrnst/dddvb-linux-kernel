@@ -135,7 +135,6 @@ struct ddb_io {
 	struct ddb_port       *port;
 	u32                    nr;
 	struct ddb_dma        *dma;
-	struct ddb_dvb         dvb;
 	struct ddb_io         *redirect;
 	struct ddb_io         *redo;
 	struct ddb_io         *redi;
@@ -192,6 +191,7 @@ struct ddb_port {
 	struct ddb_input      *input[2];
 	struct ddb_output     *output;
 	struct dvb_ca_en50221 *en;
+	struct ddb_dvb         dvb[2];
 	u32                    gap;
 };
 

@@ -792,13 +792,14 @@ static int locked_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct ddb_input *input = fe->sec_priv;
 	struct ddb_port *port = input->port;
+	struct ddb_dvb *dvb = &port->dvb[input->nr & 1];
 	int status;
 
 	if (enable) {
 		mutex_lock(&port->i2c_gate_lock);
-		status = input->dvb.gate_ctrl(fe, 1);
+		status = dvb->gate_ctrl(fe, 1);
 	} else {
-		status = input->dvb.gate_ctrl(fe, 0);
+		status = dvb->gate_ctrl(fe, 0);
 		mutex_unlock(&port->i2c_gate_lock);
 	}
 	return status;
@@ -807,6 +808,7 @@ static int locked_gate_ctrl(struct dvb_frontend *fe, int enable)
 static int demod_attach_drxk(struct ddb_input *input)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
 	struct drxk_config config;
 	struct device *dev = &input->port->dev->pdev->dev;
@@ -816,13 +818,13 @@ static int demod_attach_drxk(struct ddb_input *input)
 	config.qam_demod_parameter_count = 4;
 	config.adr = 0x29 + (input->nr & 1);
 
-	fe = input->dvb.fe = dvb_attach(drxk_attach, &config, i2c);
-	if (!input->dvb.fe) {
+	fe = dvb->fe = dvb_attach(drxk_attach, &config, i2c);
+	if (!fe) {
 		dev_err(dev, "No DRXK found!\n");
 		return -ENODEV;
 	}
 	fe->sec_priv = input;
-	input->dvb.gate_ctrl = fe->ops.i2c_gate_ctrl;
+	dvb->gate_ctrl = fe->ops.i2c_gate_ctrl;
 	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 	return 0;
 }
@@ -830,18 +832,19 @@ static int demod_attach_drxk(struct ddb_input *input)
 static int tuner_attach_tda18271(struct ddb_input *input)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
 	struct device *dev = &input->port->dev->pdev->dev;
 
-	if (input->dvb.fe->ops.i2c_gate_ctrl)
-		input->dvb.fe->ops.i2c_gate_ctrl(input->dvb.fe, 1);
-	fe = dvb_attach(tda18271c2dd_attach, input->dvb.fe, i2c, 0x60);
+	if (dvb->fe->ops.i2c_gate_ctrl)
+		dvb->fe->ops.i2c_gate_ctrl(dvb->fe, 1);
+	fe = dvb_attach(tda18271c2dd_attach, dvb->fe, i2c, 0x60);
 	if (!fe) {
 		dev_err(dev, "No TDA18271 found!\n");
 		return -ENODEV;
 	}
-	if (input->dvb.fe->ops.i2c_gate_ctrl)
-		input->dvb.fe->ops.i2c_gate_ctrl(input->dvb.fe, 0);
+	if (dvb->fe->ops.i2c_gate_ctrl)
+		dvb->fe->ops.i2c_gate_ctrl(dvb->fe, 0);
 	return 0;
 }
 
@@ -871,10 +874,11 @@ static int demod_attach_stv0367(struct ddb_input *input)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct device *dev = &input->port->dev->pdev->dev;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
 
 	/* attach frontend */
-	fe = input->dvb.fe = dvb_attach(stv0367ddb_attach,
+	fe = dvb->fe = dvb_attach(stv0367ddb_attach,
 		&ddb_stv0367_config[(input->nr & 1)], i2c);
 
 	if (!fe) {
@@ -883,7 +887,7 @@ static int demod_attach_stv0367(struct ddb_input *input)
 	}
 
 	fe->sec_priv = input;
-	input->dvb.gate_ctrl = fe->ops.i2c_gate_ctrl;
+	dvb->gate_ctrl = fe->ops.i2c_gate_ctrl;
 	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 
 	return 0;
@@ -893,21 +897,21 @@ static int tuner_tda18212_ping(struct ddb_input *input, unsigned short adr)
 {
 	struct i2c_adapter *adapter = &input->port->i2c->adap;
 	struct device *dev = &input->port->dev->pdev->dev;
-
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	u8 tda_id[2];
 	u8 subaddr = 0x00;
 
 	dev_dbg(dev, "stv0367-tda18212 tuner ping\n");
-	if (input->dvb.fe->ops.i2c_gate_ctrl)
-		input->dvb.fe->ops.i2c_gate_ctrl(input->dvb.fe, 1);
+	if (dvb->fe->ops.i2c_gate_ctrl)
+		dvb->fe->ops.i2c_gate_ctrl(dvb->fe, 1);
 
 	if (i2c_read_regs(adapter, adr, subaddr, tda_id, sizeof(tda_id)) < 0)
 		dev_dbg(dev, "tda18212 ping 1 fail\n");
 	if (i2c_read_regs(adapter, adr, subaddr, tda_id, sizeof(tda_id)) < 0)
 		dev_warn(dev, "tda18212 ping failed, expect problems\n");
 
-	if (input->dvb.fe->ops.i2c_gate_ctrl)
-		input->dvb.fe->ops.i2c_gate_ctrl(input->dvb.fe, 0);
+	if (dvb->fe->ops.i2c_gate_ctrl)
+		dvb->fe->ops.i2c_gate_ctrl(dvb->fe, 0);
 
 	return 0;
 }
@@ -916,6 +920,7 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct device *dev = &input->port->dev->pdev->dev;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct cxd2841er_config cfg;
 	struct dvb_frontend *fe;
 
@@ -931,7 +936,7 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 		cfg.flags |= CXD2841ER_TS_SERIAL;
 
 	/* attach frontend */
-	fe = input->dvb.fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
+	fe = dvb->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
 
 	if (!fe) {
 		dev_err(dev, "No Sony CXD28xx found!\n");
@@ -939,7 +944,7 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 	}
 
 	fe->sec_priv = input;
-	input->dvb.gate_ctrl = fe->ops.i2c_gate_ctrl;
+	dvb->gate_ctrl = fe->ops.i2c_gate_ctrl;
 	fe->ops.i2c_gate_ctrl = locked_gate_ctrl;
 
 	return 0;
@@ -949,9 +954,10 @@ static int tuner_attach_tda18212(struct ddb_input *input, u32 porttype)
 {
 	struct i2c_adapter *adapter = &input->port->i2c->adap;
 	struct device *dev = &input->port->dev->pdev->dev;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct i2c_client *client;
 	struct tda18212_config config = {
-		.fe = input->dvb.fe,
+		.fe = dvb->fe,
 		.if_dvbt_6 = 3550,
 		.if_dvbt_7 = 3700,
 		.if_dvbt_8 = 4150,
@@ -989,7 +995,7 @@ static int tuner_attach_tda18212(struct ddb_input *input, u32 porttype)
 		goto err;
 	}
 
-	input->dvb.i2c_client[0] = client;
+	dvb->i2c_client[0] = client;
 
 	return 0;
 err:
@@ -1056,15 +1062,16 @@ static int demod_attach_stv0900(struct ddb_input *input, int type)
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct device *dev = &input->port->dev->pdev->dev;
 	struct stv090x_config *feconf = type ? &stv0900_aa : &stv0900;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 
-	input->dvb.fe = dvb_attach(stv090x_attach, feconf, i2c,
+	dvb->fe = dvb_attach(stv090x_attach, feconf, i2c,
 			       (input->nr & 1) ? STV090x_DEMODULATOR_1
 			       : STV090x_DEMODULATOR_0);
-	if (!input->dvb.fe) {
+	if (!dvb->fe) {
 		dev_err(dev, "No STV0900 found!\n");
 		return -ENODEV;
 	}
-	if (!dvb_attach(lnbh24_attach, input->dvb.fe, i2c, 0,
+	if (!dvb_attach(lnbh24_attach, dvb->fe, i2c, 0,
 			0, (input->nr & 1) ?
 			(0x09 - type) : (0x0b - type))) {
 		dev_err(dev, "No LNBH24 found!\n");
@@ -1077,12 +1084,13 @@ static int tuner_attach_stv6110(struct ddb_input *input, int type)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
 	struct device *dev = &input->port->dev->pdev->dev;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct stv090x_config *feconf = type ? &stv0900_aa : &stv0900;
 	struct stv6110x_config *tunerconf = (input->nr & 1) ?
 		&stv6110b : &stv6110a;
 	const struct stv6110x_devctl *ctl;
 
-	ctl = dvb_attach(stv6110x_attach, input->dvb.fe, tunerconf, i2c);
+	ctl = dvb_attach(stv6110x_attach, dvb->fe, tunerconf, i2c);
 	if (!ctl) {
 		dev_err(dev, "No STV6110X found!\n");
 		return -ENODEV;
@@ -1120,6 +1128,7 @@ static struct lnbh25_config lnbh25_cfg = {
 static int demod_attach_stv0910(struct ddb_input *input, int type)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct stv0910_cfg cfg = stv0910_p;
 	struct lnbh25_config lnbcfg = lnbh25_cfg;
 
@@ -1128,13 +1137,13 @@ static int demod_attach_stv0910(struct ddb_input *input, int type)
 
 	if (type)
 		cfg.parallel = 2;
-	input->dvb.fe = dvb_attach(stv0910_attach, i2c, &cfg, (input->nr & 1));
-	if (!input->dvb.fe) {
+	dvb->fe = dvb_attach(stv0910_attach, i2c, &cfg, (input->nr & 1));
+	if (!dvb->fe) {
 		cfg.adr = 0x6c;
-		input->dvb.fe = dvb_attach(stv0910_attach, i2c,
+		dvb->fe = dvb_attach(stv0910_attach, i2c,
 					&cfg, (input->nr & 1));
 	}
-	if (!input->dvb.fe) {
+	if (!dvb->fe) {
 		printk(KERN_ERR "No STV0910 found!\n");
 		return -ENODEV;
 	}
@@ -1143,9 +1152,9 @@ static int demod_attach_stv0910(struct ddb_input *input, int type)
 	 * i2c addresses
 	 */
 	lnbcfg.i2c_address = (((input->nr & 1) ? 0x0d : 0x0c) << 1);
-	if (!dvb_attach(lnbh25_attach, input->dvb.fe, &lnbcfg, i2c)) {
+	if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
 		lnbcfg.i2c_address = (((input->nr & 1) ? 0x09 : 0x08) << 1);
-		if (!dvb_attach(lnbh25_attach, input->dvb.fe, &lnbcfg, i2c)) {
+		if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
 			printk(KERN_ERR "No LNBH25 found!\n");
 			return -ENODEV;
 		}
@@ -1157,12 +1166,13 @@ static int demod_attach_stv0910(struct ddb_input *input, int type)
 static int tuner_attach_stv6111(struct ddb_input *input, int type)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_frontend *fe;
 	u8 adr = (type ? 0 : 4) + ((input->nr & 1) ? 0x63 : 0x60);
 
-	fe = dvb_attach(stv6111_attach, input->dvb.fe, i2c, adr);
+	fe = dvb_attach(stv6111_attach, dvb->fe, i2c, adr);
 	if (!fe) {
-		fe = dvb_attach(stv6111_attach, input->dvb.fe, i2c, adr & ~4);
+		fe = dvb_attach(stv6111_attach, dvb->fe, i2c, adr & ~4);
 		if (!fe) {
 			printk(KERN_ERR "No STV6111 found at 0x%02x!\n", adr);
 			return -ENODEV;
@@ -1215,20 +1225,22 @@ static int start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct ddb_input *input = dvbdmx->priv;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 
-	if (!input->dvb.users)
+	if (!dvb->users)
 		ddb_input_start_all(input);
 
-	return ++input->dvb.users;
+	return ++dvb->users;
 }
 
 static int stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct ddb_input *input = dvbdmx->priv;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 
-	if (--input->dvb.users)
-		return input->dvb.users;
+	if (--dvb->users)
+		return dvb->users;
 
 	ddb_input_stop_all(input);
 	return 0;
@@ -1237,44 +1249,45 @@ static int stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 static void dvb_input_detach(struct ddb_input *input)
 {
-	struct dvb_demux *dvbdemux = &input->dvb.demux;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
+	struct dvb_demux *dvbdemux = &dvb->demux;
 	struct i2c_client *client;
 
-	switch (input->dvb.attached) {
+	switch (dvb->attached) {
 	case 6:
-		client = input->dvb.i2c_client[0];
+		client = dvb->i2c_client[0];
 		if (client) {
 			module_put(client->dev.driver->owner);
 			i2c_unregister_device(client);
 		}
-		if (input->dvb.fe2)
-			dvb_unregister_frontend(input->dvb.fe2);
-		if (input->dvb.fe)
-			dvb_unregister_frontend(input->dvb.fe);
+		if (dvb->fe2)
+			dvb_unregister_frontend(dvb->fe2);
+		if (dvb->fe)
+			dvb_unregister_frontend(dvb->fe);
 		/* fallthrough */
 	case 5:
-		dvb_frontend_detach(input->dvb.fe);
-		input->dvb.fe2 = NULL;
-		input->dvb.fe = NULL;
+		dvb_frontend_detach(dvb->fe);
+		dvb->fe2 = NULL;
+		dvb->fe = NULL;
 		/* fallthrough */
 	case 4:
-		dvb_net_release(&input->dvb.dvbnet);
+		dvb_net_release(&dvb->dvbnet);
 		/* fallthrough */
 	case 3:
 		dvbdemux->dmx.close(&dvbdemux->dmx);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
-					      &input->dvb.hw_frontend);
+					      &dvb->hw_frontend);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
-					      &input->dvb.mem_frontend);
-		dvb_dmxdev_release(&input->dvb.dmxdev);
+					      &dvb->mem_frontend);
+		dvb_dmxdev_release(&dvb->dmxdev);
 		/* fallthrough */
 	case 2:
-		dvb_dmx_release(&input->dvb.demux);
+		dvb_dmx_release(&dvb->demux);
 		/* fallthrough */
 	case 1:
 		break;
 	}
-	input->dvb.attached = 0;
+	dvb->attached = 0;
 }
 
 static int dvb_register_adapters(struct ddb *dev)
@@ -1285,17 +1298,17 @@ static int dvb_register_adapters(struct ddb *dev)
 
 	if (adapter_alloc == 3) {
 		port = &dev->port[0];
-		adap = port->input[0]->dvb.adap;
+		adap = port->dvb[0].adap;
 		ret = dvb_register_adapter(adap, "DDBridge", THIS_MODULE,
 					   &port->dev->pdev->dev,
 					   adapter_nr);
 		if (ret < 0)
 			return ret;
-		port->input[0]->dvb.adap_registered = 1;
+		port->dvb[0].adap_registered = 1;
 		for (i = 0; i < dev->info->port_num; i++) {
 			port = &dev->port[i];
-			port->input[0]->dvb.adap = adap;
-			port->input[1]->dvb.adap = adap;
+			port->dvb[0].adap = adap;
+			port->dvb[1].adap = adap;
 		}
 		return 0;
 	}
@@ -1304,51 +1317,50 @@ static int dvb_register_adapters(struct ddb *dev)
 		port = &dev->port[i];
 		switch (port->class) {
 		case DDB_PORT_TUNER:
-			adap = port->input[0]->dvb.adap;
+			adap = port->dvb[0].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
 						   &port->dev->pdev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
-			port->input[0]->dvb.adap_registered = 1;
+			port->dvb[0].adap_registered = 1;
 			if (adapter_alloc > 0) {
-				port->input[1]->dvb.adap =
-					port->input[0]->dvb.adap;
+				port->dvb[1].adap = port->dvb[0].adap;
 				break;
 			}
-			adap = port->input[1]->dvb.adap;
+			adap = port->dvb[1].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
 						   &port->dev->pdev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
-			port->input[1]->dvb.adap_registered = 1;
+			port->dvb[1].adap_registered = 1;
 			break;
 
 		case DDB_PORT_CI:
 		case DDB_PORT_LOOP:
-			adap = port->input[0]->dvb.adap;
+			adap = port->dvb[0].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
 						   &port->dev->pdev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
-			port->input[0]->dvb.adap_registered = 1;
+			port->dvb[0].adap_registered = 1;
 			break;
 		default:
 			if (adapter_alloc < 2)
 				break;
-			adap = port->input[0]->dvb.adap;
+			adap = port->dvb[0].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
 						   &port->dev->pdev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
-			port->input[0]->dvb.adap_registered = 1;
+			port->dvb[0].adap_registered = 1;
 			break;
 		}
 	}
@@ -1359,54 +1371,55 @@ static void dvb_unregister_adapters(struct ddb *dev)
 {
 	int i;
 	struct ddb_port *port;
-	struct ddb_input *input;
+	struct ddb_dvb *dvb;
 
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
 
-		input = port->input[0];
-		if (input->dvb.adap_registered)
-			dvb_unregister_adapter(input->dvb.adap);
-		input->dvb.adap_registered = 0;
+		dvb = &port->dvb[0];
+		if (dvb->adap_registered)
+			dvb_unregister_adapter(dvb->adap);
+		dvb->adap_registered = 0;
 
-		input = port->input[1];
-		if (input->dvb.adap_registered)
-			dvb_unregister_adapter(input->dvb.adap);
-		input->dvb.adap_registered = 0;
+		dvb = &port->dvb[1];
+		if (dvb->adap_registered)
+			dvb_unregister_adapter(dvb->adap);
+		dvb->adap_registered = 0;
 	}
 }
 
 static int dvb_input_attach(struct ddb_input *input)
 {
 	int ret = 0;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct ddb_port *port = input->port;
-	struct dvb_adapter *adap = input->dvb.adap;
-	struct dvb_demux *dvbdemux = &input->dvb.demux;
+	struct dvb_adapter *adap = dvb->adap;
+	struct dvb_demux *dvbdemux = &dvb->demux;
 	int sony_osc24 = 0, sony_tspar = 0;
 
-	input->dvb.attached = 1;
+	dvb->attached = 1;
 
 	ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
 				      start_feed,
 				      stop_feed, input);
 	if (ret < 0)
 		return ret;
-	input->dvb.attached = 2;
+	dvb->attached = 2;
 
-	ret = my_dvb_dmxdev_ts_card_init(&input->dvb.dmxdev,
-					 &input->dvb.demux,
-					 &input->dvb.hw_frontend,
-					 &input->dvb.mem_frontend, adap);
+	ret = my_dvb_dmxdev_ts_card_init(&dvb->dmxdev,
+					 &dvb->demux,
+					 &dvb->hw_frontend,
+					 &dvb->mem_frontend, adap);
 	if (ret < 0)
 		return ret;
-	input->dvb.attached = 3;
+	dvb->attached = 3;
 
-	ret = dvb_net_init(adap, &input->dvb.dvbnet, input->dvb.dmxdev.demux);
+	ret = dvb_net_init(adap, &dvb->dvbnet, dvb->dmxdev.demux);
 	if (ret < 0)
 		return ret;
-	input->dvb.attached = 4;
+	dvb->attached = 4;
 
-	input->dvb.fe = NULL;
+	dvb->fe = NULL;
 	switch (port->type) {
 	case DDB_TUNER_DVBS_ST:
 		if (demod_attach_stv0900(input, 0) < 0)
@@ -1482,22 +1495,22 @@ static int dvb_input_attach(struct ddb_input *input)
 		break;
 	}
 
-	input->dvb.attached = 5;
+	dvb->attached = 5;
 
-	if (input->dvb.fe) {
-		if (dvb_register_frontend(adap, input->dvb.fe) < 0)
+	if (dvb->fe) {
+		if (dvb_register_frontend(adap, dvb->fe) < 0)
 			return -ENODEV;
 	}
-	if (input->dvb.fe2) {
-		if (dvb_register_frontend(adap, input->dvb.fe2) < 0)
+	if (dvb->fe2) {
+		if (dvb_register_frontend(adap, dvb->fe2) < 0)
 			return -ENODEV;
-		input->dvb.fe2->tuner_priv = input->dvb.fe->tuner_priv;
-		memcpy(&input->dvb.fe2->ops.tuner_ops,
-		       &input->dvb.fe->ops.tuner_ops,
+		dvb->fe2->tuner_priv = dvb->fe->tuner_priv;
+		memcpy(&dvb->fe2->ops.tuner_ops,
+		       &dvb->fe->ops.tuner_ops,
 		       sizeof(struct dvb_tuner_ops));
 	}
 
-	input->dvb.attached = 6;
+	dvb->attached = 6;
 	return 0;
 }
 
@@ -1683,13 +1696,13 @@ static void input_tasklet(unsigned long data)
 			input_write_output(input,
 				input->redirect->port->output);
 		else
-			input_write_dvb(input, &input->dvb);
+			input_write_dvb(input, input->port->dvb);
 	}
 	if (input->port->class == DDB_PORT_CI ||
 	    input->port->class == DDB_PORT_LOOP) {
 		if (input->redirect) {
 			if (input->redirect->port->class == DDB_PORT_TUNER)
-				input_write_dvb(input, &input->redirect->dvb);
+				input_write_dvb(input, input->redirect->port->dvb);
 			else
 				input_write_output(input,
 					input->redirect->port->output);
@@ -1896,7 +1909,7 @@ static int ddb_ci_attach(struct ddb_port *port)
 		port->en = cxd2099_attach(&cxd_cfg, port, &port->i2c->adap);
 		if (!port->en)
 			return -ENODEV;
-		dvb_ca_en50221_init(port->input[0]->dvb.adap,
+		dvb_ca_en50221_init(port->dvb[0].adap,
 				    port->en, 0, 1);
 	}
 
@@ -1904,7 +1917,7 @@ static int ddb_ci_attach(struct ddb_port *port)
 		ci_attach(port);
 		if (!port->en)
 			return -ENODEV;
-		dvb_ca_en50221_init(port->input[0]->dvb.adap, port->en, 0, 1);
+		dvb_ca_en50221_init(port->dvb[0].adap, port->en, 0, 1);
 	}
 
 	return 0;
@@ -1921,14 +1934,18 @@ static int ddb_port_attach(struct ddb_port *port)
 		if (ret < 0)
 			break;
 		ret = dvb_input_attach(port->input[1]);
+		if (ret < 0)
+			break;
+		port->input[0]->redi = port->input[0];
+		port->input[1]->redi = port->input[1];
 		break;
 	case DDB_PORT_CI:
 		ret = ddb_ci_attach(port);
 		if (ret < 0)
 			break;
 	case DDB_PORT_LOOP:
-		ret = dvb_register_device(port->input[0]->dvb.adap,
-					  &port->input[0]->dvb.dev,
+		ret = dvb_register_device(port->dvb[0].adap,
+					  &port->dvb[0].dev,
 					  &dvbdev_ci, (void *) port->output,
 					  DVB_DEVICE_SEC, 0);
 		break;
@@ -1957,6 +1974,8 @@ static int ddb_ports_attach(struct ddb *dev)
 	return ret;
 }
 
+
+
 static void ddb_ports_detach(struct ddb *dev)
 {
 	int i;
@@ -1964,6 +1983,7 @@ static void ddb_ports_detach(struct ddb *dev)
 
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
+
 		switch (port->class) {
 		case DDB_PORT_TUNER:
 			dvb_input_detach(port->input[0]);
@@ -1971,8 +1991,8 @@ static void ddb_ports_detach(struct ddb *dev)
 			break;
 		case DDB_PORT_CI:
 		case DDB_PORT_LOOP:
-			if (port->input[0]->dvb.dev)
-				dvb_unregister_device(port->input[0]->dvb.dev);
+			if (port->dvb[0].dev)
+				dvb_unregister_device(port->dvb[0].dev);
 			if (port->en) {
 				dvb_ca_en50221_release(port->en);
 				kfree(port->en);
@@ -2267,7 +2287,7 @@ static void ddb_port_probe(struct ddb_port *port)
 			 port->nr, port->nr+1, modname);
 }
 
-static void ddb_dma_init(struct ddb_dma *dma, int nr, void *io)
+static void ddb_dma_init(struct ddb_dma *dma, int nr, void *io, int out)
 {
 	unsigned long priv = (unsigned long) io;
 
@@ -2275,7 +2295,7 @@ static void ddb_dma_init(struct ddb_dma *dma, int nr, void *io)
 	dma->nr = nr;
 	spin_lock_init(&dma->lock);
 	init_waitqueue_head(&dma->wq);
-	if (nr & 8) {
+	if (out) {
 		tasklet_init(&dma->tasklet, output_tasklet, priv);
 		dma->num = OUTPUT_DMA_BUFS;
 		dma->size = OUTPUT_DMA_SIZE;
@@ -2288,40 +2308,40 @@ static void ddb_dma_init(struct ddb_dma *dma, int nr, void *io)
 	}
 }
 
-static void ddb_input_init(struct ddb_port *port, int nr, int pnr)
+static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int dma_nr)
 {
 	struct ddb *dev = port->dev;
 	struct ddb_input *input = &dev->input[nr];
 
-	dev->handler[nr + 8] = input_handler;
-	dev->handler_data[nr + 8] = (unsigned long) input;
+	dev->handler[dma_nr + 8] = input_handler;
+	dev->handler_data[dma_nr + 8] = (unsigned long) input;
 	port->input[pnr] = input;
 	input->nr = nr;
 	input->port = port;
-	input->dma = &dev->dma[nr];
-	ddb_dma_init(input->dma, nr, (void *) input);
+	input->dma = &dev->dma[dma_nr];
+	ddb_dma_init(input->dma, dma_nr, (void *) input, 0);
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(nr));
 	ddbwritel(dev, 2, TS_INPUT_CONTROL(nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(nr));
 	ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
-	input->dvb.adap = &dev->adap[input->nr];
 }
 
-static void ddb_output_init(struct ddb_port *port, int nr)
+static void ddb_output_init(struct ddb_port *port, int nr, int dma_nr)
 {
 	struct ddb *dev = port->dev;
 	struct ddb_output *output = &dev->output[nr];
 
-	dev->handler[nr + 8] = output_handler;
-	dev->handler_data[nr + 8] = (unsigned long) output;
+	dev->handler[dma_nr + 8] = output_handler;
+	dev->handler_data[dma_nr + 8] = (unsigned long) output;
 	port->output = output;
 	output->nr = nr;
 	output->port = port;
-	output->dma = &dev->dma[nr + 8];
-	ddb_dma_init(output->dma, nr + 8, (void *) output);
+	output->dma = &dev->dma[dma_nr];
+	ddb_dma_init(output->dma, dma_nr, (void *) output, 1);
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
 	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(nr));
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
+	ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
 }
 
 static void ddb_ports_init(struct ddb *dev)
@@ -2338,15 +2358,20 @@ static void ddb_ports_init(struct ddb *dev)
 
 		mutex_init(&port->i2c_gate_lock);
 		ddb_port_probe(port);
-		if (i >= 2 && dev->info->type == DDB_OCTOPUS_CI) {
-			ddb_input_init(port, 2 + i, 0);
-			ddb_input_init(port, 4 + i, 1);
-		} else {
-			ddb_input_init(port, 2 * i, 0);
-			ddb_input_init(port, 2 * i + 1, 1);
-		}
+		port->dvb[0].adap = &dev->adap[2 * i];
+		port->dvb[1].adap = &dev->adap[2 * i + 1];
 
-		ddb_output_init(port, i);
+		if ((dev->info->type == DDB_OCTOPUS_CI) ||
+		    (dev->info->type == DDB_OCTOPUS)) {
+			if (i >= 2 && dev->info->type == DDB_OCTOPUS_CI) {
+				ddb_input_init(port, 2 + i, 0, 2 + i);
+				ddb_input_init(port, 4 + i, 1, 4 + i);
+			} else {
+				ddb_input_init(port, 2 * i, 0, 2 * i);
+				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1);
+			}
+			ddb_output_init(port, i, i + 8);
+		}
 	}
 }
 
@@ -2357,7 +2382,6 @@ static void ddb_ports_release(struct ddb *dev)
 
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
-		port->dev = dev;
 		if (port->input[0])
 			tasklet_kill(&port->input[0]->dma->tasklet);
 		if (port->input[1])
