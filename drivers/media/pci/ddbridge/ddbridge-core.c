@@ -1,7 +1,7 @@
 /*
  * ddbridge.c: Digital Devices PCIe bridge driver
  *
- * Copyright (C) 2010-2011 Digital Devices GmbH
+ * Copyright (C) 2010-2012 Digital Devices GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -3457,7 +3457,7 @@ static __init int module_init_ddbridge(void)
 {
 	int stat;
 
-	pr_info("Digital Devices PCIE bridge driver, Copyright (C) 2010-11 Digital Devices GmbH\n");
+	pr_info("Digital Devices PCIE bridge driver, Copyright (C) 2010-12 Digital Devices GmbH\n");
 
 	if (ddb_class_create())
 		return -1;
@@ -3479,4 +3479,4 @@ module_exit(module_exit_ddbridge);
 MODULE_DESCRIPTION("Digital Devices PCIe Bridge");
 MODULE_AUTHOR("Ralph Metzler");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.8.5");
+MODULE_VERSION("0.9.3");
