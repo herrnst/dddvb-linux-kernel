@@ -1536,7 +1536,7 @@ static ssize_t ts_write(struct file *file, const __user char *buf,
 		}
 		stat = ddb_output_write(output, buf, left);
 		if (stat < 0)
-			break;
+			return stat;
 		buf += stat;
 		left -= stat;
 	}
@@ -1612,6 +1612,17 @@ static int ts_open(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = dvbdev->priv;
 	struct ddb_input *input = output->port->input[0];
+
+	if (input->redo || input->redi)
+		return -EBUSY;
+
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+		if (!input)
+			return -EINVAL;
+	} else {
+		if (!output)
+			return -EINVAL;
+	}
 
 	if ((err = dvb_generic_open(inode, file)) < 0)
 		return err;
