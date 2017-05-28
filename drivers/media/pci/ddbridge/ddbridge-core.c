@@ -538,10 +538,12 @@ static void ddb_buffers_free(struct ddb *dev)
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
 
-		ddb_unredirect(port);
-		dma_free(dev->pdev, port->input[0]->dma);
-		dma_free(dev->pdev, port->input[1]->dma);
-		dma_free(dev->pdev, port->output->dma);
+		if (port->input[0])
+			dma_free(dev->pdev, port->input[0]->dma);
+		if (port->input[1])
+			dma_free(dev->pdev, port->input[1]->dma);
+		if (port->output)
+			dma_free(dev->pdev, port->output->dma);
 	}
 }
 
