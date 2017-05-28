@@ -199,6 +199,8 @@ struct ddb_port {
 struct ddb {
 	struct pci_dev             *pdev;
 	const struct pci_device_id *id;
+	struct ddb_info            *info;
+	int                         msi;
 	unsigned char __iomem      *regs;
 	struct ddb_port             port[DDB_MAX_PORT];
 	struct ddb_i2c              i2c[DDB_MAX_I2C];
@@ -214,13 +216,12 @@ struct ddb {
 	u32                         nr;
 	u8                          iobuf[1028];
 
-	struct ddb_info            *info;
-	int                         msi;
-
 	u8                          leds;
-
 	u32                         ts_irq;
 	u32                         i2c_irq;
+
+	u32                         hwid;
+	u32                         regmap;
 };
 
 /****************************************************************************/

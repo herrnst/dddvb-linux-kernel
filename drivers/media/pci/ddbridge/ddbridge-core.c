@@ -2907,20 +2907,71 @@ static ssize_t redirect_store(struct device *device,
 	return count;
 }
 
+static ssize_t gap_show(struct device *device, struct device_attribute *attr,
+			char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+
+	return sprintf(buf, "%d\n", dev->port[num].gap);
+}
+
+static ssize_t gap_store(struct device *device, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[3] - 0x30;
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+	if (val > 20)
+		return -EINVAL;
+	dev->port[num].gap = val;
+	return count;
+}
+
+static ssize_t version_show(struct device *device, struct device_attribute *attr,
+			    char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%08x %08x\n", ddbreadl(dev, 0), ddbreadl(dev, 4));
+}
+
+static ssize_t hwid_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "0x%08X\n", dev->hwid);
+}
+
+static ssize_t regmap_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "0x%08X\n", dev->regmap);
+}
+
 #define __ATTR_MRO(_name, _show) {                              \
 	.attr   = { .name = __stringify(_name), .mode = 0444 }, \
 	.show   = _show,                                        \
 }
 
 static struct device_attribute ddb_attrs[] = {
+	__ATTR_RO(version),
 	__ATTR_RO(ports),
 	__ATTR_RO(ts_irq),
 	__ATTR_RO(i2c_irq),
+	__ATTR_RO(temp),
+	__ATTR_RO(hwid),
+	__ATTR_RO(regmap),
 	__ATTR_MRO(mod0, mod_show),
 	__ATTR_MRO(mod1, mod_show),
 	__ATTR_MRO(mod2, mod_show),
 	__ATTR_MRO(mod3, mod_show),
-	__ATTR_RO(temp),
 	__ATTR(fan, 0664, fan_show, fan_store),
 	__ATTR(led0, 0664, led_show, led_store),
 	__ATTR(led1, 0664, led_show, led_store),
@@ -2932,6 +2983,10 @@ static struct device_attribute ddb_attrs[] = {
 	__ATTR(snr3, 0664, snr_show, snr_store),
 	__ATTR_MRO(snr, bsnr_show),
 	__ATTR(redirect, 0664, redirect_show, redirect_store),
+	__ATTR(gap0, 0664, gap_show, gap_store),
+	__ATTR(gap1, 0664, gap_show, gap_store),
+	__ATTR(gap2, 0664, gap_show, gap_store),
+	__ATTR(gap3, 0664, gap_show, gap_store),
 	__ATTR_NULL
 };
 
