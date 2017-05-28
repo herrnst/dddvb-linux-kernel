@@ -601,7 +601,7 @@ static void ddb_output_start(struct ddb_output *output)
 	ddbwritel(dev, 1, DMA_BASE_READ);
 	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->dma->nr));
 	if (output->port->input[0]->port->class == DDB_PORT_LOOP)
-		ddbwritel(dev, 0x05, TS_OUTPUT_CONTROL(output->nr));
+		ddbwritel(dev, 0x45, TS_OUTPUT_CONTROL(output->nr));
 	else
 		ddbwritel(dev, 0x1d, TS_OUTPUT_CONTROL(output->nr));
 	output->dma->running = 1;
@@ -617,30 +617,35 @@ static void ddb_output_stop(struct ddb_output *output)
 	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
 	output->dma->running = 0;
 	spin_unlock_irq(&output->dma->lock);
+	mutex_unlock(&redirect_lock);
 }
 
 static void ddb_input_start_all(struct ddb_input *input)
 {
-	struct ddb_input *next = input;
+	struct ddb_input *i = input;
+	struct ddb_output *o;
 
 	mutex_lock(&redirect_lock);
-	while ((next = next->redirect) && next != input) {
-		ddb_input_start(next);
-		ddb_output_start(next->port->output);
-	}
+	while (i && (o = i->redo)) {
+		ddb_output_start(o);
+		if ((i = o->port->input[0]))
+			ddb_input_start(i);
+        }
 	ddb_input_start(input);
 	mutex_unlock(&redirect_lock);
 }
 
 static void ddb_input_stop_all(struct ddb_input *input)
 {
-	struct ddb_input *next = input;
+	struct ddb_input *i = input;
+	struct ddb_output *o;
 
 	mutex_lock(&redirect_lock);
 	ddb_input_stop(input);
-	while ((next = next->redirect) && next != input) {
-		ddb_input_stop(next);
-		ddb_output_stop(next->port->output);
+	while (i && (o = i->redo)) {
+		ddb_output_stop(o);
+		if ((i = o->port->input[0]))
+			ddb_input_stop(i);
 	}
 	mutex_unlock(&redirect_lock);
 }
