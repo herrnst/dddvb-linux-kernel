@@ -467,6 +467,8 @@ static int ddb_redirect(u32 i, u32 p)
 
 	if (!idev || !pdev)
 		return -EINVAL;
+	if (!idev->has_dma || !pdev->has_dma)
+		return -EINVAL;
 
 	port = &pdev->port[p & 0x0f];
 	if (!port->output)
@@ -606,36 +608,44 @@ static void ddb_input_stop(struct ddb_input *input)
 {
 	struct ddb *dev = input->port->dev;
 
-	spin_lock_irq(&input->dma->lock);
+	if (input->dma)
+		spin_lock_irq(&input->dma->lock);
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
-	input->dma->running = 0;
-	spin_unlock_irq(&input->dma->lock);
+	if (input->dma) {
+		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
+		input->dma->running = 0;
+		spin_unlock_irq(&input->dma->lock);
+	}
 }
 
 static void ddb_input_start(struct ddb_input *input)
 {
 	struct ddb *dev = input->port->dev;
 
-	spin_lock_irq(&input->dma->lock);
-	input->dma->cbuf = 0;
-	input->dma->coff = 0;
+	if (input->dma) {
+		spin_lock_irq(&input->dma->lock);
+		input->dma->cbuf = 0;
+		input->dma->coff = 0;
 
-	/* reset */
-	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
+		/* reset */
+		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
+	}
 	ddbwritel(dev, 0, TS_INPUT_CONTROL2(input->nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 2, TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
 
-	ddbwritel(dev, input->dma->bufreg, DMA_BUFFER_SIZE(input->dma->nr));
-	ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
-
-	ddbwritel(dev, 1, DMA_BASE_WRITE);
-	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->dma->nr));
-	ddbwritel(dev, 9, TS_INPUT_CONTROL(input->nr));
-	input->dma->running = 1;
-	spin_unlock_irq(&input->dma->lock);
+	if (input->dma) {
+		ddbwritel(dev, input->dma->bufreg, DMA_BUFFER_SIZE(input->dma->nr));
+		ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
+		ddbwritel(dev, 1, DMA_BASE_WRITE);
+		ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->dma->nr));
+	}
+	ddbwritel(dev, 0x09, TS_INPUT_CONTROL(input->nr));
+	if (input->dma) {
+		input->dma->running = 1;
+		spin_unlock_irq(&input->dma->lock);
+	}
 }
 
 static void ddb_input_start_all(struct ddb_input *input)
@@ -1436,7 +1446,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		return ret;
 	dvb->attached = 0x20;
 
-	dvb->fe = NULL;
+	dvb->fe = dvb->fe2 = NULL;
 	switch (port->type) {
 	case DDB_TUNER_DVBS_ST:
 		if (demod_attach_stv0900(input, 0) < 0)
@@ -1539,9 +1549,12 @@ static ssize_t ts_write(struct file *file, const __user char *buf,
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = dvbdev->priv;
+	struct ddb *dev = output->port->dev;
 	size_t left = count;
 	int stat;
 
+	if (!dev->has_dma)
+		return -EINVAL;
 	while (left) {
 		if (ddb_output_free(output) < 188) {
 			if (file->f_flags & O_NONBLOCK)
@@ -1566,8 +1579,11 @@ static ssize_t ts_read(struct file *file, __user char *buf,
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = dvbdev->priv;
 	struct ddb_input *input = output->port->input[0];
+	struct ddb *dev = output->port->dev;
 	int left, read;
 
+	if (!dev->has_dma)
+		return -EINVAL;
 	count -= count % 188;
 	left = count;
 	while (left) {
@@ -1611,11 +1627,15 @@ static int ts_release(struct inode *inode, struct file *file)
 	struct ddb_output *output = dvbdev->priv;
 	struct ddb_input *input = output->port->input[0];
 
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
+	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+		if (!input)
+			return -EINVAL;
 		ddb_input_stop(input);
-	else
+	} else if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
+		if (!output)
+			return -EINVAL;
 		ddb_output_stop(output);
-
+	}
 	return dvb_generic_release(inode, file);
 }
 
@@ -1626,25 +1646,21 @@ static int ts_open(struct inode *inode, struct file *file)
 	struct ddb_output *output = dvbdev->priv;
 	struct ddb_input *input = output->port->input[0];
 
-	if (input->redo || input->redi)
-		return -EBUSY;
-
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
 		if (!input)
 			return -EINVAL;
-	} else {
+		if (input->redo || input->redi)
+			return -EBUSY;
+	} else if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
 		if (!output)
 			return -EINVAL;
 	}
-
 	if ((err = dvb_generic_open(inode, file)) < 0)
 		return err;
-
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
 		ddb_input_start(input);
-	else
+	else if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		ddb_output_start(output);
-
 	return err;
 }
 
@@ -1993,9 +2009,11 @@ static int ddb_ports_attach(struct ddb *dev)
 	int i, ret = 0;
 	struct ddb_port *port;
 
-	ret = dvb_register_adapters(dev);
-	if (ret < 0)
-		return ret;
+	if (dev->info->port_num) {
+		ret = dvb_register_adapters(dev);
+		if (ret < 0)
+			return ret;
+	}
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
 		ret = ddb_port_attach(port);
@@ -2004,8 +2022,6 @@ static int ddb_ports_attach(struct ddb *dev)
 	}
 	return ret;
 }
-
-
 
 static void ddb_ports_detach(struct ddb *dev)
 {
@@ -2344,17 +2360,22 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int dma_nr)
 	struct ddb *dev = port->dev;
 	struct ddb_input *input = &dev->input[nr];
 
-	dev->handler[dma_nr + 8] = input_handler;
-	dev->handler_data[dma_nr + 8] = (unsigned long) input;
+	if (dev->has_dma) {
+		dev->handler[dma_nr + 8] = input_handler;
+		dev->handler_data[dma_nr + 8] = (unsigned long) input;
+	}
 	port->input[pnr] = input;
 	input->nr = nr;
 	input->port = port;
-	input->dma = &dev->dma[dma_nr];
-	ddb_dma_init(input->dma, dma_nr, (void *) input, 0);
+	if (dev->has_dma) {
+		input->dma = &dev->dma[dma_nr];
+		ddb_dma_init(input->dma, dma_nr, (void *) input, 0);
+	}
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(nr));
 	ddbwritel(dev, 2, TS_INPUT_CONTROL(nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(nr));
-	ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
+	if (dev->has_dma)
+		ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
 }
 
 static void ddb_output_init(struct ddb_port *port, int nr, int dma_nr)
@@ -2362,17 +2383,22 @@ static void ddb_output_init(struct ddb_port *port, int nr, int dma_nr)
 	struct ddb *dev = port->dev;
 	struct ddb_output *output = &dev->output[nr];
 
-	dev->handler[dma_nr + 8] = output_handler;
-	dev->handler_data[dma_nr + 8] = (unsigned long) output;
+	if (dev->has_dma) {
+		dev->handler[dma_nr + 8] = output_handler;
+		dev->handler_data[dma_nr + 8] = (unsigned long) output;
+	}
 	port->output = output;
 	output->nr = nr;
 	output->port = port;
-	output->dma = &dev->dma[dma_nr];
-	ddb_dma_init(output->dma, dma_nr, (void *) output, 1);
+	if (dev->has_dma) {
+		output->dma = &dev->dma[dma_nr];
+		ddb_dma_init(output->dma, dma_nr, (void *) output, 1);
+	}
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
 	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(nr));
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(nr));
-	ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
+	if (dev->has_dma)
+		ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
 }
 
 static void ddb_ports_init(struct ddb *dev)
@@ -3120,6 +3146,7 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (dev == NULL)
 		return -ENOMEM;
 
+	dev->has_dma = 1;
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 	dev->id = id;
