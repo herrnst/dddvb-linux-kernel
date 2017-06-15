@@ -1271,7 +1271,7 @@ static void dvb_input_detach(struct ddb_input *input)
 	struct i2c_client *client;
 
 	switch (dvb->attached) {
-	case 6:
+	case 0x31:
 		client = dvb->i2c_client[0];
 		if (client) {
 			module_put(client->dev.driver->owner);
@@ -1282,15 +1282,15 @@ static void dvb_input_detach(struct ddb_input *input)
 		if (dvb->fe)
 			dvb_unregister_frontend(dvb->fe);
 		/* fallthrough */
-	case 5:
+	case 0x30:
 		dvb_frontend_detach(dvb->fe);
 		dvb->fe2 = NULL;
 		dvb->fe = NULL;
 		/* fallthrough */
-	case 4:
+	case 0x20:
 		dvb_net_release(&dvb->dvbnet);
 		/* fallthrough */
-	case 3:
+	case 0x11:
 		dvbdemux->dmx.close(&dvbdemux->dmx);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->hw_frontend);
@@ -1298,13 +1298,13 @@ static void dvb_input_detach(struct ddb_input *input)
 					      &dvb->mem_frontend);
 		dvb_dmxdev_release(&dvb->dmxdev);
 		/* fallthrough */
-	case 2:
+	case 0x10:
 		dvb_dmx_release(&dvb->demux);
 		/* fallthrough */
-	case 1:
+	case 0x01:
 		break;
 	}
-	dvb->attached = 0;
+	dvb->attached = 0x00;
 }
 
 static int dvb_register_adapters(struct ddb *dev)
@@ -1414,14 +1414,14 @@ static int dvb_input_attach(struct ddb_input *input)
 	struct dvb_demux *dvbdemux = &dvb->demux;
 	int sony_osc24 = 0, sony_tspar = 0;
 
-	dvb->attached = 1;
+	dvb->attached = 0x01;
 
 	ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
 				      start_feed,
 				      stop_feed, input);
 	if (ret < 0)
 		return ret;
-	dvb->attached = 2;
+	dvb->attached = 0x10;
 
 	ret = my_dvb_dmxdev_ts_card_init(&dvb->dmxdev,
 					 &dvb->demux,
@@ -1429,12 +1429,12 @@ static int dvb_input_attach(struct ddb_input *input)
 					 &dvb->mem_frontend, adap);
 	if (ret < 0)
 		return ret;
-	dvb->attached = 3;
+	dvb->attached = 0x11;
 
 	ret = dvb_net_init(adap, &dvb->dvbnet, dvb->dmxdev.demux);
 	if (ret < 0)
 		return ret;
-	dvb->attached = 4;
+	dvb->attached = 0x20;
 
 	dvb->fe = NULL;
 	switch (port->type) {
@@ -1512,7 +1512,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		break;
 	}
 
-	dvb->attached = 5;
+	dvb->attached = 0x30;
 
 	if (dvb->fe) {
 		if (dvb_register_frontend(adap, dvb->fe) < 0)
@@ -1527,7 +1527,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		       sizeof(struct dvb_tuner_ops));
 	}
 
-	dvb->attached = 6;
+	dvb->attached = 0x31;
 	return 0;
 }
 
