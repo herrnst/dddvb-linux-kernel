@@ -2508,7 +2508,7 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 
 		if (s & 0x0000000f)
 			irq_handle_msg(dev, s);
-		if (s & 0x000fff00)
+		if (s & 0x0fffff00)
 			irq_handle_io(dev, s);
 	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
 
