@@ -316,7 +316,7 @@ static int ddb_i2c_init(struct ddb *dev)
 		strcpy(adap->name, "ddbridge");
 		adap->algo = &ddb_i2c_algo;
 		adap->algo_data = (void *)i2c;
-		adap->dev.parent = &dev->pdev->dev;
+		adap->dev.parent = dev->dev;
 		stat = i2c_add_adapter(adap);
 		if (stat)
 			break;
@@ -1328,7 +1328,7 @@ static int dvb_register_adapters(struct ddb *dev)
 		port = &dev->port[0];
 		adap = port->dvb[0].adap;
 		ret = dvb_register_adapter(adap, "DDBridge", THIS_MODULE,
-					   &port->dev->pdev->dev,
+					   port->dev->dev,
 					   adapter_nr);
 		if (ret < 0)
 			return ret;
@@ -1348,7 +1348,7 @@ static int dvb_register_adapters(struct ddb *dev)
 			adap = port->dvb[0].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
-						   &port->dev->pdev->dev,
+						   port->dev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
@@ -1360,7 +1360,7 @@ static int dvb_register_adapters(struct ddb *dev)
 			adap = port->dvb[1].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
-						   &port->dev->pdev->dev,
+						   port->dev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
@@ -1372,7 +1372,7 @@ static int dvb_register_adapters(struct ddb *dev)
 			adap = port->dvb[0].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
-						   &port->dev->pdev->dev,
+						   port->dev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
@@ -1384,7 +1384,7 @@ static int dvb_register_adapters(struct ddb *dev)
 			adap = port->dvb[0].adap;
 			ret = dvb_register_adapter(adap, "DDBridge",
 						   THIS_MODULE,
-						   &port->dev->pdev->dev,
+						   port->dev->dev,
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
@@ -3081,7 +3081,7 @@ static int ddb_device_create(struct ddb *dev)
 	dev->nr = ddb_num++;
 	ddbs[dev->nr] = dev;
 	mutex_unlock(&ddb_mutex);
-	dev->ddb_dev = device_create(&ddb_class, &dev->pdev->dev,
+	dev->ddb_dev = device_create(&ddb_class, dev->dev,
 				     MKDEV(ddb_major, dev->nr),
 				     dev, "ddbridge%d", dev->nr);
 	if (IS_ERR(dev->ddb_dev))
@@ -3150,11 +3150,13 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev->has_dma = 1;
 	dev->pdev = pdev;
+	dev->dev = &pdev->dev;
 	pci_set_drvdata(pdev, dev);
 	dev->id = id;
 	dev->info = (struct ddb_info *) id->driver_data;
 	dev_info(&pdev->dev, "Detected %s\n", dev->info->name);
 
+	dev->regs_len = pci_resource_len(dev->pdev, 0);
 	dev->regs = ioremap(pci_resource_start(dev->pdev, 0),
 			    pci_resource_len(dev->pdev, 0));
 	if (!dev->regs) {
