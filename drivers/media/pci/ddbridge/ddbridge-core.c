@@ -76,6 +76,7 @@ MODULE_PARM_DESC(msi, "Control MSI interrupts: 0-disable (default), 1-enable");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct ddb *ddbs[32];
+static struct workqueue_struct *ddb_wq;
 
 DEFINE_MUTEX(redirect_lock);
 
@@ -1710,6 +1711,8 @@ static void input_write_dvb(struct ddb_input *input, struct ddb_input *input2)
 	int noack = 0;
 
 	dma = dma2 = input->dma;
+	/* if there also is an output connected, do not ACK.
+	   input_write_output will ACK. */
 	if (input->redo) {
 		dma2 = input->redo->dma;
 		noack = 1;
@@ -1734,10 +1737,10 @@ static void input_write_dvb(struct ddb_input *input, struct ddb_input *input2)
 	}
 }
 
-static void input_tasklet(unsigned long data)
+static void input_work(struct work_struct *work)
 {
-	struct ddb_input *input = (struct ddb_input *) data;
-	struct ddb_dma *dma = input->dma;
+	struct ddb_dma *dma = container_of(work, struct ddb_dma, work);
+	struct ddb_input *input = (struct ddb_input *) dma->io;
 	struct ddb *dev = input->port->dev;
 
 	spin_lock(&dma->lock);
@@ -1748,8 +1751,6 @@ static void input_tasklet(unsigned long data)
 	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
 	dma->ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr));
 
-	if (4 & dma->ctrl)
-		dev_err(&dev->pdev->dev, "Overflow dma %d\n", dma->nr);
 	if (input->redi)
 		input_write_dvb(input, input->redi);
 	if (input->redo)
@@ -1763,13 +1764,16 @@ static void input_handler(unsigned long data)
 	struct ddb_input *input = (struct ddb_input *) data;
 	struct ddb_dma *dma = input->dma;
 
+	/* If there is no input connected, input_tasklet() will
+           just copy pointers and ACK. So, there is no need to go
+	   through the tasklet scheduler. */
 	if (input->redi)
-		tasklet_schedule(&dma->tasklet);
+		queue_work(ddb_wq, &dma->work);
 	else
-		input_tasklet(data);
+		input_work(&dma->work);
 }
 
-static void output_tasklet(unsigned long data)
+static void output_work(struct work_struct *work)
 {
 }
 
@@ -2336,19 +2340,17 @@ static void ddb_port_probe(struct ddb_port *port)
 
 static void ddb_dma_init(struct ddb_dma *dma, int nr, void *io, int out)
 {
-	unsigned long priv = (unsigned long) io;
-
 	dma->io = io;
 	dma->nr = nr;
 	spin_lock_init(&dma->lock);
 	init_waitqueue_head(&dma->wq);
 	if (out) {
-		tasklet_init(&dma->tasklet, output_tasklet, priv);
+		INIT_WORK(&dma->work, output_work);
 		dma->num = OUTPUT_DMA_BUFS;
 		dma->size = OUTPUT_DMA_SIZE;
 		dma->div = OUTPUT_DMA_IRQ_DIV;
 	} else {
-		tasklet_init(&dma->tasklet, input_tasklet, priv);
+		INIT_WORK(&dma->work, input_work);
 		dma->num = INPUT_DMA_BUFS;
 		dma->size = INPUT_DMA_SIZE;
 		dma->div = INPUT_DMA_IRQ_DIV;
@@ -2441,11 +2443,11 @@ static void ddb_ports_release(struct ddb *dev)
 	for (i = 0; i < dev->info->port_num; i++) {
 		port = &dev->port[i];
 		if (port->input[0])
-			tasklet_kill(&port->input[0]->dma->tasklet);
+			cancel_work_sync(&port->input[0]->dma->work);
 		if (port->input[1])
-			tasklet_kill(&port->input[1]->dma->tasklet);
+			cancel_work_sync(&port->input[1]->dma->work);
 		if (port->output)
-			tasklet_kill(&port->output->dma->tasklet);
+			cancel_work_sync(&port->output->dma->work);
 	}
 }
 
@@ -3496,21 +3498,31 @@ static struct pci_driver ddb_pci_driver = {
 
 static __init int module_init_ddbridge(void)
 {
-	int stat;
+	int stat = -1;
 
 	pr_info("Digital Devices PCIE bridge driver, Copyright (C) 2010-12 Digital Devices GmbH\n");
 
 	if (ddb_class_create())
 		return -1;
+
+	ddb_wq = create_workqueue("ddbridge");
+	if (ddb_wq == NULL)
+		goto exit1;
 	stat = pci_register_driver(&ddb_pci_driver);
 	if (stat < 0)
-		ddb_class_destroy();
+		goto exit2;
+	return stat;
+exit2:
+	destroy_workqueue(ddb_wq);
+exit1:
+	ddb_class_destroy();
 	return stat;
 }
 
 static __exit void module_exit_ddbridge(void)
 {
 	pci_unregister_driver(&ddb_pci_driver);
+	destroy_workqueue(ddb_wq);
 	ddb_class_destroy();
 }
 

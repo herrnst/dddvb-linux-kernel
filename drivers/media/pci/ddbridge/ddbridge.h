@@ -99,7 +99,7 @@ struct ddb_dma {
 	u32                    div;
 	u32                    bufreg;
 
-	struct tasklet_struct  tasklet;
+	struct work_struct     work;
 	spinlock_t             lock;
 	wait_queue_head_t      wq;
 	int                    running;
