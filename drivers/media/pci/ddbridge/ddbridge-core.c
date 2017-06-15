@@ -1589,22 +1589,18 @@ static ssize_t ts_read(struct file *file, __user char *buf,
 
 static unsigned int ts_poll(struct file *file, poll_table *wait)
 {
-	/*
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = dvbdev->priv;
 	struct ddb_input *input = output->port->input[0];
-	*/
+
 	unsigned int mask = 0;
 
-#if 0
-	if (data_avail_to_read)
+	poll_wait(file, &input->dma->wq, wait);
+	poll_wait(file, &output->dma->wq, wait);
+	if (ddb_input_avail(input) >= 188)
 		mask |= POLLIN | POLLRDNORM;
-	if (data_avail_to_write)
+	if (ddb_output_free(output) >= 188)
 		mask |= POLLOUT | POLLWRNORM;
-
-	poll_wait(file, &read_queue, wait);
-	poll_wait(file, &write_queue, wait);
-#endif
 	return mask;
 }
 
