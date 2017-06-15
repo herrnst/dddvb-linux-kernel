@@ -595,6 +595,7 @@ static void ddb_output_start(struct ddb_output *output)
 	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 0x3c, TS_OUTPUT_CONTROL(output->nr));
+	ddbwritel(dev, output->port->gap, TS_OUTPUT_CONTROL2(output->nr));
 	ddbwritel(dev, output->dma->bufreg, DMA_BUFFER_SIZE(output->dma->nr));
 	ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
 
@@ -2333,6 +2334,7 @@ static void ddb_ports_init(struct ddb *dev)
 		port->dev = dev;
 		port->nr = i;
 		port->i2c = &dev->i2c[i];
+		port->gap = 4;
 
 		mutex_init(&port->i2c_gate_lock);
 		ddb_port_probe(port);

@@ -192,6 +192,7 @@ struct ddb_port {
 	struct ddb_input      *input[2];
 	struct ddb_output     *output;
 	struct dvb_ca_en50221 *en;
+	u32                    gap;
 };
 
 struct ddb {
