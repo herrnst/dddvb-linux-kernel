@@ -1657,7 +1657,7 @@ static void input_handler(unsigned long data)
 	struct ddb_input *input = (struct ddb_input *) data;
 	struct ddb_dma *dma = input->dma;
 
-	if (input->redirect)
+	if (input->redi)
 		tasklet_schedule(&dma->tasklet);
 	else
 		input_tasklet(data);
@@ -1680,8 +1680,8 @@ static void output_handler(unsigned long data)
 	}
 	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
 	dma->ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr));
-	if (output->redirect)
-		output_ack_input(output, output->redirect);
+	if (output->redi)
+		output_ack_input(output, output->redi);
 	wake_up(&dma->wq);
 	spin_unlock(&dma->lock);
 }

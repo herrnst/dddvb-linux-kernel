@@ -131,21 +131,18 @@ struct ddb_ci {
 	struct mutex           lock;
 };
 
-struct ddb_input {
+struct ddb_io {
 	struct ddb_port       *port;
 	u32                    nr;
 	struct ddb_dma        *dma;
-	struct ddb_input      *redirect;
-
 	struct ddb_dvb         dvb;
+	struct ddb_io         *redirect;
+	struct ddb_io         *redo;
+	struct ddb_io         *redi;
 };
 
-struct ddb_output {
-	struct ddb_port       *port;
-	u32                    nr;
-	struct ddb_dma        *dma;
-	struct ddb_input      *redirect;
-};
+#define ddb_output ddb_io
+#define ddb_input  ddb_io
 
 struct ddb_i2c {
 	struct ddb            *dev;
