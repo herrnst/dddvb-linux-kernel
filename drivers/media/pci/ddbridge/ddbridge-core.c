@@ -2650,10 +2650,25 @@ struct ddb_id {
 	__u32 regmap;
 };
 
-#define IOCTL_DDB_FLASHIO  _IOWR(DDB_MAGIC, 0x00, struct ddb_flashio)
-#define IOCTL_DDB_GPIO_IN  _IOWR(DDB_MAGIC, 0x01, struct ddb_gpio)
-#define IOCTL_DDB_GPIO_OUT _IOWR(DDB_MAGIC, 0x02, struct ddb_gpio)
-#define IOCTL_DDB_ID       _IOR(DDB_MAGIC, 0x03, struct ddb_id)
+struct ddb_reg {
+	__u32 reg;
+	__u32 val;
+};
+
+struct ddb_mem {
+	__u32  off;
+	__user __u8  *buf;
+	__u32  len;
+};
+
+#define IOCTL_DDB_FLASHIO   _IOWR(DDB_MAGIC, 0x00, struct ddb_flashio)
+#define IOCTL_DDB_GPIO_IN   _IOWR(DDB_MAGIC, 0x01, struct ddb_gpio)
+#define IOCTL_DDB_GPIO_OUT  _IOWR(DDB_MAGIC, 0x02, struct ddb_gpio)
+#define IOCTL_DDB_ID        _IOR(DDB_MAGIC, 0x03, struct ddb_id)
+#define IOCTL_DDB_READ_REG  _IOWR(DDB_MAGIC, 0x04, struct ddb_reg)
+#define IOCTL_DDB_WRITE_REG _IOW(DDB_MAGIC, 0x05, struct ddb_reg)
+#define IOCTL_DDB_READ_MEM  _IOWR(DDB_MAGIC, 0x06, struct ddb_mem)
+#define IOCTL_DDB_WRITE_MEM _IOR(DDB_MAGIC, 0x07, struct ddb_mem)
 
 #define DDB_NAME "ddbridge"
 
@@ -2726,6 +2741,60 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ddbid.regmap = ddbreadl(dev, 4);
 		if (copy_to_user(parg, &ddbid, sizeof(ddbid)))
 			return -EFAULT;
+		break;
+	}
+	case IOCTL_DDB_READ_REG:
+	{
+		struct ddb_reg reg;
+
+		if (copy_from_user(&reg, parg, sizeof(reg)))
+			return -EFAULT;
+		if (reg.reg >= dev->regs_len)
+			return -EINVAL;
+		reg.val = ddbreadl(dev, reg.reg);
+		if (copy_to_user(parg, &reg, sizeof(reg)))
+			return -EFAULT;
+		break;
+	}
+	case IOCTL_DDB_WRITE_REG:
+	{
+		struct ddb_reg reg;
+
+		if (copy_from_user(&reg, parg, sizeof(reg)))
+			return -EFAULT;
+		if (reg.reg >= dev->regs_len)
+			return -EINVAL;
+		ddbwritel(dev, reg.val, reg.reg);
+		break;
+	}
+	case IOCTL_DDB_READ_MEM:
+	{
+		struct ddb_mem mem;
+		u8 *buf = &dev->iobuf[0];
+
+		if (copy_from_user(&mem, parg, sizeof(mem)))
+			return -EFAULT;
+		if ((mem.len + mem.off > dev->regs_len) ||
+		     mem.len > 1024)
+			return -EINVAL;
+		ddbcpyfrom(dev, buf, mem.off, mem.len);
+		if (copy_to_user(mem.buf, buf, mem.len))
+			return -EFAULT;
+		break;
+	}
+	case IOCTL_DDB_WRITE_MEM:
+	{
+		struct ddb_mem mem;
+		u8 *buf = &dev->iobuf[0];
+
+		if (copy_from_user(&mem, parg, sizeof(mem)))
+			return -EFAULT;
+		if ((mem.len + mem.off > dev->regs_len) ||
+		     mem.len > 1024)
+			return -EINVAL;
+		if (copy_from_user(buf, mem.buf, mem.len))
+			return -EFAULT;
+		ddbcpyto(dev, mem.off, buf, mem.len);
 		break;
 	}
 	default:
