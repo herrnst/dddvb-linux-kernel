@@ -379,6 +379,22 @@ static void dma_free(struct pci_dev *pdev, struct ddb_dma *dma)
 	}
 }
 
+static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma)
+{
+	int i;
+
+	if (!dma)
+		return 0;
+
+	for (i = 0; i < dma->num; i++) {
+		dma->vbuf[i] = pci_alloc_consistent(pdev, dma->size,
+			&dma->pbuf[i]);
+		if (!dma->vbuf[i])
+			return -ENOMEM;
+	}
+	return 0;
+}
+
 /******************************************************************************/
 /******************************************************************************/
 /******************************************************************************/
@@ -489,22 +505,6 @@ static int ddb_redirect(u32 i, u32 p)
 /******************************************************************************/
 /******************************************************************************/
 
-static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma)
-{
-	int i;
-
-	if (!dma)
-		return 0;
-
-	for (i = 0; i < dma->num; i++) {
-		dma->vbuf[i] = pci_alloc_consistent(pdev, dma->size,
-			&dma->pbuf[i]);
-		if (!dma->vbuf[i])
-			return -ENOMEM;
-	}
-	return 0;
-}
-
 static int ddb_buffers_alloc(struct ddb *dev)
 {
 	int i;
@@ -549,41 +549,6 @@ static void ddb_buffers_free(struct ddb *dev)
 		if (port->output)
 			dma_free(dev->pdev, port->output->dma);
 	}
-}
-
-static void ddb_input_start(struct ddb_input *input)
-{
-	struct ddb *dev = input->port->dev;
-
-	spin_lock_irq(&input->dma->lock);
-	input->dma->cbuf = 0;
-	input->dma->coff = 0;
-
-	/* reset */
-	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
-	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(dev, 2, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
-
-	ddbwritel(dev, input->dma->bufreg, DMA_BUFFER_SIZE(input->dma->nr));
-	ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
-
-	ddbwritel(dev, 1, DMA_BASE_WRITE);
-	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->dma->nr));
-	ddbwritel(dev, 9, TS_INPUT_CONTROL(input->nr));
-	input->dma->running = 1;
-	spin_unlock_irq(&input->dma->lock);
-}
-
-static void ddb_input_stop(struct ddb_input *input)
-{
-	struct ddb *dev = input->port->dev;
-
-	spin_lock_irq(&input->dma->lock);
-	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
-	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
-	input->dma->running = 0;
-	spin_unlock_irq(&input->dma->lock);
 }
 
 static void ddb_output_start(struct ddb_output *output)
@@ -635,6 +600,41 @@ static void ddb_output_stop(struct ddb_output *output)
 		spin_unlock_irq(&output->dma->lock);
 		mutex_unlock(&redirect_lock);
 	}
+}
+
+static void ddb_input_stop(struct ddb_input *input)
+{
+	struct ddb *dev = input->port->dev;
+
+	spin_lock_irq(&input->dma->lock);
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
+	input->dma->running = 0;
+	spin_unlock_irq(&input->dma->lock);
+}
+
+static void ddb_input_start(struct ddb_input *input)
+{
+	struct ddb *dev = input->port->dev;
+
+	spin_lock_irq(&input->dma->lock);
+	input->dma->cbuf = 0;
+	input->dma->coff = 0;
+
+	/* reset */
+	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 2, TS_INPUT_CONTROL(input->nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
+
+	ddbwritel(dev, input->dma->bufreg, DMA_BUFFER_SIZE(input->dma->nr));
+	ddbwritel(dev, 0, DMA_BUFFER_ACK(input->dma->nr));
+
+	ddbwritel(dev, 1, DMA_BASE_WRITE);
+	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->dma->nr));
+	ddbwritel(dev, 9, TS_INPUT_CONTROL(input->nr));
+	input->dma->running = 1;
+	spin_unlock_irq(&input->dma->lock);
 }
 
 static void ddb_input_start_all(struct ddb_input *input)
