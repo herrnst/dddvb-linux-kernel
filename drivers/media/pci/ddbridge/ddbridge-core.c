@@ -623,6 +623,7 @@ static void ddb_input_start(struct ddb_input *input)
 
 	/* reset */
 	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(input->dma->nr));
+	ddbwritel(dev, 0, TS_INPUT_CONTROL2(input->nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 2, TS_INPUT_CONTROL(input->nr));
 	ddbwritel(dev, 0, TS_INPUT_CONTROL(input->nr));

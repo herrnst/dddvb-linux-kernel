@@ -143,6 +143,7 @@
 
 #define TS_INPUT_BASE       (0x200)
 #define TS_INPUT_CONTROL(i)         (TS_INPUT_BASE + (i) * 16 + 0x00)
+#define TS_INPUT_CONTROL2(i)        (TS_INPUT_BASE + (i) * 16 + 0x04)
 
 #define TS_OUTPUT_BASE       (0x280)
 #define TS_OUTPUT_CONTROL(i)         (TS_OUTPUT_BASE + (i) * 16 + 0x00)
