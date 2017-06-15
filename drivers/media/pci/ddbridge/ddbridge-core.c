@@ -1662,6 +1662,8 @@ static void input_write_output(struct ddb_input *input,
 {
 	ddbwritel(output->port->dev,
 		input->dma->stat, DMA_BUFFER_ACK(output->dma->nr));
+	output->dma->cbuf = (input->dma->stat >> 11) & 0x1f;
+	output->dma->coff = (input->dma->stat & 0x7ff) << 7;
 }
 
 static void output_ack_input(struct ddb_output *output,
@@ -1671,21 +1673,35 @@ static void output_ack_input(struct ddb_output *output,
 		output->dma->stat, DMA_BUFFER_ACK(input->dma->nr));
 }
 
-static void input_write_dvb(struct ddb_input *input, struct ddb_dvb *dvb)
+static void input_write_dvb(struct ddb_input *input, struct ddb_input *input2)
 {
-	struct ddb_dma *dma = input->dma;
+	struct ddb_dvb *dvb = &input2->port->dvb[input2->nr & 1];
+	struct ddb_dma *dma, *dma2;
 	struct ddb *dev = input->port->dev;
+	int noack = 0;
 
-	if (4 & ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr)))
-		dev_err(&dev->pdev->dev, "Overflow dma %d\n", dma->nr);
+	dma = dma2 = input->dma;
+	if (input->redo) {
+		dma2 = input->redo->dma;
+		noack = 1;
+	}
+
 	while (dma->cbuf != ((dma->stat >> 11) & 0x1f)
-		|| (4 & safe_ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr)))) {
+	    || (4 & dma->ctrl)) {
+		if (4 & dma->ctrl) {
+			dev_err(&dev->pdev->dev, "Overflow dma %d\n", dma->nr);
+			if (noack)
+				noack = 0;
+		}
 		dvb_dmx_swfilter_packets(&dvb->demux,
-					 dma->vbuf[dma->cbuf],
-					 dma->size / 188);
-		dma->cbuf = (dma->cbuf + 1) % dma->num;
-		ddbwritel(dev, (dma->cbuf << 11),  DMA_BUFFER_ACK(dma->nr));
+					 dma2->vbuf[dma->cbuf],
+					 dma2->size / 188);
+		dma->cbuf = (dma->cbuf + 1) % dma2->num;
+		if (!noack)
+			ddbwritel(dev, (dma->cbuf << 11),
+				  DMA_BUFFER_ACK(dma->nr));
 		dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
+		dma->ctrl = safe_ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr));
 	}
 }
 
@@ -1701,26 +1717,15 @@ static void input_tasklet(unsigned long data)
 		return;
 	}
 	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma->nr));
+	dma->ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(dma->nr));
 
-	if (input->port->class == DDB_PORT_TUNER) {
-		if (input->redirect)
-			input_write_output(input,
-				input->redirect->port->output);
-		else
-			input_write_dvb(input, input->port->dvb);
-	}
-	if (input->port->class == DDB_PORT_CI ||
-	    input->port->class == DDB_PORT_LOOP) {
-		if (input->redirect) {
-			if (input->redirect->port->class == DDB_PORT_TUNER)
-				input_write_dvb(input, input->redirect->port->dvb);
-			else
-				input_write_output(input,
-					input->redirect->port->output);
-		} else
-			wake_up(&dma->wq);
-	}
-
+	if (4 & dma->ctrl)
+		dev_err(&dev->pdev->dev, "Overflow dma %d\n", dma->nr);
+	if (input->redi)
+		input_write_dvb(input, input->redi);
+	if (input->redo)
+		input_write_output(input, input->redo);
+	wake_up(&dma->wq);
 	spin_unlock(&dma->lock);
 }
 
