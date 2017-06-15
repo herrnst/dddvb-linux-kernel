@@ -195,6 +195,7 @@ struct ddb_port {
 	struct dvb_ca_en50221 *en;
 	struct ddb_dvb         dvb[2];
 	u32                    gap;
+	u32                    obr;
 };
 
 struct ddb {

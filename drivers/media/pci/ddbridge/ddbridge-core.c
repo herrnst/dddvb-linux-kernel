@@ -61,6 +61,10 @@ static int adapter_alloc;
 module_param(adapter_alloc, int, 0444);
 MODULE_PARM_DESC(adapter_alloc, "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
 
+static int ci_bitrate = 72000;
+module_param(ci_bitrate, int, 0444);
+MODULE_PARM_DESC(ci_bitrate, " Bitrate for output to CI.");
+
 static int ts_loop = -1;
 module_param(ts_loop, int, 0444);
 MODULE_PARM_DESC(ts_loop, "TS in/out test loop on port ts_loop");
@@ -585,40 +589,52 @@ static void ddb_input_stop(struct ddb_input *input)
 static void ddb_output_start(struct ddb_output *output)
 {
 	struct ddb *dev = output->port->dev;
+	u32 con2;
 
-	spin_lock_irq(&output->dma->lock);
-	output->dma->cbuf = 0;
-	output->dma->coff = 0;
+	con2 = ((output->port->obr << 13) + 71999) / 72000;
+	con2 = (con2 << 16) | output->port->gap;
 
-	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
+	if (output->dma) {
+		spin_lock_irq(&output->dma->lock);
+		output->dma->cbuf = 0;
+		output->dma->coff = 0;
+		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
+	}
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 2, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
 	ddbwritel(dev, 0x3c, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(dev, output->port->gap, TS_OUTPUT_CONTROL2(output->nr));
-	ddbwritel(dev, output->dma->bufreg, DMA_BUFFER_SIZE(output->dma->nr));
-	ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
+	ddbwritel(dev, con2, TS_OUTPUT_CONTROL2(output->nr));
 
-	ddbwritel(dev, 1, DMA_BASE_READ);
-	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->dma->nr));
+	if (output->dma) {
+		ddbwritel(dev, output->dma->bufreg, DMA_BUFFER_SIZE(output->dma->nr));
+		ddbwritel(dev, 0, DMA_BUFFER_ACK(output->dma->nr));
+		ddbwritel(dev, 1, DMA_BASE_READ);
+		ddbwritel(dev, 3, DMA_BUFFER_CONTROL(output->dma->nr));
+	}
 	if (output->port->input[0]->port->class == DDB_PORT_LOOP)
-		ddbwritel(dev, 0x45, TS_OUTPUT_CONTROL(output->nr));
+		ddbwritel(dev, (1 << 13) | 0x15, TS_OUTPUT_CONTROL(output->nr));
 	else
 		ddbwritel(dev, 0x1d, TS_OUTPUT_CONTROL(output->nr));
-	output->dma->running = 1;
-	spin_unlock_irq(&output->dma->lock);
+	if (output->dma) {
+		output->dma->running = 1;
+		spin_unlock_irq(&output->dma->lock);
+	}
 }
 
 static void ddb_output_stop(struct ddb_output *output)
 {
 	struct ddb *dev = output->port->dev;
 
-	spin_lock_irq(&output->dma->lock);
+	if (output->dma)
+		spin_lock_irq(&output->dma->lock);
 	ddbwritel(dev, 0, TS_OUTPUT_CONTROL(output->nr));
-	ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
-	output->dma->running = 0;
-	spin_unlock_irq(&output->dma->lock);
-	mutex_unlock(&redirect_lock);
+	if (output->dma) {
+		ddbwritel(dev, 0, DMA_BUFFER_CONTROL(output->dma->nr));
+		output->dma->running = 0;
+		spin_unlock_irq(&output->dma->lock);
+		mutex_unlock(&redirect_lock);
+	}
 }
 
 static void ddb_input_start_all(struct ddb_input *input)
@@ -2373,6 +2389,7 @@ static void ddb_ports_init(struct ddb *dev)
 		port->nr = i;
 		port->i2c = &dev->i2c[i];
 		port->gap = 4;
+		port->obr = ci_bitrate;
 
 		mutex_init(&port->i2c_gate_lock);
 		ddb_port_probe(port);
