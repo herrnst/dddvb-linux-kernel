@@ -39,6 +39,9 @@
 #include "dvb_net.h"
 #include "cxd2099.h"
 
+/* MSI had problems with lost interrupts, fixed but needs testing */
+#undef CONFIG_PCI_MSI
+
 #define DDB_MAX_I2C     4
 #define DDB_MAX_PORT    4
 #define DDB_MAX_INPUT   8
@@ -204,5 +207,51 @@ struct ddb {
 #define ddbcpyfrom(_dst, _adr, _count) memcpy_fromio((_dst), dev->regs+(_adr), (_count))
 
 /****************************************************************************/
+
+static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)
+{
+        u32 val = ddbreadl(adr);
+
+        /* (ddb)readl returns (uint)-1 (all bits set) on failure, catch that */
+        if (val == ~0) {
+                dev_err(&dev->pdev->dev, "ddbreadl failure, adr=%08x\n", adr);
+                return 0;
+        }
+
+	return val;
+}
+
+/****************************************************************************/
+
+/* ddbridge-main.c (modparams) */
+extern int xo2_speed;
+extern int stv0910_single;
+
+/* ddbridge-core.c */
+void ddb_ports_detach(struct ddb *dev);
+void ddb_ports_release(struct ddb *dev);
+void ddb_buffers_free(struct ddb *dev);
+void ddb_device_destroy(struct ddb *dev);
+irqreturn_t irq_handler(int irq, void *dev_id);
+void ddb_ports_init(struct ddb *dev);
+int ddb_buffers_alloc(struct ddb *dev);
+int ddb_ports_attach(struct ddb *dev);
+int ddb_device_create(struct ddb *dev);
+int ddb_class_create(void);
+void ddb_class_destroy(void);
+
+/* ddbridge-i2c.c */
+int i2c_io(struct i2c_adapter *adapter, u8 adr,
+	   u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen);
+int i2c_read(struct i2c_adapter *adapter, u8 adr, u8 *val);
+int i2c_read_regs(struct i2c_adapter *adapter,
+		  u8 adr, u8 reg, u8 *val, u8 len);
+int i2c_read_reg(struct i2c_adapter *adapter, u8 adr, u8 reg, u8 *val);
+int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
+		   u16 reg, u8 *val);
+int i2c_write_reg(struct i2c_adapter *adap, u8 adr,
+		  u8 reg, u8 val);
+void ddb_i2c_release(struct ddb *dev);
+int ddb_i2c_init(struct ddb *dev);
 
 #endif
