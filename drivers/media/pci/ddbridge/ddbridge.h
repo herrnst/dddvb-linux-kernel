@@ -65,10 +65,6 @@
 
 #define DDBRIDGE_VERSION "0.9.29-integrated"
 
-#ifdef CONFIG_PCI_MSI
-#define DDB_USE_MSI_IRQHANDLERS
-#endif
-
 #define DDB_MAX_I2C    32
 #define DDB_MAX_PORT   32
 #define DDB_MAX_INPUT  64
@@ -378,9 +374,6 @@ void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
 void ddb_buffers_free(struct ddb *dev);
 void ddb_device_destroy(struct ddb *dev);
-irqreturn_t irq_handler0(int irq, void *dev_id);
-irqreturn_t irq_handler1(int irq, void *dev_id);
-irqreturn_t irq_handler(int irq, void *dev_id);
 void ddb_ports_init(struct ddb *dev);
 int ddb_buffers_alloc(struct ddb *dev);
 int ddb_ports_attach(struct ddb *dev);
@@ -417,5 +410,10 @@ void ddbwritel(struct ddb *dev, u32 val, u32 adr);
 void ddbcpyto(struct ddb *dev, u32 adr, void *src, long count);
 void ddbcpyfrom(struct ddb *dev, void *dst, u32 adr, long count);
 u32 safe_ddbreadl(struct ddb *dev, u32 adr);
+
+/* ddbridge-irq.c */
+irqreturn_t irq_handler0(int irq, void *dev_id);
+irqreturn_t irq_handler1(int irq, void *dev_id);
+irqreturn_t irq_handler(int irq, void *dev_id);
 
 #endif /* DDBRIDGE_H */
