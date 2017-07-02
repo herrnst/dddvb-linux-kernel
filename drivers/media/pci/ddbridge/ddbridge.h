@@ -1,7 +1,7 @@
 /*
  * ddbridge.h: Digital Devices PCIe bridge driver
  *
- * Copyright (C) 2010-2015 Digital Devices GmbH
+ * Copyright (C) 2010-2017 Digital Devices GmbH
  *                         Ralph Metzler <rmetzler@digitaldevices.de>
  *
  * This program is free software; you can redistribute it and/or
@@ -63,7 +63,7 @@
 #include "dvb_ca_en50221.h"
 #include "dvb_net.h"
 
-#define DDBRIDGE_VERSION "0.9.28+v7a-integrated"
+#define DDBRIDGE_VERSION "0.9.29-integrated"
 
 #define DDB_MAX_I2C    32
 #define DDB_MAX_PORT   32
