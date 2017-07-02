@@ -3626,18 +3626,18 @@ static int tempmon_init(struct ddb_link *link, int first_time)
 	return status;
 }
 
-static void ddb_init_tempmon(struct ddb_link *link)
+static int ddb_init_tempmon(struct ddb_link *link)
 {
 	struct ddb_info *info = link->info;
 
 	if (!info->tempmon_irq)
-		return;
+		return 0;
 	if (info->type == DDB_OCTOPUS_MAX_CT)
 		if (link->ids.regmapid < 0x00010002)
-			return;
+			return 0;
 	spin_lock_init(&link->temp_lock);
 	dev_dbg(link->dev->dev, "init_tempmon\n");
-	tempmon_init(link, 1);
+	return tempmon_init(link, 1);
 }
 
 /****************************************************************************/
@@ -3689,7 +3689,8 @@ int ddb_init(struct ddb *dev)
 		dev_info(dev->dev, "Could not allocate buffer memory\n");
 		goto fail2;
 	}
-	ddb_ports_attach(dev);
+	if (ddb_ports_attach(dev) < 0)
+		goto fail3;
 
 	ddb_device_create(dev);
 
@@ -3699,6 +3700,10 @@ int ddb_init(struct ddb *dev)
 	}
 	return 0;
 
+fail3:
+	ddb_ports_detach(dev);
+	dev_err(dev->dev, "fail3\n");
+	ddb_ports_release(dev);
 fail2:
 	dev_err(dev->dev, "fail2\n");
 	ddb_buffers_free(dev);
