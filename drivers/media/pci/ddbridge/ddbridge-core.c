@@ -81,7 +81,7 @@ static void ddb_set_dma_table(struct ddb_io *io)
 		ddbwritel(dev, mem & 0xffffffff, dma->bufregs + i * 8);
 		ddbwritel(dev, mem >> 32, dma->bufregs + i * 8 + 4);
 	}
-	dma->bufval = (dma->div << 16) |
+	dma->bufval = ((dma->div & 0x0f) << 16) |
 		((dma->num & 0x1f) << 11) |
 		((dma->size >> 7) & 0x7ff);
 }
