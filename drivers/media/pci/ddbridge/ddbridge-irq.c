@@ -40,16 +40,17 @@
 		dev->handler[0][_nr](dev->handler_data[0][_nr]); } \
 	while (0)
 
-#define IRQ_HANDLE_BYTE(_n) \
+#define IRQ_HANDLE_BYTE(_n) { \
 	if (s & (0x000000ff << ((_n) & 0x1f))) { \
-		IRQ_HANDLE(0 + _n); \
-		IRQ_HANDLE(1 + _n); \
-		IRQ_HANDLE(2 + _n); \
-		IRQ_HANDLE(3 + _n); \
-		IRQ_HANDLE(4 + _n); \
-		IRQ_HANDLE(5 + _n); \
-		IRQ_HANDLE(6 + _n); \
-		IRQ_HANDLE(7 + _n); \
+		IRQ_HANDLE(0 + (_n)); \
+		IRQ_HANDLE(1 + (_n)); \
+		IRQ_HANDLE(2 + (_n)); \
+		IRQ_HANDLE(3 + (_n)); \
+		IRQ_HANDLE(4 + (_n)); \
+		IRQ_HANDLE(5 + (_n)); \
+		IRQ_HANDLE(6 + (_n)); \
+		IRQ_HANDLE(7 + (_n)); \
+	} \
 	}
 
 static void irq_handle_msg(struct ddb *dev, u32 s)
