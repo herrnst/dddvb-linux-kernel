@@ -38,6 +38,7 @@
 
 #include "ddbridge.h"
 #include "ddbridge-regs.h"
+#include "ddbridge-hw.h"
 
 #include "tda18271c2dd.h"
 #include "stv6110x.h"
@@ -3551,6 +3552,141 @@ void ddb_device_destroy(struct ddb *dev)
 	device_destroy(&ddb_class, MKDEV(ddb_major, dev->nr));
 }
 
+#define LINK_IRQ_HANDLE(_l, _nr)				  \
+	do { if ((s & (1UL << _nr)) && dev->handler[_l][_nr]) \
+		dev->handler[_l][_nr](dev->handler_data[_l][_nr]); } \
+	while (0)
+
+static void gtl_link_handler(unsigned long priv)
+{
+	struct ddb *dev = (struct ddb *) priv;
+	u32 regs = dev->link[0].info->regmap->gtl->base;
+
+	dev_info(dev->dev, "GT link change: %u\n",
+	       (1 & ddbreadl(dev, regs)));
+}
+
+static void link_tasklet(unsigned long data)
+{
+	struct ddb_link *link = (struct ddb_link *) data;
+	struct ddb *dev = link->dev;
+
+	u32 s, tag = DDB_LINK_TAG(link->nr);
+	u32 l = link->nr;
+
+	s = ddbreadl(dev, tag | INTERRUPT_STATUS);
+	dev_info(dev->dev, "gtl_irq %08x = %08x\n", tag | INTERRUPT_STATUS, s);
+
+	if (!s)
+		return;
+	ddbwritel(dev, s, tag | INTERRUPT_ACK);
+	LINK_IRQ_HANDLE(l, 0);
+	LINK_IRQ_HANDLE(l, 1);
+	LINK_IRQ_HANDLE(l, 2);
+	LINK_IRQ_HANDLE(l, 3);
+	LINK_IRQ_HANDLE(l, 24);
+}
+
+static void gtl_irq_handler(unsigned long priv)
+{
+	struct ddb_link *link = (struct ddb_link *) priv;
+	struct ddb *dev = link->dev;
+	u32 s, l = link->nr, tag = DDB_LINK_TAG(link->nr);
+
+	while ((s = ddbreadl(dev, tag | INTERRUPT_STATUS)))  {
+		ddbwritel(dev, s, tag | INTERRUPT_ACK);
+		LINK_IRQ_HANDLE(l, 0);
+		LINK_IRQ_HANDLE(l, 1);
+		LINK_IRQ_HANDLE(l, 2);
+		LINK_IRQ_HANDLE(l, 3);
+		LINK_IRQ_HANDLE(l, 24);
+	}
+}
+
+static int ddb_gtl_init_link(struct ddb *dev, u32 l)
+{
+	struct ddb_link *link = &dev->link[l];
+	u32 regs = dev->link[0].info->regmap->gtl->base +
+		(l - 1) * dev->link[0].info->regmap->gtl->size;
+	u32 id, subid, base = dev->link[0].info->regmap->irq_base_gtl;
+
+	dev_info(dev->dev, "Checking GT link %u: regs = %08x\n", l, regs);
+
+	spin_lock_init(&link->lock);
+	mutex_init(&link->flash_mutex);
+
+	link->nr = l;
+	link->dev = dev;
+	link->regs = regs;
+
+	if (!(1 & ddbreadl(dev, regs))) {
+		u32 c;
+
+		for (c = 0; c < 5; c++) {
+			ddbwritel(dev, 2, regs);
+			msleep(20);
+			ddbwritel(dev, 0, regs);
+			msleep(200);
+			if (1 & ddbreadl(dev, regs))
+				break;
+		}
+		if (c == 5)
+			return -1;
+	}
+
+	id = ddbreadl(dev, DDB_LINK_TAG(l) | 8);
+	subid = ddbreadl(dev, DDB_LINK_TAG(l) | 12);
+
+	switch (id) {
+	case 0x0008dd01:
+		link->info = &ddb_c2t2_8;
+		break;
+	default:
+		dev_info(dev->dev, "Detected GT link but found invalid ID %08x. You might have to update (flash) the add-on card first.",
+			id);
+		return -1;
+	}
+	link->ids.devid = id;
+
+	ddbwritel(dev, 1, regs + 0x20);
+
+	dev->handler_data[0][base + l] = (unsigned long) link;
+	dev->handler[0][base + l] = gtl_irq_handler;
+
+	dev->link[l].ids.hwid = ddbreadl(dev, DDB_LINK_TAG(l) | 0);
+	dev->link[l].ids.regmapid = ddbreadl(dev, DDB_LINK_TAG(l) | 4);
+	dev->link[l].ids.vendor = id & 0xffff;
+	dev->link[l].ids.device = id >> 16;
+	dev->link[l].ids.subvendor = subid & 0xffff;
+	dev->link[l].ids.subdevice = subid >> 16;
+
+
+	dev_info(dev->dev, "GTL %s\n", dev->link[l].info->name);
+	dev_info(dev->dev, "GTL HW %08x REGMAP %08x\n",
+		dev->link[l].ids.hwid,
+		dev->link[l].ids.regmapid);
+	dev_info(dev->dev, "GTL ID %08x\n",
+		ddbreadl(dev, DDB_LINK_TAG(l) | 8));
+
+	tasklet_init(&link->tasklet, link_tasklet, (unsigned long) link);
+	ddbwritel(dev, 0xffffffff, DDB_LINK_TAG(l) | INTERRUPT_ACK);
+	ddbwritel(dev, 0x0100000f, DDB_LINK_TAG(l) | INTERRUPT_ENABLE);
+
+	return 0;
+}
+
+static int ddb_gtl_init(struct ddb *dev)
+{
+	u32 l, base = dev->link[0].info->regmap->irq_base_gtl;
+
+	dev->handler_data[0][base] = (unsigned long) dev;
+	dev->handler[0][base] = gtl_link_handler;
+
+	for (l = 1; l < dev->link[0].info->regmap->gtl->num + 1; l++)
+		ddb_gtl_init_link(dev, l);
+	return 0;
+}
+
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
@@ -3679,6 +3815,9 @@ int ddb_init(struct ddb *dev)
 		ddb_device_create(dev);
 		return 0;
 	}
+
+	if (dev->link[0].info->regmap->gtl)
+		ddb_gtl_init(dev);
 
 	ddb_init_boards(dev);
 

@@ -88,6 +88,7 @@ struct ddb_regmap {
 	u32 irq_base_i2c;
 	u32 irq_base_idma;
 	u32 irq_base_odma;
+	u32 irq_base_gtl;
 
 	const struct ddb_regset *i2c;
 	const struct ddb_regset *i2c_buf;
@@ -100,6 +101,7 @@ struct ddb_regmap {
 	const struct ddb_regset *output;
 
 	const struct ddb_regset *channel;
+	struct ddb_regset *gtl;
 };
 
 struct ddb_ids {
