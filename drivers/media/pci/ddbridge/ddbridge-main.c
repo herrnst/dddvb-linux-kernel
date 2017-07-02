@@ -34,6 +34,7 @@
 
 #include "ddbridge.h"
 #include "ddbridge-regs.h"
+#include "ddbridge-io.h"
 
 /****************************************************************************/
 /* module parameters */
