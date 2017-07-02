@@ -3121,7 +3121,7 @@ static ssize_t fan_store(struct device *device, struct device_attribute *d,
 			 const char *buf, size_t count)
 {
 	struct ddb *dev = dev_get_drvdata(device);
-	unsigned val;
+	u32 val;
 
 	if (sscanf(buf, "%u\n", &val) != 1)
 		return -EINVAL;
@@ -3236,7 +3236,7 @@ static ssize_t led_store(struct device *device,
 {
 	struct ddb *dev = dev_get_drvdata(device);
 	int num = attr->attr.name[3] - 0x30;
-	unsigned val;
+	u32 val;
 
 	if (sscanf(buf, "%u\n", &val) != 1)
 		return -EINVAL;
