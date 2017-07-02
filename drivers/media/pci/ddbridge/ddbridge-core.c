@@ -3146,18 +3146,19 @@ static ssize_t temp_show(struct device *device,
 			 struct device_attribute *attr, char *buf)
 {
 	struct ddb *dev = dev_get_drvdata(device);
+	struct ddb_link *link = &dev->link[0];
 	struct i2c_adapter *adap;
 	int temp, temp2;
 	u8 tmp[2];
 
-	if (!dev->link[0].info->temp_num)
+	if (!link->info->temp_num)
 		return sprintf(buf, "no sensor\n");
-	adap = &dev->i2c[dev->link[0].info->temp_bus].adap;
+	adap = &dev->i2c[link->info->temp_bus].adap;
 	if (i2c_read_regs(adap, 0x48, 0, tmp, 2) < 0)
 		return sprintf(buf, "read_error\n");
 	temp = (tmp[0] << 3) | (tmp[1] >> 5);
 	temp *= 125;
-	if (dev->link[0].info->temp_num == 2) {
+	if (link->info->temp_num == 2) {
 		if (i2c_read_regs(adap, 0x49, 0, tmp, 2) < 0)
 			return sprintf(buf, "read_error\n");
 		temp2 = (tmp[0] << 3) | (tmp[1] >> 5);
