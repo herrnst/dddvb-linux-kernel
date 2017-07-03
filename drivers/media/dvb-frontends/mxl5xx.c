@@ -511,15 +511,14 @@ static int read_ber(struct dvb_frontend *fe, u32 *ber)
 	struct mxl *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u32 reg[8];
-	int stat;
 
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
-	stat = read_register_block(state,
-				   (HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET +
-				    HYDRA_DMD_STATUS_OFFSET(state->demod)),
-				   (4 * sizeof(u32)),
-				   (u8 *) &reg[0]);
+	read_register_block(state,
+			   (HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET +
+			    HYDRA_DMD_STATUS_OFFSET(state->demod)),
+			   (4 * sizeof(u32)),
+			   (u8 *) &reg[0]);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 
 	switch (p->delivery_system) {
@@ -536,11 +535,11 @@ static int read_ber(struct dvb_frontend *fe, u32 *ber)
 		break;
 	}
 
-	stat = read_register_block(state,
-				   (HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
-				    HYDRA_DMD_STATUS_OFFSET(state->demod)),
-				   (7 * sizeof(u32)),
-				   (u8 *) &reg[0]);
+	read_register_block(state,
+			   (HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
+			    HYDRA_DMD_STATUS_OFFSET(state->demod)),
+			   (7 * sizeof(u32)),
+			   (u8 *) &reg[0]);
 
 	switch (p->delivery_system) {
 	case SYS_DSS:
@@ -602,15 +601,13 @@ static int read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mxl *state = fe->demodulator_priv;
-
-	int stat;
 	u32 regData = 0;
 	u16 val;
 
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
-	stat = read_register(state, (HYDRA_DMD_LOCK_STATUS_ADDR_OFFSET +
-				     HYDRA_DMD_STATUS_OFFSET(state->demod)),
+	read_register(state, (HYDRA_DMD_LOCK_STATUS_ADDR_OFFSET +
+			     HYDRA_DMD_STATUS_OFFSET(state->demod)),
 			     &regData);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
@@ -669,17 +666,16 @@ static int get_frontend(struct dvb_frontend *fe,
 	struct mxl *state = fe->demodulator_priv;
 	u32 regData[MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE];
 	u32 freq;
-	int stat;
 
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
-	stat = read_register_block(state,
+	read_register_block(state,
 		(HYDRA_DMD_STANDARD_ADDR_OFFSET +
 		HYDRA_DMD_STATUS_OFFSET(state->demod)),
 		(MXL_DEMOD_CHAN_PARAMS_BUFF_SIZE * 4), /* 25 * 4 bytes */
 		(u8 *) &regData[0]);
 	/* read demod channel parameters */
-	stat = read_register_block(state,
+	read_register_block(state,
 		(HYDRA_DMD_STATUS_CENTER_FREQ_IN_KHZ_ADDR +
 		HYDRA_DMD_STATUS_OFFSET(state->demod)),
 		(4), /* 4 bytes */
