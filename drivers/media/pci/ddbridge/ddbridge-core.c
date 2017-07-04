@@ -1206,46 +1206,6 @@ static int tuner_attach_stv6111(struct ddb_input *input, int type)
 	return 0;
 }
 
-static int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
-				   int (*start_feed)(struct dvb_demux_feed *),
-				   int (*stop_feed)(struct dvb_demux_feed *),
-				   void *priv)
-{
-	dvbdemux->priv = priv;
-
-	dvbdemux->filternum = 256;
-	dvbdemux->feednum = 256;
-	dvbdemux->start_feed = start_feed;
-	dvbdemux->stop_feed = stop_feed;
-	dvbdemux->write_to_decoder = NULL;
-	dvbdemux->dmx.capabilities = (DMX_TS_FILTERING |
-				      DMX_SECTION_FILTERING |
-				      DMX_MEMORY_BASED_FILTERING);
-	return dvb_dmx_init(dvbdemux);
-}
-
-static int my_dvb_dmxdev_ts_card_init(struct dmxdev *dmxdev,
-				      struct dvb_demux *dvbdemux,
-				      struct dmx_frontend *hw_frontend,
-				      struct dmx_frontend *mem_frontend,
-				      struct dvb_adapter *dvb_adapter)
-{
-	int ret;
-
-	dmxdev->filternum = 256;
-	dmxdev->demux = &dvbdemux->dmx;
-	dmxdev->capabilities = 0;
-	ret = dvb_dmxdev_init(dmxdev, dvb_adapter);
-	if (ret < 0)
-		return ret;
-
-	hw_frontend->source = DMX_FRONTEND_0;
-	dvbdemux->dmx.add_frontend(&dvbdemux->dmx, hw_frontend);
-	mem_frontend->source = DMX_MEMORY_FE;
-	dvbdemux->dmx.add_frontend(&dvbdemux->dmx, mem_frontend);
-	return dvbdemux->dmx.connect_frontend(&dvbdemux->dmx, hw_frontend);
-}
-
 static int start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
@@ -1299,12 +1259,13 @@ static void dvb_input_detach(struct ddb_input *input)
 	case 0x20:
 		dvb_net_release(&dvb->dvbnet);
 		/* fallthrough */
-	case 0x11:
-		dvbdemux->dmx.close(&dvbdemux->dmx);
+	case 0x12:
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->hw_frontend);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &dvb->mem_frontend);
+		/* fallthrough */
+	case 0x11:
 		dvb_dmxdev_release(&dvb->dmxdev);
 		/* fallthrough */
 	case 0x10:
@@ -1426,20 +1387,32 @@ static int dvb_input_attach(struct ddb_input *input)
 
 	dvb->attached = 0x01;
 
-	ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
-				      start_feed,
-				      stop_feed, input);
+	dvbdemux->priv = input;
+	dvbdemux->dmx.capabilities = DMX_TS_FILTERING |
+		DMX_SECTION_FILTERING | DMX_MEMORY_BASED_FILTERING;
+	dvbdemux->start_feed = start_feed;
+	dvbdemux->stop_feed = stop_feed;
+	dvbdemux->filternum = dvbdemux->feednum = 256;
+	ret = dvb_dmx_init(dvbdemux);
 	if (ret < 0)
 		return ret;
 	dvb->attached = 0x10;
 
-	ret = my_dvb_dmxdev_ts_card_init(&dvb->dmxdev,
-					 &dvb->demux,
-					 &dvb->hw_frontend,
-					 &dvb->mem_frontend, adap);
+	dvb->dmxdev.filternum = 256;
+	dvb->dmxdev.demux = &dvbdemux->dmx;
+	ret = dvb_dmxdev_init(&dvb->dmxdev, adap);
 	if (ret < 0)
 		return ret;
 	dvb->attached = 0x11;
+
+	dvb->mem_frontend.source = DMX_MEMORY_FE;
+	dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->mem_frontend);
+	dvb->hw_frontend.source = DMX_FRONTEND_0;
+	dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->hw_frontend);
+	ret = dvbdemux->dmx.connect_frontend(&dvbdemux->dmx, &dvb->hw_frontend);
+	if (ret < 0)
+		return ret;
+	dvb->attached = 0x12;
 
 	ret = dvb_net_init(adap, &dvb->dvbnet, dvb->dmxdev.demux);
 	if (ret < 0)
