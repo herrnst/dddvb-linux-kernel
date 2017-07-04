@@ -274,7 +274,7 @@ static int ddb_probe(struct pci_dev *pdev,
 	if (ddb_init(dev) == 0)
 		return 0;
 
-	ddb_irq_disable(dev);
+	ddb_irq_exit(dev);
 fail0:
 	dev_err(&pdev->dev, "fail0\n");
 	if (dev->msi)
