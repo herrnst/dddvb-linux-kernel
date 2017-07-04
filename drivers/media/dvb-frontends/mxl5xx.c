@@ -754,7 +754,7 @@ static int set_input(struct dvb_frontend *fe, int input)
 static struct dvb_frontend_ops mxl_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
-		.name			= "MXL5XX",
+		.name			= "MaxLinear MxL5xx DVB-S/S2 tuner-demodulator",
 		.frequency_min		= 300000,
 		.frequency_max		= 2350000,
 		.frequency_stepsize	= 0,
@@ -1776,7 +1776,6 @@ fail:
 }
 EXPORT_SYMBOL_GPL(mxl5xx_attach);
 
-
-MODULE_DESCRIPTION("MXL5XX driver");
+MODULE_DESCRIPTION("MaxLinear MxL5xx DVB-S/S2 tuner-demodulator driver");
 MODULE_AUTHOR("Ralph and Marcus Metzler, Metzler Brothers Systementwicklung GbR");
 MODULE_LICENSE("GPL");

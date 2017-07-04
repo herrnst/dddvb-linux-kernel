@@ -54,11 +54,11 @@ config DVB_STV6111
 	  Say Y when you want to support these frontends.
 
 config DVB_MXL5XX
-	tristate "Maxlinear MX58x based"
+	tristate "MaxLinear MxL5xx based tuner-demodulators"
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Maxlinear MX58x family of tuners/demods.
+	  MaxLinear MxL5xx family of DVB-S/S2 tuners/demodulators.
 
 	  Say Y when you want to support these frontends.
 
