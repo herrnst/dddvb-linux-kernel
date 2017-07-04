@@ -43,6 +43,10 @@ static int fmode;
 module_param(fmode, int, 0444);
 MODULE_PARM_DESC(fmode, "frontend emulation mode");
 
+static int fmode_sat = -1;
+module_param(fmode_sat, int, 0444);
+MODULE_PARM_DESC(fmode_sat, "set frontend emulation mode sat");
+
 static int old_quattro;
 module_param(old_quattro, int, 0444);
 MODULE_PARM_DESC(old_quattro, "old quattro LNB input order ");
@@ -89,6 +93,29 @@ static int max_send_master_cmd(struct dvb_frontend *fe,
 	lnb_command(dev, port->lnr, dvb->input, LNB_CMD_DISEQC);
 	mutex_unlock(&dev->link[port->lnr].lnb.lock);
 	return 0;
+}
+
+static int lnb_send_diseqc(struct ddb *dev, u32 link, u32 input,
+			   struct dvb_diseqc_master_cmd *cmd)
+{
+	u32 tag = DDB_LINK_TAG(link);
+	int i;
+
+	ddbwritel(dev, 0, tag | LNB_BUF_LEVEL(input));
+	for (i = 0; i < cmd->msg_len; i++)
+		ddbwritel(dev, cmd->msg[i], tag | LNB_BUF_WRITE(input));
+	lnb_command(dev, link, input, LNB_CMD_DISEQC);
+	return 0;
+}
+
+static int lnb_set_sat(struct ddb *dev, u32 link, u32 input, u32 sat, u32 band, u32 hor)
+{
+	struct dvb_diseqc_master_cmd cmd = {
+		.msg = {0xe0, 0x10, 0x38, 0xf0, 0x00, 0x00},
+		.msg_len = 4
+	};
+	cmd.msg[3] = 0xf0 | ( ((sat << 2) & 0x0c) | (band ? 1 : 0) | (hor ? 2 : 0));
+	return lnb_send_diseqc(dev, link, input, &cmd);
 }
 
 static int lnb_set_tone(struct ddb *dev, u32 link, u32 input,
@@ -311,6 +338,17 @@ int lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm)
 	dev_info(dev->dev, "Set fmode link %u = %u\n", l, fm);
 	mutex_lock(&link->lnb.lock);
 	if (fm == 2 || fm == 1) {
+		if (fmode_sat >= 0) {
+			lnb_set_sat(dev, l, 0, fmode_sat, 0, 0);
+			if (old_quattro) {
+				lnb_set_sat(dev, l, 1, fmode_sat, 0, 1);
+				lnb_set_sat(dev, l, 2, fmode_sat, 1, 0);
+			} else {
+				lnb_set_sat(dev, l, 1, fmode_sat, 1, 0);
+				lnb_set_sat(dev, l, 2, fmode_sat, 0, 1);
+			}
+			lnb_set_sat(dev, l, 3, fmode_sat, 1, 1);
+		}
 		lnb_set_tone(dev, l, 0, SEC_TONE_OFF);
 		if (old_quattro) {
 			lnb_set_tone(dev, l, 1, SEC_TONE_OFF);
