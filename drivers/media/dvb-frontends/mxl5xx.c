@@ -20,8 +20,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -85,6 +83,7 @@ struct mxl {
 
 	struct mxl_base     *base;
 	struct dvb_frontend  fe;
+	struct device        i2cdev;
 	u32                  demod;
 	u32                  tuner;
 	u32                  tuner_in_use;
@@ -169,13 +168,13 @@ static int read_register_unlocked(struct mxl *state, u32 reg, u32 *val)
 	stat = i2cwrite(state, data,
 			MXL_HYDRA_REG_SIZE_IN_BYTES + MXL_HYDRA_I2C_HDR_SIZE);
 	if (stat)
-		pr_err("i2c read error 1\n");
+		dev_err(&state->i2cdev, "i2c read error 1\n");
 	if (!stat)
 		stat = i2cread(state, (u8 *) val,
 			       MXL_HYDRA_REG_SIZE_IN_BYTES);
 	le32_to_cpus(val);
 	if (stat)
-		pr_err("i2c read error 2\n");
+		dev_err(&state->i2cdev, "i2c read error 2\n");
 	return stat;
 }
 
@@ -191,7 +190,7 @@ static int send_command(struct mxl *state, u32 size, u8 *buf)
 	if (state->base->fwversion > 0x02010109)  {
 		read_register_unlocked(state, DMA_I2C_INTERRUPT_ADDR, &val);
 		if (DMA_INTR_PROT_WR_CMP & val)
-			pr_info("%s busy\n", __func__);
+			dev_info(&state->i2cdev, "%s busy\n", __func__);
 		while ((DMA_INTR_PROT_WR_CMP & val) && --count) {
 			mutex_unlock(&state->base->i2c_lock);
 			usleep_range(1000, 2000);
@@ -200,7 +199,7 @@ static int send_command(struct mxl *state, u32 size, u8 *buf)
 					       &val);
 		}
 		if (!count) {
-			pr_info("%s busy\n", __func__);
+			dev_info(&state->i2cdev, "%s busy\n", __func__);
 			mutex_unlock(&state->base->i2c_lock);
 			return -EBUSY;
 		}
@@ -222,7 +221,7 @@ static int write_register(struct mxl *state, u32 reg, u32 val)
 	stat = i2cwrite(state, data, sizeof(data));
 	mutex_unlock(&state->base->i2c_lock);
 	if (stat)
-		pr_err("i2c write error\n");
+		dev_err(&state->i2cdev, "i2c write error\n");
 	return stat;
 }
 
@@ -245,7 +244,7 @@ static int write_firmware_block(struct mxl *state,
 			MXL_HYDRA_REG_SIZE_IN_BYTES + size);
 	mutex_unlock(&state->base->i2c_lock);
 	if (stat)
-		pr_err("fw block write failed\n");
+		dev_err(&state->i2cdev, "fw block write failed\n");
 	return stat;
 }
 
@@ -262,14 +261,14 @@ static int read_register(struct mxl *state, u32 reg, u32 *val)
 	stat = i2cwrite(state, data,
 			MXL_HYDRA_REG_SIZE_IN_BYTES + MXL_HYDRA_I2C_HDR_SIZE);
 	if (stat)
-		pr_err("i2c read error 1\n");
+		dev_err(&state->i2cdev, "i2c read error 1\n");
 	if (!stat)
 		stat = i2cread(state, (u8 *) val,
 			       MXL_HYDRA_REG_SIZE_IN_BYTES);
 	mutex_unlock(&state->base->i2c_lock);
 	le32_to_cpus(val);
 	if (stat)
-		pr_err("i2c read error 2\n");
+		dev_err(&state->i2cdev, "i2c read error 2\n");
 	return stat;
 }
 
@@ -581,9 +580,9 @@ static int read_ber(struct dvb_frontend *fe, u32 *ber)
 	default:
 		break;
 	}
-	pr_debug("ber %08x %08x %08x %08x %08x %08x %08x\n",
+	dev_dbg(&state->i2cdev, "ber %08x %08x %08x %08x %08x %08x %08x\n",
 		reg[0], reg[1], reg[2], reg[3], reg[4], reg[5], reg[6]);
-	pr_debug("ber2 %08x %08x %08x %08x\n",
+	dev_dbg(&state->i2cdev, "ber2 %08x %08x %08x %08x\n",
 		reg[0], reg[1], reg[2], reg[3]);
 	/*
 	 * pre_bit_error, pre_bit_count
@@ -668,7 +667,7 @@ static int get_frontend(struct dvb_frontend *fe,
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
 
-	pr_debug("freq=%u delsys=%u srate=%u\n",
+	dev_dbg(&state->i2cdev, "freq=%u delsys=%u srate=%u\n",
 		freq * 1000, regData[DMD_STANDARD_ADDR],
 		regData[DMD_SYMBOL_RATE_ADDR]);
 	p->symbol_rate = regData[DMD_SYMBOL_RATE_ADDR];
@@ -860,7 +859,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	MXL_BOOL_E xcpuFwFlag = MXL_FALSE;
 
 	if (mbinPtr->header.id != MBIN_FILE_HEADER_ID) {
-		pr_err("%s: Invalid file header ID (%c)\n",
+		dev_err(&state->i2cdev, "%s: Invalid file header ID (%c)\n",
 		       __func__, mbinPtr->header.id);
 		return -EINVAL;
 	}
@@ -870,7 +869,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	segmentPtr = (MBIN_SEGMENT_T *) (&mbinPtr->data[0]);
 	for (index = 0; index < mbinPtr->header.numSegments; index++) {
 		if (segmentPtr->header.id != MBIN_SEGMENT_HEADER_ID) {
-			pr_err("%s: Invalid segment header ID (%c)\n",
+			dev_err(&state->i2cdev, "%s: Invalid segment header ID (%c)\n",
 			       __func__, segmentPtr->header.id);
 			return -EINVAL;
 		}
@@ -907,7 +906,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	return status;
 }
 
-static int check_fw(u8 *mbin, u32 mbin_len)
+static int check_fw(struct mxl *state, u8 *mbin, u32 mbin_len)
 {
 	MBIN_FILE_HEADER_T *fh = (MBIN_FILE_HEADER_T *) mbin;
 	u32 flen = (fh->imageSize24[0] << 16) |
@@ -916,14 +915,14 @@ static int check_fw(u8 *mbin, u32 mbin_len)
 	u32 i;
 
 	if (fh->id != 'M' || fh->fmtVersion != '1' || flen > 0x3FFF0) {
-		pr_info("Invalid FW Header\n");
+		dev_info(&state->i2cdev, "Invalid FW Header\n");
 		return -1;
 	}
 	fw = mbin + sizeof(MBIN_FILE_HEADER_T);
 	for (i = 0; i < flen; i += 1)
 		cs += fw[i];
 	if (cs != fh->imageChecksum) {
-		pr_info("Invalid FW Checksum\n");
+		dev_info(&state->i2cdev, "Invalid FW Checksum\n");
 		return -1;
 	}
 	return 0;
@@ -937,7 +936,7 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 	u8 cmdSize = sizeof(MXL_HYDRA_SKU_COMMAND_T);
 	u8 cmdBuff[sizeof(MXL_HYDRA_SKU_COMMAND_T) + 6];
 
-	if (check_fw(mbin, mbin_len))
+	if (check_fw(state, mbin, mbin_len))
 		return -1;
 
 	/* put CPU into reset */
@@ -1005,7 +1004,7 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 	if (!firmware_is_alive(state))
 		return -1;
 
-	pr_info("Hydra FW alive. Hail!\n");
+	dev_info(&state->i2cdev, "Hydra FW alive. Hail!\n");
 
 	/* sometimes register values are wrong shortly
 	 * after first heart beats
@@ -1294,8 +1293,8 @@ static int set_drive_strength(struct mxl *state,
 	u32 val;
 
 	read_register(state, 0x90000194, &val);
-	pr_info("DIGIO = %08x\n", val);
-	pr_info("set drive_strength = %u\n", tsDriveStrength);
+	dev_info(&state->i2cdev, "DIGIO = %08x\n", val);
+	dev_info(&state->i2cdev, "set drive_strength = %u\n", tsDriveStrength);
 
 
 	stat |= SET_REG_FIELD_DATA(PAD_MUX_PAD_DRV_DIGIO_00, tsDriveStrength);
@@ -1343,7 +1342,8 @@ static int enable_tuner(struct mxl *state, u32 tuner, u32 enable)
 	if (!count)
 		return -1;
 	read_register(state, HYDRA_TUNER_ENABLE_COMPLETE, &val);
-	pr_debug("tuner %u ready = %u\n", tuner, (val >> tuner) & 1);
+	dev_dbg(&state->i2cdev, "tuner %u ready = %u\n",
+		tuner, (val >> tuner) & 1);
 
 	return 0;
 }
@@ -1588,7 +1588,7 @@ static int validate_sku(struct mxl *state)
 	if (status)
 		return -1;
 
-	pr_info("padMuxBond=%08x, prcmChipId=%08x, prcmSoCId=%08x\n",
+	dev_info(&state->i2cdev, "padMuxBond=%08x, prcmChipId=%08x, prcmSoCId=%08x\n",
 		padMuxBond, prcmChipId, prcmSoCId);
 
 	if (prcmChipId != 0x560) {
@@ -1632,17 +1632,17 @@ static int get_fwinfo(struct mxl *state)
 	status = GET_REG_FIELD_DATA(PAD_MUX_BOND_OPTION, &val);
 	if (status)
 		return status;
-	pr_info("chipID=%08x\n", val);
+	dev_info(&state->i2cdev, "chipID=%08x\n", val);
 
 	status = GET_REG_FIELD_DATA(PRCM_AFE_CHIP_MMSK_VER, &val);
 	if (status)
 		return status;
-	pr_info("chipVer=%08x\n", val);
+	dev_info(&state->i2cdev, "chipVer=%08x\n", val);
 
 	status = read_register(state, HYDRA_FIRMWARE_VERSION, &val);
 	if (status)
 		return status;
-	pr_info("FWVer=%08x\n", val);
+	dev_info(&state->i2cdev, "FWVer=%08x\n", val);
 
 	state->base->fwversion = val;
 	return status;
@@ -1756,7 +1756,8 @@ static int probe(struct mxl *state, struct mxl5xx_cfg *cfg)
 		state->base->chipversion = 0;
 	else
 		state->base->chipversion = (chipver == 2) ? 2 : 1;
-	pr_info("Hydra chip version %u\n", state->base->chipversion);
+	dev_info(&state->i2cdev, "Hydra chip version %u\n",
+		state->base->chipversion);
 
 	cfg_dev_xtal(state, cfg->clk, cfg->cap, 0);
 
@@ -1844,7 +1845,8 @@ struct dvb_frontend *mxl5xx_attach(struct i2c_adapter *i2c,
 	state->xbar[1]              = demod;
 	state->xbar[2]              = 8;
 	state->fe.demodulator_priv  = state;
-	*fn_set_input                = set_input;
+	*fn_set_input               = set_input;
+	state->i2cdev               = base->i2c->dev;
 
 	list_add(&state->mxl, &base->mxls);
 	return &state->fe;
