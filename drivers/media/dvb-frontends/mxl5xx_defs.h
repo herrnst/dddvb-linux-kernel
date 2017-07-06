@@ -151,9 +151,6 @@ typedef enum {
 
 #define MXL_GET_REG_MASK_32(lsbLoc,numOfBits) ((0xFFFFFFFF >> (32 - (numOfBits))) << (lsbLoc))
 
-#define GET_REG_FIELD_DATA(fieldName, dataPtr) read_by_mnemonic(state, fieldName, dataPtr);
-#define SET_REG_FIELD_DATA(fieldName, data) update_by_mnemonic(state, fieldName, data);
-
 #define FW_DL_SIGN (0xDEADBEEF)
 
 #define MBIN_FORMAT_VERSION               '1'
