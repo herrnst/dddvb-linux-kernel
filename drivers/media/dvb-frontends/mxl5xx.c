@@ -1,5 +1,5 @@
 /*
- * Driver for the Maxlinear MX58x family of tuners/demods
+ * Driver for the MaxLinear MxL5xx family of tuners/demods
  *
  * Copyright (C) 2014-2015 Ralph Metzler <rjkm@metzlerbros.de>
  *                         Marcus Metzler <mocm@metzlerbros.de>
@@ -13,21 +13,13 @@
  * modify it under the terms of the GNU General Public License
  * version 2, as published by the Free Software Foundation.
  *
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
-#undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
@@ -199,7 +191,7 @@ static int send_command(struct mxl *state, u32 size, u8 *buf)
 	if (state->base->fwversion > 0x02010109)  {
 		read_register_unlocked(state, DMA_I2C_INTERRUPT_ADDR, &val);
 		if (DMA_INTR_PROT_WR_CMP & val)
-			pr_info("send_command busy\n");
+			pr_info("%s busy\n", __func__);
 		while ((DMA_INTR_PROT_WR_CMP & val) && --count) {
 			mutex_unlock(&state->base->i2c_lock);
 			usleep_range(1000, 2000);
@@ -208,7 +200,7 @@ static int send_command(struct mxl *state, u32 size, u8 *buf)
 					       &val);
 		}
 		if (!count) {
-			pr_info("send_command busy\n");
+			pr_info("%s busy\n", __func__);
 			mutex_unlock(&state->base->i2c_lock);
 			return -EBUSY;
 		}
@@ -560,15 +552,15 @@ static int read_ber(struct dvb_frontend *fe, u32 *ber)
 	mutex_lock(&state->base->status_lock);
 	HYDRA_DEMOD_STATUS_LOCK(state, state->demod);
 	stat = read_register_block(state,
-				   (HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
-				    HYDRA_DMD_STATUS_OFFSET(state->demod)),
-				   (7 * sizeof(u32)),
-				   (u8 *) &reg[0]);
+		(HYDRA_DMD_DVBS2_CRC_ERRORS_ADDR_OFFSET +
+		 HYDRA_DMD_STATUS_OFFSET(state->demod)),
+		(7 * sizeof(u32)),
+		(u8 *) &reg[0]);
 	stat = read_register_block(state,
-				   (HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET +
-				    HYDRA_DMD_STATUS_OFFSET(state->demod)),
-				   (4 * sizeof(u32)),
-				   (u8 *) &reg2[0]);
+		(HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET +
+		 HYDRA_DMD_STATUS_OFFSET(state->demod)),
+		(4 * sizeof(u32)),
+		(u8 *) &reg2[0]);
 	HYDRA_DEMOD_STATUS_UNLOCK(state, state->demod);
 	mutex_unlock(&state->base->status_lock);
 
@@ -682,9 +674,12 @@ static int get_frontend(struct dvb_frontend *fe,
 	p->symbol_rate = regData[DMD_SYMBOL_RATE_ADDR];
 	p->frequency = freq;
 	/*
-	 * p->delivery_system = (MXL_HYDRA_BCAST_STD_E )regData[DMD_STANDARD_ADDR];
-	 * p->inversion = (MXL_HYDRA_SPECTRUM_E )regData[DMD_SPECTRUM_INVERSION_ADDR];
-	 * freqSearchRangeKHz = (regData[DMD_FREQ_SEARCH_RANGE_IN_KHZ_ADDR]);
+	 * p->delivery_system =
+	 *	(MXL_HYDRA_BCAST_STD_E) regData[DMD_STANDARD_ADDR];
+	 * p->inversion =
+	 *	(MXL_HYDRA_SPECTRUM_E) regData[DMD_SPECTRUM_INVERSION_ADDR];
+	 * freqSearchRangeKHz =
+	 *	(regData[DMD_FREQ_SEARCH_RANGE_IN_KHZ_ADDR]);
 	 */
 
 	p->fec_inner = conv_fec(regData[DMD_FEC_CODE_RATE_ADDR]);
@@ -826,7 +821,8 @@ static int write_fw_segment(struct mxl *state,
 	u32 origSize = 0;
 	u8 *wBufPtr = NULL;
 	u32 blockSize = ((MXL_HYDRA_OEM_MAX_BLOCK_WRITE_LENGTH -
-			  (MXL_HYDRA_I2C_HDR_SIZE + MXL_HYDRA_REG_SIZE_IN_BYTES)) / 4) * 4;
+			 (MXL_HYDRA_I2C_HDR_SIZE +
+			  MXL_HYDRA_REG_SIZE_IN_BYTES)) / 4) * 4;
 	u8 wMsgBuffer[MXL_HYDRA_OEM_MAX_BLOCK_WRITE_LENGTH -
 		      (MXL_HYDRA_I2C_HDR_SIZE + MXL_HYDRA_REG_SIZE_IN_BYTES)];
 
@@ -901,8 +897,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 			if (((segAddress & 0x90760000) != 0x90760000) &&
 			    ((segAddress & 0x90740000) != 0x90740000))
 				status = write_fw_segment(state, segAddress,
-							  segLength,
-							  (u8 *) segmentPtr->data);
+					segLength, (u8 *) segmentPtr->data);
 		}
 		if (status)
 			return status;
@@ -966,7 +961,8 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 		return status;
 
 	/* Disable clock to Baseband, Wideband, SerDes,
-	   Alias ext & Transport modules */
+	 * Alias ext & Transport modules
+	 */
 	status = write_register(state, HYDRA_MODULES_CLK_2_REG,
 				HYDRA_DISABLE_CLK_2);
 	if (status)
@@ -1012,7 +1008,8 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 	pr_info("Hydra FW alive. Hail!\n");
 
 	/* sometimes register values are wrong shortly
-	   after first heart beats */
+	 * after first heart beats
+	 */
 	msleep(50);
 
 	devSkuCfg.skuType = state->base->sku_type;
@@ -1091,110 +1088,199 @@ static int cfg_ts_pad_mux(struct mxl *state, MXL_BOOL_E enableSerialTS)
 		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_32_PINMUX_SEL, 1);
 		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_33_PINMUX_SEL, 1);
 		if (enableSerialTS == MXL_ENABLE) {
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_09_PINMUX_SEL, 0);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_10_PINMUX_SEL, 0);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_11_PINMUX_SEL, 0);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_12_PINMUX_SEL, 0);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_13_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_15_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_20_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_21_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_22_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_23_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_24_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_25_PINMUX_SEL, 2);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_26_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_09_PINMUX_SEL, 0);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_10_PINMUX_SEL, 0);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_11_PINMUX_SEL, 0);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_12_PINMUX_SEL, 0);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_13_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_14_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_15_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_16_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_17_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_18_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_19_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_20_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_21_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_22_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_23_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_24_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_25_PINMUX_SEL, 2);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_26_PINMUX_SEL, 2);
 		} else {
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_09_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_10_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_11_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_12_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_13_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_15_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_20_PINMUX_SEL, 3);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_21_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_22_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_23_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_24_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_25_PINMUX_SEL, 1);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_26_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_09_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_10_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_11_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_12_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_13_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_14_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_15_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_16_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_17_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_18_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_19_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_20_PINMUX_SEL, 3);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_21_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_22_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_23_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_24_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_25_PINMUX_SEL, 1);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_26_PINMUX_SEL, 1);
 		}
 		break;
 
 	case MXL_HYDRA_DEVICE_568:
 		if (enableSerialTS == MXL_FALSE) {
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_02_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_03_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_04_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_05_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_06_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_07_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_08_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_09_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_10_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_11_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_12_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_13_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_02_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_03_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_04_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_05_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_06_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_07_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_08_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_09_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_10_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_11_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_12_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_13_PINMUX_SEL, 5);
 
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_20_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_21_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_22_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_23_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_24_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_25_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_20_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_21_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_22_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_23_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_24_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_25_PINMUX_SEL, padMuxValue);
 
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_26_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_27_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_28_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_29_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_30_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_31_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_32_PINMUX_SEL, 5);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_33_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_26_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_27_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_28_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_29_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_30_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_31_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_32_PINMUX_SEL, 5);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_33_PINMUX_SEL, 5);
 		} else {
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_09_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_10_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_11_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_12_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_13_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_15_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
-			status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_09_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_10_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_11_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_12_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_13_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_15_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
+			status |= SET_REG_FIELD_DATA(
+				PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
 		}
 		break;
 
 
 	case MXL_HYDRA_DEVICE_584:
 	default:
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_09_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_10_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_11_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_12_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_13_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_15_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
-		status |= SET_REG_FIELD_DATA(PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_09_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_10_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_11_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_12_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_13_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_14_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_15_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_16_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_17_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_18_PINMUX_SEL, padMuxValue);
+		status |= SET_REG_FIELD_DATA(
+			PAD_MUX_DIGIO_19_PINMUX_SEL, padMuxValue);
 		break;
 	}
 	return status;
@@ -1233,7 +1319,6 @@ static int set_drive_strength(struct mxl *state,
 	return stat;
 }
 
-
 static int enable_tuner(struct mxl *state, u32 tuner, u32 enable)
 {
 	int stat = 0;
@@ -1246,7 +1331,8 @@ static int enable_tuner(struct mxl *state, u32 tuner, u32 enable)
 	ctrlTunerCmd.enable = enable;
 	BUILD_HYDRA_CMD(MXL_HYDRA_TUNER_ACTIVATE_CMD, MXL_CMD_WRITE,
 			cmdSize, &ctrlTunerCmd, cmdBuff);
-	stat = send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE, &cmdBuff[0]);
+	stat = send_command(state, cmdSize + MXL_HYDRA_CMD_HEADER_SIZE,
+			    &cmdBuff[0]);
 	if (stat)
 		return stat;
 	read_register(state, HYDRA_TUNER_ENABLE_COMPLETE, &val);
@@ -1333,7 +1419,8 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 		    MXL_HYDRA_MPEG_MODE_PARALLEL) {
 		} else {
 			cfg_ts_pad_mux(state, MXL_TRUE);
-			SET_REG_FIELD_DATA(XPT_ENABLE_PARALLEL_OUTPUT, MXL_FALSE);
+			SET_REG_FIELD_DATA(
+				XPT_ENABLE_PARALLEL_OUTPUT, MXL_FALSE);
 		}
 	}
 
@@ -1341,10 +1428,10 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 
 	if (state->base->chipversion >= 2) {
 		status |= update_by_mnemonic(state,
-					     xpt_nco_clock_rate[demodId].regAddr, /* Reg Addr */
-					     xpt_nco_clock_rate[demodId].lsbPos, /* LSB pos */
-					     xpt_nco_clock_rate[demodId].numOfBits, /* Num of bits */
-					     ncoCountMin); /* Data */
+			xpt_nco_clock_rate[demodId].regAddr, /* Reg Addr */
+			xpt_nco_clock_rate[demodId].lsbPos, /* LSB pos */
+			xpt_nco_clock_rate[demodId].numOfBits, /* Num of bits */
+			ncoCountMin); /* Data */
 	} else
 		SET_REG_FIELD_DATA(XPT_NCO_COUNT_MIN, ncoCountMin);
 
@@ -1352,92 +1439,91 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 		clkType = 1;
 
 	if (mpegOutParamPtr->mpegMode < MXL_HYDRA_MPEG_MODE_PARALLEL) {
-		status |=
-			update_by_mnemonic(state,
-					   xpt_continuous_clock[demodId].regAddr,
-					   xpt_continuous_clock[demodId].lsbPos,
-					   xpt_continuous_clock[demodId].numOfBits,
-					   clkType);
+		status |= update_by_mnemonic(state,
+			xpt_continuous_clock[demodId].regAddr,
+			xpt_continuous_clock[demodId].lsbPos,
+			xpt_continuous_clock[demodId].numOfBits,
+			clkType);
 	} else
 		SET_REG_FIELD_DATA(XPT_TS_CLK_OUT_EN_PARALLEL, clkType);
 
 	status |= update_by_mnemonic(state,
-				     xpt_sync_polarity[demodId].regAddr,
-				     xpt_sync_polarity[demodId].lsbPos,
-				     xpt_sync_polarity[demodId].numOfBits,
-				     mpegOutParamPtr->mpegSyncPol);
+		xpt_sync_polarity[demodId].regAddr,
+		xpt_sync_polarity[demodId].lsbPos,
+		xpt_sync_polarity[demodId].numOfBits,
+		mpegOutParamPtr->mpegSyncPol);
 
 	status |= update_by_mnemonic(state,
-				     xpt_valid_polarity[demodId].regAddr,
-				     xpt_valid_polarity[demodId].lsbPos,
-				     xpt_valid_polarity[demodId].numOfBits,
-				     mpegOutParamPtr->mpegValidPol);
+		xpt_valid_polarity[demodId].regAddr,
+		xpt_valid_polarity[demodId].lsbPos,
+		xpt_valid_polarity[demodId].numOfBits,
+		mpegOutParamPtr->mpegValidPol);
 
 	status |= update_by_mnemonic(state,
-				     xpt_clock_polarity[demodId].regAddr,
-				     xpt_clock_polarity[demodId].lsbPos,
-				     xpt_clock_polarity[demodId].numOfBits,
-				     mpegOutParamPtr->mpegClkPol);
+		xpt_clock_polarity[demodId].regAddr,
+		xpt_clock_polarity[demodId].lsbPos,
+		xpt_clock_polarity[demodId].numOfBits,
+		mpegOutParamPtr->mpegClkPol);
 
 	status |= update_by_mnemonic(state,
-				     xpt_sync_byte[demodId].regAddr,
-				     xpt_sync_byte[demodId].lsbPos,
-				     xpt_sync_byte[demodId].numOfBits,
-				     mpegOutParamPtr->mpegSyncPulseWidth);
+		xpt_sync_byte[demodId].regAddr,
+		xpt_sync_byte[demodId].lsbPos,
+		xpt_sync_byte[demodId].numOfBits,
+		mpegOutParamPtr->mpegSyncPulseWidth);
 
 	status |= update_by_mnemonic(state,
-				     xpt_ts_clock_phase[demodId].regAddr,
-				     xpt_ts_clock_phase[demodId].lsbPos,
-				     xpt_ts_clock_phase[demodId].numOfBits,
-				     mpegOutParamPtr->mpegClkPhase);
+		xpt_ts_clock_phase[demodId].regAddr,
+		xpt_ts_clock_phase[demodId].lsbPos,
+		xpt_ts_clock_phase[demodId].numOfBits,
+		mpegOutParamPtr->mpegClkPhase);
 
 	status |= update_by_mnemonic(state,
-				     xpt_lsb_first[demodId].regAddr,
-				     xpt_lsb_first[demodId].lsbPos,
-				     xpt_lsb_first[demodId].numOfBits,
-				     mpegOutParamPtr->lsbOrMsbFirst);
+		xpt_lsb_first[demodId].regAddr,
+		xpt_lsb_first[demodId].lsbPos,
+		xpt_lsb_first[demodId].numOfBits,
+		mpegOutParamPtr->lsbOrMsbFirst);
 
 	switch (mpegOutParamPtr->mpegErrorIndication) {
 	case MXL_HYDRA_MPEG_ERR_REPLACE_SYNC:
 		status |= update_by_mnemonic(state,
-					     xpt_err_replace_sync[demodId].regAddr,
-					     xpt_err_replace_sync[demodId].lsbPos,
-					     xpt_err_replace_sync[demodId].numOfBits,
-					     MXL_TRUE);
+			xpt_err_replace_sync[demodId].regAddr,
+			xpt_err_replace_sync[demodId].lsbPos,
+			xpt_err_replace_sync[demodId].numOfBits,
+			MXL_TRUE);
 		status |= update_by_mnemonic(state,
-					     xpt_err_replace_valid[demodId].regAddr,
-					     xpt_err_replace_valid[demodId].lsbPos,
-					     xpt_err_replace_valid[demodId].numOfBits,
-					     MXL_FALSE);
+			xpt_err_replace_valid[demodId].regAddr,
+			xpt_err_replace_valid[demodId].lsbPos,
+			xpt_err_replace_valid[demodId].numOfBits,
+			MXL_FALSE);
 		break;
 
 	case MXL_HYDRA_MPEG_ERR_REPLACE_VALID:
 		status |= update_by_mnemonic(state,
-					     xpt_err_replace_sync[demodId].regAddr,
-					     xpt_err_replace_sync[demodId].lsbPos,
-					     xpt_err_replace_sync[demodId].numOfBits,
-					     MXL_FALSE);
+			xpt_err_replace_sync[demodId].regAddr,
+			xpt_err_replace_sync[demodId].lsbPos,
+			xpt_err_replace_sync[demodId].numOfBits,
+			MXL_FALSE);
 
 		status |= update_by_mnemonic(state,
-					     xpt_err_replace_valid[demodId].regAddr,
-					     xpt_err_replace_valid[demodId].lsbPos,
-					     xpt_err_replace_valid[demodId].numOfBits,
-					     MXL_TRUE);
+			xpt_err_replace_valid[demodId].regAddr,
+			xpt_err_replace_valid[demodId].lsbPos,
+			xpt_err_replace_valid[demodId].numOfBits,
+			MXL_TRUE);
 		break;
 
 	case MXL_HYDRA_MPEG_ERR_INDICATION_DISABLED:
 	default:
 		status |= update_by_mnemonic(state,
-					     xpt_err_replace_sync[demodId].regAddr,
-					     xpt_err_replace_sync[demodId].lsbPos,
-					     xpt_err_replace_sync[demodId].numOfBits,
-					     MXL_FALSE);
+			xpt_err_replace_sync[demodId].regAddr,
+			xpt_err_replace_sync[demodId].lsbPos,
+			xpt_err_replace_sync[demodId].numOfBits,
+			MXL_FALSE);
 
 		status |= update_by_mnemonic(state,
-					     xpt_err_replace_valid[demodId].regAddr,
-					     xpt_err_replace_valid[demodId].lsbPos,
-					     xpt_err_replace_valid[demodId].numOfBits,
-					     MXL_FALSE);
+			xpt_err_replace_valid[demodId].regAddr,
+			xpt_err_replace_valid[demodId].lsbPos,
+			xpt_err_replace_valid[demodId].numOfBits,
+			MXL_FALSE);
 
 		break;
 
@@ -1445,10 +1531,10 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 
 	if (mpegOutParamPtr->mpegMode != MXL_HYDRA_MPEG_MODE_PARALLEL) {
 		status |= update_by_mnemonic(state,
-					     xpt_enable_output[demodId].regAddr,
-					     xpt_enable_output[demodId].lsbPos,
-					     xpt_enable_output[demodId].numOfBits,
-					     mpegOutParamPtr->enable);
+			xpt_enable_output[demodId].regAddr,
+			xpt_enable_output[demodId].lsbPos,
+			xpt_enable_output[demodId].numOfBits,
+			mpegOutParamPtr->enable);
 	}
 	return status;
 }
