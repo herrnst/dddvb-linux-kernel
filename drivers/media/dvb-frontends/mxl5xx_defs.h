@@ -12,7 +12,7 @@
  * version 2, as published by the Free Software Foundation.
  */
 
-typedef enum {
+enum MXL_BOOL_E {
 	MXL_DISABLE = 0,
 	MXL_ENABLE  = 1,
 
@@ -27,10 +27,10 @@ typedef enum {
 
 	MXL_OFF     = 0,
 	MXL_ON      = 1
-} MXL_BOOL_E;
+};
 
 /* Firmware-Host Command IDs */
-typedef enum {
+enum MXL_HYDRA_HOST_CMD_ID_E {
 	/* --Device command IDs-- */
 	MXL_HYDRA_DEV_NO_OP_CMD = 0, /* No OP */
 
@@ -110,7 +110,7 @@ typedef enum {
 	MXL_HYDRA_FSK_POWER_DOWN_CMD = 72,
 	MXL_XCPU_CLEAR_CB_STATS_CMD = 73,
 	MXL_XCPU_CHAN_BOND_RESTART_CMD = 74
-} MXL_HYDRA_HOST_CMD_ID_E;
+};
 
 #define MXL_ENABLE_BIG_ENDIAN        (0)
 
@@ -495,15 +495,15 @@ typedef enum {
 typedef struct {
 	u16 originalPid;           /* pid from TS */
 	u16 remappedPid;           /* remapped pid */
-	MXL_BOOL_E enable;         /* enable or disable pid */
-	MXL_BOOL_E allowOrDrop;    /* allow or drop pid */
-	MXL_BOOL_E enablePidRemap; /* enable or disable pid remap */
+	enum MXL_BOOL_E enable;         /* enable or disable pid */
+	enum MXL_BOOL_E allowOrDrop;    /* allow or drop pid */
+	enum MXL_BOOL_E enablePidRemap; /* enable or disable pid remap */
 	u8 bondId;                 /* Bond ID in A0 always 0 - Only for 568 Sku */
 	u8 destId;                 /* Output port ID for the PID - Only for 568 Sku */
 } MXL_HYDRA_TS_PID_T;
 
 typedef struct {
-	MXL_BOOL_E enable;
+	enum MXL_BOOL_E enable;
 	u8 numByte;
 	u8 header[12];
 } MXL_HYDRA_TS_MUX_PREFIX_HEADER_T;

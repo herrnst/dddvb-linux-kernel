@@ -863,7 +863,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	u32 segAddress = 0;
 	MBIN_FILE_T *mbinPtr  = (MBIN_FILE_T *)mbinBufferPtr;
 	MBIN_SEGMENT_T *segmentPtr;
-	MXL_BOOL_E xcpuFwFlag = MXL_FALSE;
+	enum MXL_BOOL_E xcpuFwFlag = MXL_FALSE;
 
 	if (mbinPtr->header.id != MBIN_FILE_HEADER_ID) {
 		dev_err(&state->i2cdev, "%s: Invalid file header ID (%c)\n",
@@ -1027,7 +1027,7 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 	return status;
 }
 
-static int cfg_ts_pad_mux(struct mxl *state, MXL_BOOL_E enableSerialTS)
+static int cfg_ts_pad_mux(struct mxl *state, enum MXL_BOOL_E enableSerialTS)
 {
 	int status = 0;
 	u32 padMuxValue = 0;
