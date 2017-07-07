@@ -366,7 +366,7 @@ static int get_algo(struct dvb_frontend *fe)
 
 static int CfgDemodAbortTune(struct mxl *state)
 {
-	MXL_HYDRA_DEMOD_ABORT_TUNE_T abortTuneCmd;
+	struct MXL_HYDRA_DEMOD_ABORT_TUNE_T abortTuneCmd;
 	u8 cmdSize = sizeof(abortTuneCmd);
 	u8 cmdBuff[MXL_HYDRA_OEM_MAX_CMD_BUFF_LEN];
 
@@ -389,7 +389,7 @@ static int set_parameters(struct dvb_frontend *fe)
 {
 	struct mxl *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	MXL_HYDRA_DEMOD_PARAM_T demodChanCfg;
+	struct MXL_HYDRA_DEMOD_PARAM_T demodChanCfg;
 	u8 cmdSize = sizeof(demodChanCfg);
 	u8 cmdBuff[MXL_HYDRA_OEM_MAX_CMD_BUFF_LEN];
 	u32 srange = 10;
@@ -638,7 +638,7 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 	return 0;
 }
 
-static enum fe_code_rate conv_fec(MXL_HYDRA_FEC_E fec)
+static enum fe_code_rate conv_fec(enum MXL_HYDRA_FEC_E fec)
 {
 	enum fe_code_rate fec2fec[11] = {
 		FEC_NONE, FEC_1_2, FEC_3_5, FEC_2_3,
@@ -693,7 +693,7 @@ static int get_frontend(struct dvb_frontend *fe,
 	case SYS_DSS:
 		break;
 	case SYS_DVBS2:
-		switch ((MXL_HYDRA_PILOTS_E)
+		switch ((enum MXL_HYDRA_PILOTS_E)
 			regData[DMD_DVBS2_PILOT_ON_OFF_ADDR]) {
 		case MXL_HYDRA_PILOTS_OFF:
 			p->pilot = PILOT_OFF;
@@ -705,7 +705,7 @@ static int get_frontend(struct dvb_frontend *fe,
 			break;
 		}
 	case SYS_DVBS:
-		switch ((MXL_HYDRA_MODULATION_E)
+		switch ((enum MXL_HYDRA_MODULATION_E)
 			regData[DMD_MODULATION_SCHEME_ADDR]) {
 		case MXL_HYDRA_MOD_QPSK:
 			p->modulation = QPSK;
@@ -716,7 +716,7 @@ static int get_frontend(struct dvb_frontend *fe,
 		default:
 			break;
 		}
-		switch ((MXL_HYDRA_ROLLOFF_E)
+		switch ((enum MXL_HYDRA_ROLLOFF_E)
 			regData[DMD_SPECTRUM_ROLL_OFF_ADDR]) {
 		case MXL_HYDRA_ROLLOFF_0_20:
 			p->rolloff = ROLLOFF_20;
@@ -939,9 +939,9 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 {
 	int status;
 	u32 regData = 0;
-	MXL_HYDRA_SKU_COMMAND_T devSkuCfg;
-	u8 cmdSize = sizeof(MXL_HYDRA_SKU_COMMAND_T);
-	u8 cmdBuff[sizeof(MXL_HYDRA_SKU_COMMAND_T) + 6];
+	struct MXL_HYDRA_SKU_COMMAND_T devSkuCfg;
+	u8 cmdSize = sizeof(struct MXL_HYDRA_SKU_COMMAND_T);
+	u8 cmdBuff[sizeof(struct MXL_HYDRA_SKU_COMMAND_T) + 6];
 
 	if (check_fw(state, mbin, mbin_len))
 		return -1;
@@ -1294,7 +1294,7 @@ static int cfg_ts_pad_mux(struct mxl *state, enum MXL_BOOL_E enableSerialTS)
 
 
 static int set_drive_strength(struct mxl *state,
-			      MXL_HYDRA_TS_DRIVE_STRENGTH_E tsDriveStrength)
+			      enum MXL_HYDRA_TS_DRIVE_STRENGTH_E tsDriveStrength)
 {
 	int stat = 0;
 	u32 val;
@@ -1328,7 +1328,7 @@ static int set_drive_strength(struct mxl *state,
 static int enable_tuner(struct mxl *state, u32 tuner, u32 enable)
 {
 	int stat = 0;
-	MxL_HYDRA_TUNER_CMD ctrlTunerCmd;
+	struct MXL_HYDRA_TUNER_CMD ctrlTunerCmd;
 	u8 cmdSize = sizeof(ctrlTunerCmd);
 	u8 cmdBuff[MXL_HYDRA_OEM_MAX_CMD_BUFF_LEN];
 	u32 val, count = 10;
@@ -1356,64 +1356,64 @@ static int enable_tuner(struct mxl *state, u32 tuner, u32 enable)
 }
 
 
-static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
-		     MXL_HYDRA_MPEGOUT_PARAM_T *mpegOutParamPtr)
+static int config_ts(struct mxl *state, enum MXL_HYDRA_DEMOD_ID_E demodId,
+		     struct MXL_HYDRA_MPEGOUT_PARAM_T *mpegOutParamPtr)
 {
 	int status = 0;
 	u32 ncoCountMin = 0;
 	u32 clkType = 0;
 
-	MXL_REG_FIELD_T xpt_sync_polarity[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_sync_polarity[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700010, 8, 1}, {0x90700010, 9, 1},
 		{0x90700010, 10, 1}, {0x90700010, 11, 1},
 		{0x90700010, 12, 1}, {0x90700010, 13, 1},
 		{0x90700010, 14, 1}, {0x90700010, 15, 1} };
-	MXL_REG_FIELD_T xpt_clock_polarity[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_clock_polarity[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700010, 16, 1}, {0x90700010, 17, 1},
 		{0x90700010, 18, 1}, {0x90700010, 19, 1},
 		{0x90700010, 20, 1}, {0x90700010, 21, 1},
 		{0x90700010, 22, 1}, {0x90700010, 23, 1} };
-	MXL_REG_FIELD_T xpt_valid_polarity[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_valid_polarity[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700014, 0, 1}, {0x90700014, 1, 1},
 		{0x90700014, 2, 1}, {0x90700014, 3, 1},
 		{0x90700014, 4, 1}, {0x90700014, 5, 1},
 		{0x90700014, 6, 1}, {0x90700014, 7, 1} };
-	MXL_REG_FIELD_T xpt_ts_clock_phase[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_ts_clock_phase[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700018, 0, 3}, {0x90700018, 4, 3},
 		{0x90700018, 8, 3}, {0x90700018, 12, 3},
 		{0x90700018, 16, 3}, {0x90700018, 20, 3},
 		{0x90700018, 24, 3}, {0x90700018, 28, 3} };
-	MXL_REG_FIELD_T xpt_lsb_first[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_lsb_first[MXL_HYDRA_DEMOD_MAX] = {
 		{0x9070000C, 16, 1}, {0x9070000C, 17, 1},
 		{0x9070000C, 18, 1}, {0x9070000C, 19, 1},
 		{0x9070000C, 20, 1}, {0x9070000C, 21, 1},
 		{0x9070000C, 22, 1}, {0x9070000C, 23, 1} };
-	MXL_REG_FIELD_T xpt_sync_byte[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_sync_byte[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700010, 0, 1}, {0x90700010, 1, 1},
 		{0x90700010, 2, 1}, {0x90700010, 3, 1},
 		{0x90700010, 4, 1}, {0x90700010, 5, 1},
 		{0x90700010, 6, 1}, {0x90700010, 7, 1} };
-	MXL_REG_FIELD_T xpt_enable_output[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_enable_output[MXL_HYDRA_DEMOD_MAX] = {
 		{0x9070000C, 0, 1}, {0x9070000C, 1, 1},
 		{0x9070000C, 2, 1}, {0x9070000C, 3, 1},
 		{0x9070000C, 4, 1}, {0x9070000C, 5, 1},
 		{0x9070000C, 6, 1}, {0x9070000C, 7, 1} };
-	MXL_REG_FIELD_T xpt_err_replace_sync[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_err_replace_sync[MXL_HYDRA_DEMOD_MAX] = {
 		{0x9070000C, 24, 1}, {0x9070000C, 25, 1},
 		{0x9070000C, 26, 1}, {0x9070000C, 27, 1},
 		{0x9070000C, 28, 1}, {0x9070000C, 29, 1},
 		{0x9070000C, 30, 1}, {0x9070000C, 31, 1} };
-	MXL_REG_FIELD_T xpt_err_replace_valid[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_err_replace_valid[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700014, 8, 1}, {0x90700014, 9, 1},
 		{0x90700014, 10, 1}, {0x90700014, 11, 1},
 		{0x90700014, 12, 1}, {0x90700014, 13, 1},
 		{0x90700014, 14, 1}, {0x90700014, 15, 1} };
-	MXL_REG_FIELD_T xpt_continuous_clock[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_continuous_clock[MXL_HYDRA_DEMOD_MAX] = {
 		{0x907001D4, 0, 1}, {0x907001D4, 1, 1},
 		{0x907001D4, 2, 1}, {0x907001D4, 3, 1},
 		{0x907001D4, 4, 1}, {0x907001D4, 5, 1},
 		{0x907001D4, 6, 1}, {0x907001D4, 7, 1} };
-	MXL_REG_FIELD_T xpt_nco_clock_rate[MXL_HYDRA_DEMOD_MAX] = {
+	struct MXL_REG_FIELD_T xpt_nco_clock_rate[MXL_HYDRA_DEMOD_MAX] = {
 		{0x90700044, 16, 80}, {0x90700044, 16, 81},
 		{0x90700044, 16, 82}, {0x90700044, 16, 83},
 		{0x90700044, 16, 84}, {0x90700044, 16, 85},
@@ -1431,7 +1431,7 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 		}
 	}
 
-	ncoCountMin = (u32)(MXL_HYDRA_NCO_CLK/mpegOutParamPtr->maxMpegClkRate);
+	ncoCountMin = (u32)(MXL_HYDRA_NCO_CLK / mpegOutParamPtr->maxMpegClkRate);
 
 	if (state->base->chipversion >= 2) {
 		status |= update_by_mnemonic(state,
@@ -1682,7 +1682,7 @@ static int probe(struct mxl *state, struct mxl5xx_cfg *cfg)
 {
 	u32 chipver;
 	int fw, status, j;
-	MXL_HYDRA_MPEGOUT_PARAM_T mpegInterfaceCfg;
+	struct MXL_HYDRA_MPEGOUT_PARAM_T mpegInterfaceCfg;
 
 	state->base->ts_map = tsMap1_to_1;
 
@@ -1797,7 +1797,7 @@ static int probe(struct mxl *state, struct mxl5xx_cfg *cfg)
 
 
 	for (j = 0; j < state->base->demod_num; j++) {
-		status = config_ts(state, (MXL_HYDRA_DEMOD_ID_E) j,
+		status = config_ts(state, (enum MXL_HYDRA_DEMOD_ID_E) j,
 				   &mpegInterfaceCfg);
 		if (status)
 			return status;
