@@ -158,7 +158,7 @@ enum MXL_HYDRA_HOST_CMD_ID_E {
 #define MBIN_SEGMENT_HEADER_ID            'S'
 #define MBIN_MAX_FILE_LENGTH              (1<<23)
 
-typedef struct {
+struct MBIN_FILE_HEADER_T {
 	u8 id;
 	u8 fmtVersion;
 	u8 headerLen;
@@ -167,12 +167,12 @@ typedef struct {
 	u8 imageSize24[3];
 	u8 imageChecksum;
 	u8 reserved[4];
-} MBIN_FILE_HEADER_T;
+};
 
-typedef struct {
-	MBIN_FILE_HEADER_T  header;
+struct MBIN_FILE_T {
+	struct MBIN_FILE_HEADER_T header;
 	u8 data[1];
-} MBIN_FILE_T;
+};
 
 typedef struct {
 	u8 id;

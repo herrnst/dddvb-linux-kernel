@@ -861,7 +861,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	u32 index = 0;
 	u32 segLength = 0;
 	u32 segAddress = 0;
-	MBIN_FILE_T *mbinPtr  = (MBIN_FILE_T *)mbinBufferPtr;
+	struct MBIN_FILE_T *mbinPtr  = (struct MBIN_FILE_T *)mbinBufferPtr;
 	MBIN_SEGMENT_T *segmentPtr;
 	enum MXL_BOOL_E xcpuFwFlag = MXL_FALSE;
 
@@ -915,7 +915,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 
 static int check_fw(struct mxl *state, u8 *mbin, u32 mbin_len)
 {
-	MBIN_FILE_HEADER_T *fh = (MBIN_FILE_HEADER_T *) mbin;
+	struct MBIN_FILE_HEADER_T *fh = (struct MBIN_FILE_HEADER_T *) mbin;
 	u32 flen = (fh->imageSize24[0] << 16) |
 		(fh->imageSize24[1] <<  8) | fh->imageSize24[2];
 	u8 *fw, cs = 0;
@@ -925,7 +925,7 @@ static int check_fw(struct mxl *state, u8 *mbin, u32 mbin_len)
 		dev_info(&state->i2cdev, "Invalid FW Header\n");
 		return -1;
 	}
-	fw = mbin + sizeof(MBIN_FILE_HEADER_T);
+	fw = mbin + sizeof(struct MBIN_FILE_HEADER_T);
 	for (i = 0; i < flen; i += 1)
 		cs += fw[i];
 	if (cs != fh->imageChecksum) {
