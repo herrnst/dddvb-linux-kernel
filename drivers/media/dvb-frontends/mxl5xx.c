@@ -862,7 +862,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	u32 segLength = 0;
 	u32 segAddress = 0;
 	struct MBIN_FILE_T *mbinPtr  = (struct MBIN_FILE_T *)mbinBufferPtr;
-	MBIN_SEGMENT_T *segmentPtr;
+	struct MBIN_SEGMENT_T *segmentPtr;
 	enum MXL_BOOL_E xcpuFwFlag = MXL_FALSE;
 
 	if (mbinPtr->header.id != MBIN_FILE_HEADER_ID) {
@@ -873,7 +873,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 	status = write_register(state, FW_DL_SIGN_ADDR, 0);
 	if (status)
 		return status;
-	segmentPtr = (MBIN_SEGMENT_T *) (&mbinPtr->data[0]);
+	segmentPtr = (struct MBIN_SEGMENT_T *) (&mbinPtr->data[0]);
 	for (index = 0; index < mbinPtr->header.numSegments; index++) {
 		if (segmentPtr->header.id != MBIN_SEGMENT_HEADER_ID) {
 			dev_err(&state->i2cdev, "%s: Invalid segment header ID (%c)\n",
@@ -907,7 +907,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 		}
 		if (status)
 			return status;
-		segmentPtr = (MBIN_SEGMENT_T *)
+		segmentPtr = (struct MBIN_SEGMENT_T *)
 			&(segmentPtr->data[((segLength + 3) / 4) * 4]);
 	}
 	return status;

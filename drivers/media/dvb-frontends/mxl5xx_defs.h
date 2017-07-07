@@ -174,18 +174,18 @@ struct MBIN_FILE_T {
 	u8 data[1];
 };
 
-typedef struct {
+struct MBIN_SEGMENT_HEADER_T {
 	u8 id;
 	u8 len24[3];
 	u8 address[4];
-} MBIN_SEGMENT_HEADER_T;
+};
 
-typedef struct {
-	MBIN_SEGMENT_HEADER_T header;
+struct MBIN_SEGMENT_T {
+	struct MBIN_SEGMENT_HEADER_T header;
 	u8 data[1];
-} MBIN_SEGMENT_T;
+};
 
-typedef enum { MXL_CMD_WRITE = 0, MXL_CMD_READ } MXL_CMD_TYPE_E;
+enum MXL_CMD_TYPE_E { MXL_CMD_WRITE = 0, MXL_CMD_READ };
 
 #define BUILD_HYDRA_CMD(cmdID, reqType, size, dataPtr, cmdBuff)		\
 	do {								\
