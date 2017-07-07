@@ -685,7 +685,7 @@ typedef struct {
 } MXL_HYDRA_RF_WAKEUP_CFG_T;
 
 typedef enum {
-	MXL_HYDRA_AUX_CTRL_MODE_FSK = 0, /* Select FSK controller *
+	MXL_HYDRA_AUX_CTRL_MODE_FSK = 0, /* Select FSK controller */
 	MXL_HYDRA_AUX_CTRL_MODE_DISEQC,  /* Select DiSEqC controller */
 } MXL_HYDRA_AUX_CTRL_MODE_E;
 
