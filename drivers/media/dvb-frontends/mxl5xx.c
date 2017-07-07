@@ -787,7 +787,7 @@ static struct mxl_base *match_base(struct i2c_adapter  *i2c, u8 adr)
 static void cfg_dev_xtal(struct mxl *state, u32 freq, u32 cap, u32 enable)
 {
 	if (state->base->can_clkout || !enable)
-		update_by_mnemonic(state, 0x90200054,23,1, enable);
+		update_by_mnemonic(state, 0x90200054, 23, 1, enable);
 
 	if (freq == 24000000)
 		write_register(state, HYDRA_CRYSTAL_SETTING, 0);
@@ -889,7 +889,7 @@ static int do_firmware_download(struct mxl *state, u8 *mbinBufferPtr,
 			if ((((segAddress & 0x90760000) == 0x90760000) ||
 			     ((segAddress & 0x90740000) == 0x90740000)) &&
 			    (xcpuFwFlag == MXL_FALSE)) {
-				update_by_mnemonic(state, 0x8003003C,0,1,
+				update_by_mnemonic(state, 0x8003003C, 0, 1,
 						   1);
 				msleep(200);
 				write_register(state, 0x90720000, 0);
@@ -947,7 +947,7 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 		return -1;
 
 	/* put CPU into reset */
-	status = update_by_mnemonic(state, 0x8003003C,0,1, 0);
+	status = update_by_mnemonic(state, 0x8003003C, 0, 1, 0);
 	if (status)
 		return status;
 	usleep_range(1000, 2000);
@@ -996,7 +996,7 @@ static int firmware_download(struct mxl *state, u8 *mbin, u32 mbin_len)
 			return status;
 	} else {
 		/* Bring CPU out of reset */
-		status = update_by_mnemonic(state, 0x8003003C,0,1, 1);
+		status = update_by_mnemonic(state, 0x8003003C, 0, 1, 1);
 		if (status)
 			return status;
 		/* Wait until FW boots */
@@ -1052,213 +1052,213 @@ static int cfg_ts_pad_mux(struct mxl *state, MXL_BOOL_E enableSerialTS)
 	case MXL_HYDRA_DEVICE_541S:
 	case MXL_HYDRA_DEVICE_561S:
 	case MXL_HYDRA_DEVICE_581S:
-		status |= update_by_mnemonic(state, 0x90000170,24,3,
+		status |= update_by_mnemonic(state, 0x90000170, 24, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000170,28,3,
+		status |= update_by_mnemonic(state, 0x90000170, 28, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,0,3,
+		status |= update_by_mnemonic(state, 0x90000174, 0, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,4,3,
+		status |= update_by_mnemonic(state, 0x90000174, 4, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,8,3,
+		status |= update_by_mnemonic(state, 0x90000174, 8, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,12,3,
+		status |= update_by_mnemonic(state, 0x90000174, 12, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,16,3,
+		status |= update_by_mnemonic(state, 0x90000174, 16, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,20,3,
+		status |= update_by_mnemonic(state, 0x90000174, 20, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,24,3,
+		status |= update_by_mnemonic(state, 0x90000174, 24, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000174,28,3,
+		status |= update_by_mnemonic(state, 0x90000174, 28, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000178,0,3,
+		status |= update_by_mnemonic(state, 0x90000178, 0, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000178,4,3,
+		status |= update_by_mnemonic(state, 0x90000178, 4, 3,
 					     padMuxValue);
-		status |= update_by_mnemonic(state, 0x90000178,8,3,
+		status |= update_by_mnemonic(state, 0x90000178, 8, 3,
 					     padMuxValue);
 		break;
 
 	case MXL_HYDRA_DEVICE_544:
 	case MXL_HYDRA_DEVICE_542:
-		status |= update_by_mnemonic(state, 0x9000016C,4,3, 1);
-		status |= update_by_mnemonic(state, 0x9000016C,8,3, 0);
-		status |= update_by_mnemonic(state, 0x9000016C,12,3, 0);
-		status |= update_by_mnemonic(state, 0x9000016C,16,3, 0);
-		status |= update_by_mnemonic(state, 0x90000170,0,3, 0);
-		status |= update_by_mnemonic(state, 0x90000178,12,3, 1);
-		status |= update_by_mnemonic(state, 0x90000178,16,3, 1);
-		status |= update_by_mnemonic(state, 0x90000178,20,3, 1);
-		status |= update_by_mnemonic(state, 0x90000178,24,3, 1);
-		status |= update_by_mnemonic(state, 0x9000017C,0,3, 1);
-		status |= update_by_mnemonic(state, 0x9000017C,4,3, 1);
+		status |= update_by_mnemonic(state, 0x9000016C, 4, 3, 1);
+		status |= update_by_mnemonic(state, 0x9000016C, 8, 3, 0);
+		status |= update_by_mnemonic(state, 0x9000016C, 12, 3, 0);
+		status |= update_by_mnemonic(state, 0x9000016C, 16, 3, 0);
+		status |= update_by_mnemonic(state, 0x90000170, 0, 3, 0);
+		status |= update_by_mnemonic(state, 0x90000178, 12, 3, 1);
+		status |= update_by_mnemonic(state, 0x90000178, 16, 3, 1);
+		status |= update_by_mnemonic(state, 0x90000178, 20, 3, 1);
+		status |= update_by_mnemonic(state, 0x90000178, 24, 3, 1);
+		status |= update_by_mnemonic(state, 0x9000017C, 0, 3, 1);
+		status |= update_by_mnemonic(state, 0x9000017C, 4, 3, 1);
 		if (enableSerialTS == MXL_ENABLE) {
 			status |= update_by_mnemonic(state,
-				0x90000170,4,3, 0);
+				0x90000170, 4, 3, 0);
 			status |= update_by_mnemonic(state,
-				0x90000170,8,3, 0);
+				0x90000170, 8, 3, 0);
 			status |= update_by_mnemonic(state,
-				0x90000170,12,3, 0);
+				0x90000170, 12, 3, 0);
 			status |= update_by_mnemonic(state,
-				0x90000170,16,3, 0);
+				0x90000170, 16, 3, 0);
 			status |= update_by_mnemonic(state,
-				0x90000170,20,3, 1);
+				0x90000170, 20, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000170,24,3, 1);
+				0x90000170, 24, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000170,28,3, 2);
+				0x90000170, 28, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,0,3, 2);
+				0x90000174, 0, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,4,3, 2);
+				0x90000174, 4, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,8,3, 2);
+				0x90000174, 8, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,12,3, 2);
+				0x90000174, 12, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,16,3, 2);
+				0x90000174, 16, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,20,3, 2);
+				0x90000174, 20, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,24,3, 2);
+				0x90000174, 24, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000174,28,3, 2);
+				0x90000174, 28, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000178,0,3, 2);
+				0x90000178, 0, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000178,4,3, 2);
+				0x90000178, 4, 3, 2);
 			status |= update_by_mnemonic(state,
-				0x90000178,8,3, 2);
+				0x90000178, 8, 3, 2);
 		} else {
 			status |= update_by_mnemonic(state,
-				0x90000170,4,3, 3);
+				0x90000170, 4, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000170,8,3, 3);
+				0x90000170, 8, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000170,12,3, 3);
+				0x90000170, 12, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000170,16,3, 3);
+				0x90000170, 16, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000170,20,3, 3);
+				0x90000170, 20, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000170,24,3, 3);
+				0x90000170, 24, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000170,28,3, 3);
+				0x90000170, 28, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000174,0,3, 3);
+				0x90000174, 0, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000174,4,3, 3);
+				0x90000174, 4, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000174,8,3, 3);
+				0x90000174, 8, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000174,12,3, 3);
+				0x90000174, 12, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000174,16,3, 3);
+				0x90000174, 16, 3, 3);
 			status |= update_by_mnemonic(state,
-				0x90000174,20,3, 1);
+				0x90000174, 20, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000174,24,3, 1);
+				0x90000174, 24, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000174,28,3, 1);
+				0x90000174, 28, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000178,0,3, 1);
+				0x90000178, 0, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000178,4,3, 1);
+				0x90000178, 4, 3, 1);
 			status |= update_by_mnemonic(state,
-				0x90000178,8,3, 1);
+				0x90000178, 8, 3, 1);
 		}
 		break;
 
 	case MXL_HYDRA_DEVICE_568:
 		if (enableSerialTS == MXL_FALSE) {
 			status |= update_by_mnemonic(state,
-				0x9000016C,8,3, 5);
+				0x9000016C, 8, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000016C,12,3, 5);
+				0x9000016C, 12, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000016C,16,3, 5);
+				0x9000016C, 16, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000016C,20,3, 5);
+				0x9000016C, 20, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000016C,24,3, 5);
+				0x9000016C, 24, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000016C,28,3, 5);
+				0x9000016C, 28, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000170,0,3, 5);
+				0x90000170, 0, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000170,4,3, 5);
+				0x90000170, 4, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000170,8,3, 5);
+				0x90000170, 8, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000170,12,3, 5);
+				0x90000170, 12, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000170,16,3, 5);
+				0x90000170, 16, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000170,20,3, 5);
+				0x90000170, 20, 3, 5);
 
 			status |= update_by_mnemonic(state,
-				0x90000170,24,3, padMuxValue);
+				0x90000170, 24, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,0,3, padMuxValue);
+				0x90000174, 0, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,4,3, padMuxValue);
+				0x90000174, 4, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,8,3, padMuxValue);
+				0x90000174, 8, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,12,3, padMuxValue);
+				0x90000174, 12, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,16,3, padMuxValue);
+				0x90000174, 16, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,20,3, padMuxValue);
+				0x90000174, 20, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,24,3, padMuxValue);
+				0x90000174, 24, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,28,3, padMuxValue);
+				0x90000174, 28, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000178,0,3, padMuxValue);
+				0x90000178, 0, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000178,4,3, padMuxValue);
+				0x90000178, 4, 3, padMuxValue);
 
 			status |= update_by_mnemonic(state,
-				0x90000178,8,3, 5);
+				0x90000178, 8, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000178,12,3, 5);
+				0x90000178, 12, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000178,16,3, 5);
+				0x90000178, 16, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000178,20,3, 5);
+				0x90000178, 20, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000178,24,3, 5);
+				0x90000178, 24, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x90000178,28,3, 5);
+				0x90000178, 28, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000017C,0,3, 5);
+				0x9000017C, 0, 3, 5);
 			status |= update_by_mnemonic(state,
-				0x9000017C,4,3, 5);
+				0x9000017C, 4, 3, 5);
 		} else {
 			status |= update_by_mnemonic(state,
-				0x90000170,4,3, padMuxValue);
+				0x90000170, 4, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000170,8,3, padMuxValue);
+				0x90000170, 8, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000170,12,3, padMuxValue);
+				0x90000170, 12, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000170,16,3, padMuxValue);
+				0x90000170, 16, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000170,20,3, padMuxValue);
+				0x90000170, 20, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000170,24,3, padMuxValue);
+				0x90000170, 24, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000170,28,3, padMuxValue);
+				0x90000170, 28, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,0,3, padMuxValue);
+				0x90000174, 0, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,4,3, padMuxValue);
+				0x90000174, 4, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,8,3, padMuxValue);
+				0x90000174, 8, 3, padMuxValue);
 			status |= update_by_mnemonic(state,
-				0x90000174,12,3, padMuxValue);
+				0x90000174, 12, 3, padMuxValue);
 		}
 		break;
 
@@ -1266,27 +1266,27 @@ static int cfg_ts_pad_mux(struct mxl *state, MXL_BOOL_E enableSerialTS)
 	case MXL_HYDRA_DEVICE_584:
 	default:
 		status |= update_by_mnemonic(state,
-			0x90000170,4,3, padMuxValue);
+			0x90000170, 4, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000170,8,3, padMuxValue);
+			0x90000170, 8, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000170,12,3, padMuxValue);
+			0x90000170, 12, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000170,16,3, padMuxValue);
+			0x90000170, 16, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000170,20,3, padMuxValue);
+			0x90000170, 20, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000170,24,3, padMuxValue);
+			0x90000170, 24, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000170,28,3, padMuxValue);
+			0x90000170, 28, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000174,0,3, padMuxValue);
+			0x90000174, 0, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000174,4,3, padMuxValue);
+			0x90000174, 4, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000174,8,3, padMuxValue);
+			0x90000174, 8, 3, padMuxValue);
 		status |= update_by_mnemonic(state,
-			0x90000174,12,3, padMuxValue);
+			0x90000174, 12, 3, padMuxValue);
 		break;
 	}
 	return status;
@@ -1304,23 +1304,23 @@ static int set_drive_strength(struct mxl *state,
 	dev_info(&state->i2cdev, "set drive_strength = %u\n", tsDriveStrength);
 
 
-	stat |= update_by_mnemonic(state, 0x90000194,0,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x90000194,20,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x90000194,24,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x90000198,12,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x90000198,16,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x90000198,20,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x90000198,24,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x9000019C,0,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x9000019C,4,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x9000019C,8,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x9000019C,24,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x9000019C,28,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x900001A0,0,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x900001A0,4,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x900001A0,20,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x900001A0,24,3, tsDriveStrength);
-	stat |= update_by_mnemonic(state, 0x900001A0,28,3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000194, 0, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000194, 20, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000194, 24, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000198, 12, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000198, 16, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000198, 20, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x90000198, 24, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x9000019C, 0, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x9000019C, 4, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x9000019C, 8, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x9000019C, 24, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x9000019C, 28, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x900001A0, 0, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x900001A0, 4, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x900001A0, 20, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x900001A0, 24, 3, tsDriveStrength);
+	stat |= update_by_mnemonic(state, 0x900001A0, 28, 3, tsDriveStrength);
 
 	return stat;
 }
@@ -1364,60 +1364,60 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 	u32 clkType = 0;
 
 	MXL_REG_FIELD_T xpt_sync_polarity[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700010,8,1}, {0x90700010,9,1},
-		{0x90700010,10,1}, {0x90700010,11,1},
-		{0x90700010,12,1}, {0x90700010,13,1},
-		{0x90700010,14,1}, {0x90700010,15,1} };
+		{0x90700010, 8, 1}, {0x90700010, 9, 1},
+		{0x90700010, 10, 1}, {0x90700010, 11, 1},
+		{0x90700010, 12, 1}, {0x90700010, 13, 1},
+		{0x90700010, 14, 1}, {0x90700010, 15, 1} };
 	MXL_REG_FIELD_T xpt_clock_polarity[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700010,16,1}, {0x90700010,17,1},
-		{0x90700010,18,1}, {0x90700010,19,1},
-		{0x90700010,20,1}, {0x90700010,21,1},
-		{0x90700010,22,1}, {0x90700010,23,1} };
+		{0x90700010, 16, 1}, {0x90700010, 17, 1},
+		{0x90700010, 18, 1}, {0x90700010, 19, 1},
+		{0x90700010, 20, 1}, {0x90700010, 21, 1},
+		{0x90700010, 22, 1}, {0x90700010, 23, 1} };
 	MXL_REG_FIELD_T xpt_valid_polarity[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700014,0,1}, {0x90700014,1,1},
-		{0x90700014,2,1}, {0x90700014,3,1},
-		{0x90700014,4,1}, {0x90700014,5,1},
-		{0x90700014,6,1}, {0x90700014,7,1} };
+		{0x90700014, 0, 1}, {0x90700014, 1, 1},
+		{0x90700014, 2, 1}, {0x90700014, 3, 1},
+		{0x90700014, 4, 1}, {0x90700014, 5, 1},
+		{0x90700014, 6, 1}, {0x90700014, 7, 1} };
 	MXL_REG_FIELD_T xpt_ts_clock_phase[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700018,0,3}, {0x90700018,4,3},
-		{0x90700018,8,3}, {0x90700018,12,3},
-		{0x90700018,16,3}, {0x90700018,20,3},
-		{0x90700018,24,3}, {0x90700018,28,3} };
+		{0x90700018, 0, 3}, {0x90700018, 4, 3},
+		{0x90700018, 8, 3}, {0x90700018, 12, 3},
+		{0x90700018, 16, 3}, {0x90700018, 20, 3},
+		{0x90700018, 24, 3}, {0x90700018, 28, 3} };
 	MXL_REG_FIELD_T xpt_lsb_first[MXL_HYDRA_DEMOD_MAX] = {
-		{0x9070000C,16,1}, {0x9070000C,17,1},
-		{0x9070000C,18,1}, {0x9070000C,19,1},
-		{0x9070000C,20,1}, {0x9070000C,21,1},
-		{0x9070000C,22,1}, {0x9070000C,23,1} };
+		{0x9070000C, 16, 1}, {0x9070000C, 17, 1},
+		{0x9070000C, 18, 1}, {0x9070000C, 19, 1},
+		{0x9070000C, 20, 1}, {0x9070000C, 21, 1},
+		{0x9070000C, 22, 1}, {0x9070000C, 23, 1} };
 	MXL_REG_FIELD_T xpt_sync_byte[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700010,0,1}, {0x90700010,1,1},
-		{0x90700010,2,1}, {0x90700010,3,1},
-		{0x90700010,4,1}, {0x90700010,5,1},
-		{0x90700010,6,1}, {0x90700010,7,1} };
+		{0x90700010, 0, 1}, {0x90700010, 1, 1},
+		{0x90700010, 2, 1}, {0x90700010, 3, 1},
+		{0x90700010, 4, 1}, {0x90700010, 5, 1},
+		{0x90700010, 6, 1}, {0x90700010, 7, 1} };
 	MXL_REG_FIELD_T xpt_enable_output[MXL_HYDRA_DEMOD_MAX] = {
-		{0x9070000C,0,1}, {0x9070000C,1,1},
-		{0x9070000C,2,1}, {0x9070000C,3,1},
-		{0x9070000C,4,1}, {0x9070000C,5,1},
-		{0x9070000C,6,1}, {0x9070000C,7,1} };
+		{0x9070000C, 0, 1}, {0x9070000C, 1, 1},
+		{0x9070000C, 2, 1}, {0x9070000C, 3, 1},
+		{0x9070000C, 4, 1}, {0x9070000C, 5, 1},
+		{0x9070000C, 6, 1}, {0x9070000C, 7, 1} };
 	MXL_REG_FIELD_T xpt_err_replace_sync[MXL_HYDRA_DEMOD_MAX] = {
-		{0x9070000C,24,1}, {0x9070000C,25,1},
-		{0x9070000C,26,1}, {0x9070000C,27,1},
-		{0x9070000C,28,1}, {0x9070000C,29,1},
-		{0x9070000C,30,1}, {0x9070000C,31,1} };
+		{0x9070000C, 24, 1}, {0x9070000C, 25, 1},
+		{0x9070000C, 26, 1}, {0x9070000C, 27, 1},
+		{0x9070000C, 28, 1}, {0x9070000C, 29, 1},
+		{0x9070000C, 30, 1}, {0x9070000C, 31, 1} };
 	MXL_REG_FIELD_T xpt_err_replace_valid[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700014,8,1}, {0x90700014,9,1},
-		{0x90700014,10,1}, {0x90700014,11,1},
-		{0x90700014,12,1}, {0x90700014,13,1},
-		{0x90700014,14,1}, {0x90700014,15,1} };
+		{0x90700014, 8, 1}, {0x90700014, 9, 1},
+		{0x90700014, 10, 1}, {0x90700014, 11, 1},
+		{0x90700014, 12, 1}, {0x90700014, 13, 1},
+		{0x90700014, 14, 1}, {0x90700014, 15, 1} };
 	MXL_REG_FIELD_T xpt_continuous_clock[MXL_HYDRA_DEMOD_MAX] = {
-		{0x907001D4,0,1}, {0x907001D4,1,1},
-		{0x907001D4,2,1}, {0x907001D4,3,1},
-		{0x907001D4,4,1}, {0x907001D4,5,1},
-		{0x907001D4,6,1}, {0x907001D4,7,1} };
+		{0x907001D4, 0, 1}, {0x907001D4, 1, 1},
+		{0x907001D4, 2, 1}, {0x907001D4, 3, 1},
+		{0x907001D4, 4, 1}, {0x907001D4, 5, 1},
+		{0x907001D4, 6, 1}, {0x907001D4, 7, 1} };
 	MXL_REG_FIELD_T xpt_nco_clock_rate[MXL_HYDRA_DEMOD_MAX] = {
-		{0x90700044,16,80}, {0x90700044,16,81},
-		{0x90700044,16,82}, {0x90700044,16,83},
-		{0x90700044,16,84}, {0x90700044,16,85},
-		{0x90700044,16,86}, {0x90700044,16,87} };
+		{0x90700044, 16, 80}, {0x90700044, 16, 81},
+		{0x90700044, 16, 82}, {0x90700044, 16, 83},
+		{0x90700044, 16, 84}, {0x90700044, 16, 85},
+		{0x90700044, 16, 86}, {0x90700044, 16, 87} };
 
 	demodId = state->base->ts_map[demodId];
 
@@ -1427,7 +1427,7 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 		} else {
 			cfg_ts_pad_mux(state, MXL_TRUE);
 			update_by_mnemonic(state,
-				0x90700010,27,1, MXL_FALSE);
+				0x90700010, 27, 1, MXL_FALSE);
 		}
 	}
 
@@ -1440,7 +1440,7 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 			xpt_nco_clock_rate[demodId].numOfBits, /* Num of bits */
 			ncoCountMin); /* Data */
 	} else
-		update_by_mnemonic(state, 0x90700044,16,8, ncoCountMin);
+		update_by_mnemonic(state, 0x90700044, 16, 8, ncoCountMin);
 
 	if (mpegOutParamPtr->mpegClkType == MXL_HYDRA_MPEG_CLK_CONTINUOUS)
 		clkType = 1;
@@ -1452,7 +1452,7 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 			xpt_continuous_clock[demodId].numOfBits,
 			clkType);
 	} else
-		update_by_mnemonic(state, 0x907001D4,8,1, clkType);
+		update_by_mnemonic(state, 0x907001D4, 8, 1, clkType);
 
 	status |= update_by_mnemonic(state,
 		xpt_sync_polarity[demodId].regAddr,
@@ -1548,16 +1548,16 @@ static int config_ts(struct mxl *state, MXL_HYDRA_DEMOD_ID_E demodId,
 
 static int config_mux(struct mxl *state)
 {
-	update_by_mnemonic(state, 0x9070000C,0,1, 0);
-	update_by_mnemonic(state, 0x9070000C,1,1, 0);
-	update_by_mnemonic(state, 0x9070000C,2,1, 0);
-	update_by_mnemonic(state, 0x9070000C,3,1, 0);
-	update_by_mnemonic(state, 0x9070000C,4,1, 0);
-	update_by_mnemonic(state, 0x9070000C,5,1, 0);
-	update_by_mnemonic(state, 0x9070000C,6,1, 0);
-	update_by_mnemonic(state, 0x9070000C,7,1, 0);
-	update_by_mnemonic(state, 0x90700008,0,2, 1);
-	update_by_mnemonic(state, 0x90700008,2,2, 1);
+	update_by_mnemonic(state, 0x9070000C, 0, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 1, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 2, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 3, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 4, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 5, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 6, 1, 0);
+	update_by_mnemonic(state, 0x9070000C, 7, 1, 0);
+	update_by_mnemonic(state, 0x90700008, 0, 2, 1);
+	update_by_mnemonic(state, 0x90700008, 2, 2, 1);
 	return 0;
 }
 
@@ -1589,9 +1589,9 @@ static int validate_sku(struct mxl *state)
 	int status;
 	u32 type = state->base->type;
 
-	status = read_by_mnemonic(state, 0x90000190,0,3, &padMuxBond);
-	status |= read_by_mnemonic(state, 0x80030000,0,12, &prcmChipId);
-	status |= read_by_mnemonic(state, 0x80030004,24,8, &prcmSoCId);
+	status = read_by_mnemonic(state, 0x90000190, 0, 3, &padMuxBond);
+	status |= read_by_mnemonic(state, 0x80030000, 0, 12, &prcmChipId);
+	status |= read_by_mnemonic(state, 0x80030004, 24, 8, &prcmSoCId);
 	if (status)
 		return -1;
 
@@ -1636,12 +1636,12 @@ static int get_fwinfo(struct mxl *state)
 	int status;
 	u32 val = 0;
 
-	status = read_by_mnemonic(state, 0x90000190,0,3, &val);
+	status = read_by_mnemonic(state, 0x90000190, 0, 3, &val);
 	if (status)
 		return status;
 	dev_info(&state->i2cdev, "chipID=%08x\n", val);
 
-	status = read_by_mnemonic(state, 0x80030004,8,8, &val);
+	status = read_by_mnemonic(state, 0x80030004, 8, 8, &val);
 	if (status)
 		return status;
 	dev_info(&state->i2cdev, "chipVer=%08x\n", val);
@@ -1756,9 +1756,9 @@ static int probe(struct mxl *state, struct mxl5xx_cfg *cfg)
 	if (status)
 		return status;
 
-	update_by_mnemonic(state, 0x80030014,9,1, 1);
-	update_by_mnemonic(state, 0x8003003C,12,1, 1);
-	status = read_by_mnemonic(state, 0x80030000,12,4, &chipver);
+	update_by_mnemonic(state, 0x80030014, 9, 1, 1);
+	update_by_mnemonic(state, 0x8003003C, 12, 1, 1);
+	status = read_by_mnemonic(state, 0x80030000, 12, 4, &chipver);
 	if (status)
 		state->base->chipversion = 0;
 	else
