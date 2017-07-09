@@ -62,6 +62,7 @@ struct stv0367cab_state {
 	u32 symbol_rate;		/* found symbol rate (in Bds)	*/
 	enum fe_spectral_inversion spect_inv; /* Spectrum Inversion	*/
 	u32 qamfec_status_reg;          /* status reg to poll for FEC Lock */
+	u32 prev_ber;
 };
 
 struct stv0367ter_state {
@@ -2642,23 +2643,25 @@ static int stv0367cab_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-#if 0
-void stv0367cab_GetErrorCount(state, enum stv0367cab_mod QAMSize,
-			u32 symbol_rate, FE_367qam_Monitor *Monitor_results)
-{
-	stv0367cab_OptimiseNByteAndGetBER(state, QAMSize, symbol_rate, Monitor_results);
-	stv0367cab_GetPacketsCount(state, Monitor_results);
-
-	return;
-}
-
 static int stv0367cab_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
+	struct stv0367cab_state *cab_state = state->cab_state;
+	u32 err;
+	u8 cntm, cntl, ctrl;
 
+	ctrl = stv0367_readreg(state, R367CAB_BERT_1);
+	if (!(ctrl & 0x20)) {
+		cntl = stv0367_readreg(state, R367CAB_BERT_2);
+		cntm = stv0367_readreg(state, R367CAB_BERT_3);
+		err = (cntm << 8) | cntl;
+		cab_state->prev_ber = err;
+		stv0367_writereg(state, R367CAB_BERT_1, 0x27);
+	}
+	*ber = cab_state->prev_ber;
 	return 0;
 }
-#endif
+
 static s32 stv0367cab_get_rf_lvl(struct stv0367_state *state)
 {
 	s32 rfLevel = 0;
@@ -2862,7 +2865,7 @@ static const struct dvb_frontend_ops stv0367cab_ops = {
 	.set_frontend				= stv0367cab_set_frontend,
 	.get_frontend				= stv0367cab_get_frontend,
 	.read_status				= stv0367cab_read_status,
-/*	.read_ber				= stv0367cab_read_ber, */
+	.read_ber				= stv0367cab_read_ber,
 	.read_signal_strength			= stv0367cab_read_strength,
 	.read_snr				= stv0367cab_read_snr,
 	.read_ucblocks				= stv0367cab_read_ucblcks,
