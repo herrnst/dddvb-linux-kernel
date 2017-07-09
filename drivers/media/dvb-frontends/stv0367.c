@@ -3066,6 +3066,28 @@ static void stv0367ddb_read_snr(struct dvb_frontend *fe)
 	p->cnr.stat[0].uvalue = snrval;
 }
 
+static void stv0367ddb_read_ber(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 ber = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		stv0367ter_read_ber(fe, &ber);
+		break;
+	case demod_cab:
+		stv0367cab_read_ber(fe, &ber);
+		break;
+	default:
+		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	p->post_bit_error.stat[0].uvalue = ber;
+}
+
 static void stv0367ddb_read_ucblocks(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
@@ -3118,11 +3140,14 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 	else
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
-	/* read uncorrected blocks on FE_HAS_LOCK */
-	if (*status & FE_HAS_LOCK)
+	/* read uncorrected blocks and ber on FE_HAS_LOCK */
+	if (*status & FE_HAS_LOCK) {
 		stv0367ddb_read_ucblocks(fe);
-	else
+		stv0367ddb_read_ber(fe);
+	} else {
 		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
 	return 0;
 }
@@ -3246,6 +3271,8 @@ static int stv0367ddb_init(struct stv0367_state *state)
 	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->block_error.len = 1;
 	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.len = 1;
+	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	return 0;
 }
