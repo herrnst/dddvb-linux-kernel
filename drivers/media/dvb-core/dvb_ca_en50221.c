@@ -178,7 +178,9 @@ static void dvb_ca_private_free(struct dvb_ca_private *ca)
 
 static void dvb_ca_private_release(struct kref *ref)
 {
-	struct dvb_ca_private *ca = container_of(ref, struct dvb_ca_private, refcount);
+	struct dvb_ca_private *ca = container_of(ref, struct dvb_ca_private,
+						 refcount);
+
 	dvb_ca_private_free(ca);
 }
 
@@ -296,7 +298,9 @@ static int dvb_ca_en50221_wait_if_status(struct dvb_ca_private *ca, int slot,
 	timeout = jiffies + timeout_hz;
 	while (1) {
 		/* read the status and check for error */
-		int res = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_STATUS);
+		int res = ca->pub->read_cam_control(ca->pub, slot,
+						    CTRLIF_STATUS);
+
 		if (res < 0)
 			return -EIO;
 
