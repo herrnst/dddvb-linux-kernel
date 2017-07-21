@@ -1230,8 +1230,10 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 		i2crpt |= 0x02;
 
 	if (write_reg(state, state->nr ? RSTV0910_P2_I2CRPT :
-		      RSTV0910_P1_I2CRPT, i2crpt) < 0)
+		      RSTV0910_P1_I2CRPT, i2crpt) < 0) {
+		mutex_unlock(&state->base->i2c_lock);
 		return -EIO;
+	}
 
 	state->i2crpt = i2crpt;
 
