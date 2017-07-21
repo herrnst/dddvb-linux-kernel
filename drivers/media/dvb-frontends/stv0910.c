@@ -34,7 +34,7 @@
 #define BER_SRC_S    0x20
 #define BER_SRC_S2   0x20
 
-LIST_HEAD(stvlist);
+static LIST_HEAD(stvlist);
 
 enum receive_mode { RCVMODE_NONE, RCVMODE_DVBS, RCVMODE_DVBS2, RCVMODE_AUTO };
 
@@ -207,7 +207,7 @@ static int write_shared_reg(struct stv *state, u16 reg, u8 mask, u8 val)
 	return status;
 }
 
-struct slookup s1_sn_lookup[] = {
+static struct slookup s1_sn_lookup[] = {
 	{   0,    9242  },  /*C/N=  0dB*/
 	{   5,    9105  },  /*C/N=0.5dB*/
 	{  10,    8950  },  /*C/N=1.0dB*/
@@ -264,7 +264,7 @@ struct slookup s1_sn_lookup[] = {
 	{  510,    425  }   /*C/N=51.0dB*/
 };
 
-struct slookup s2_sn_lookup[] = {
+static struct slookup s2_sn_lookup[] = {
 	{  -30,  13950  },  /*C/N=-2.5dB*/
 	{  -25,  13580  },  /*C/N=-2.5dB*/
 	{  -20,  13150  },  /*C/N=-2.0dB*/
@@ -327,7 +327,7 @@ struct slookup s2_sn_lookup[] = {
 	{  510,    463  },  /*C/N=51.0dB*/
 };
 
-struct slookup padc_lookup[] = {
+static struct slookup padc_lookup[] = {
 	{    0,  118000 }, /* PADC=+0dBm  */
 	{ -100,  93600  }, /* PADC=-1dBm  */
 	{ -200,  74500  }, /* PADC=-2dBm  */
