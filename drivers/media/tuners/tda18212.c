@@ -16,6 +16,77 @@ struct tda18212_dev {
 	u32 if_frequency;
 };
 
+#define	TDA18212_ID_1			0x00
+#define	TDA18212_ID_2			0x01
+#define	TDA18212_ID_3			0x02
+#define	TDA18212_THERMO_1		0x03
+#define	TDA18212_THERMO_2		0x04
+#define	TDA18212_POWER_STATE_1		0x05
+#define	TDA18212_POWER_STATE_2		0x06
+#define	TDA18212_INPUT_POWER_LEVEL	0x07
+#define	TDA18212_IRQ_STATUS		0x08
+#define	TDA18212_IRQ_ENABLE		0x09
+#define	TDA18212_IRQ_CLEAR		0x0A
+#define	TDA18212_IRQ_SET		0x0B
+#define	TDA18212_AGC1_1			0x0C
+#define	TDA18212_AGC2_1			0x0D
+#define	TDA18212_AGCK_1			0x0E
+#define	TDA18212_RF_AGC_1		0x0F
+#define	TDA18212_IR_MIXER_1		0x10
+#define	TDA18212_AGC5_1			0x11
+#define	TDA18212_IF_AGC			0x12
+#define	TDA18212_IF_1			0x13
+#define	TDA18212_REFERENCE		0x14
+#define	TDA18212_IF_FREQUENCY_1		0x15
+#define	TDA18212_RF_FREQUENCY_1		0x16
+#define	TDA18212_RF_FREQUENCY_2		0x17
+#define	TDA18212_RF_FREQUENCY_3		0x18
+#define	TDA18212_MSM_1			0x19
+#define	TDA18212_MSM_2			0x1A
+#define	TDA18212_PSM_1			0x1B
+#define	TDA18212_DCC_1			0x1C
+#define	TDA18212_FLO_MAX		0x1D
+#define	TDA18212_IR_CAL_1		0x1E
+#define	TDA18212_IR_CAL_2		0x1F
+#define	TDA18212_IR_CAL_3		0x20
+#define	TDA18212_IR_CAL_4		0x21
+#define	TDA18212_VSYNC_MGT		0x22
+#define	TDA18212_IR_MIXER_2		0x23
+#define	TDA18212_AGC1_2			0x24
+#define	TDA18212_AGC5_2			0x25
+#define	TDA18212_RF_CAL_1		0x26
+#define	TDA18212_RF_CAL_2		0x27
+#define	TDA18212_RF_CAL_3		0x28
+#define	TDA18212_RF_CAL_4		0x29
+#define	TDA18212_RF_CAL_5		0x2A
+#define	TDA18212_RF_CAL_6		0x2B
+#define	TDA18212_RF_FILTER_1		0x2C
+#define	TDA18212_RF_FILTER_2		0x2D
+#define	TDA18212_RF_FILTER_3		0x2E
+#define	TDA18212_RF_BAND_PASS_FILTER	0x2F
+#define	TDA18212_CP_CURRENT		0x30
+#define	TDA18212_AGC_DET_OUT		0x31
+#define	TDA18212_RF_AGC_GAIN_1		0x32
+#define	TDA18212_RF_AGC_GAIN_2		0x33
+#define	TDA18212_IF_AGC_GAIN		0x34
+#define	TDA18212_POWER_1		0x35
+#define	TDA18212_POWER_2		0x36
+#define	TDA18212_MISC_1			0x37
+#define	TDA18212_RFCAL_LOG_1		0x38
+#define	TDA18212_RFCAL_LOG_2		0x39
+#define	TDA18212_RFCAL_LOG_3		0x3A
+#define	TDA18212_RFCAL_LOG_4		0x3B
+#define	TDA18212_RFCAL_LOG_5		0x3C
+#define	TDA18212_RFCAL_LOG_6		0x3D
+#define	TDA18212_RFCAL_LOG_7		0x3E
+#define	TDA18212_RFCAL_LOG_8		0x3F
+#define	TDA18212_RFCAL_LOG_9		0x40
+#define	TDA18212_RFCAL_LOG_10		0x41
+#define	TDA18212_RFCAL_LOG_11		0x42
+#define	TDA18212_RFCAL_LOG_12		0x43
+
+#define	TDA18212_REG_MAX		0x44
+
 static int tda18212_set_params(struct dvb_frontend *fe)
 {
 	struct tda18212_dev *dev = fe->tuner_priv;
@@ -34,7 +105,7 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 	#define ATSC_VSB 8
 	#define ATSC_QAM 9
 	static const u8 bw_params[][3] = {
-		     /* reg:   0f    13    23 */
+		/* regs: RF_AGC_1 / IF_1 / IR_MIXER_2 */
 		[DVBT_6]  = { 0xb3, 0x20, 0x03 },
 		[DVBT_7]  = { 0xb3, 0x31, 0x01 },
 		[DVBT_8]  = { 0xb3, 0x22, 0x01 },
@@ -112,15 +183,15 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 		goto error;
 	}
 
-	ret = regmap_write(dev->regmap, 0x23, bw_params[i][2]);
+	ret = regmap_write(dev->regmap, TDA18212_IR_MIXER_2, bw_params[i][2]);
 	if (ret)
 		goto error;
 
-	ret = regmap_write(dev->regmap, 0x06, 0x00);
+	ret = regmap_write(dev->regmap, TDA18212_POWER_STATE_2, 0x00);
 	if (ret)
 		goto error;
 
-	ret = regmap_write(dev->regmap, 0x0f, bw_params[i][0]);
+	ret = regmap_write(dev->regmap, TDA18212_RF_AGC_1, bw_params[i][0]);
 	if (ret)
 		goto error;
 
@@ -133,7 +204,7 @@ static int tda18212_set_params(struct dvb_frontend *fe)
 	buf[6] = ((c->frequency / 1000) >>  0) & 0xff;
 	buf[7] = 0xc1;
 	buf[8] = 0x01;
-	ret = regmap_bulk_write(dev->regmap, 0x12, buf, sizeof(buf));
+	ret = regmap_bulk_write(dev->regmap, TDA18212_IF_AGC, buf, sizeof(buf));
 	if (ret)
 		goto error;
 
@@ -205,7 +276,7 @@ static int tda18212_probe(struct i2c_client *client)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
 
-	ret = regmap_read(dev->regmap, 0x00, &chip_id);
+	ret = regmap_read(dev->regmap, TDA18212_ID_1, &chip_id);
 	dev_dbg(&dev->client->dev, "chip_id=%02x\n", chip_id);
 
 	if (fe->ops.i2c_gate_ctrl)
