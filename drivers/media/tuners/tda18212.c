@@ -87,6 +87,32 @@ struct tda18212_dev {
 
 #define	TDA18212_REG_MAX		0x44
 
+static int tda18212_wait_irq(struct tda18212_dev *dev, u8 mask, int timeout)
+{
+	unsigned int irq = 0;
+	int ret;
+
+	while (1) {
+		/* read IRQ_STATUS */
+		ret = regmap_read(dev->regmap, TDA18212_IRQ_STATUS, &irq);
+		if (ret)
+			return -1;
+
+		/* break if bit indicated by mask is set */
+		if (irq & mask)
+			break;
+
+		timeout--;
+		if (!timeout)
+			return -1;
+
+		/* wait ~10ms */
+		usleep_range(10000, 12000);
+	}
+
+	return 0;
+}
+
 static int tda18212_set_params(struct dvb_frontend *fe)
 {
 	struct tda18212_dev *dev = fe->tuner_priv;
@@ -222,6 +248,55 @@ error:
 	goto exit;
 }
 
+static int tda18212_get_rf_strength(struct dvb_frontend *fe, u16 *str)
+{
+	struct tda18212_dev *dev = fe->tuner_priv;
+	int ret;
+	unsigned int irq = 0, pwr = 0;
+
+        /* open I2C gate */
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	ret = regmap_read(dev->regmap, TDA18212_IRQ_CLEAR, &irq);
+	if (ret)
+		goto exit;
+
+	irq |= 0x80; /* reset IRQ */
+	ret = regmap_write(dev->regmap, TDA18212_IRQ_CLEAR, irq);
+	if (ret)
+		goto exit;
+
+	/* power measurement */
+	ret = regmap_write(dev->regmap, TDA18212_MSM_1, 0x80);
+	if (ret)
+		goto exit;
+	/* start MSM */
+	ret = regmap_write(dev->regmap, TDA18212_MSM_2, 0x01);
+	if (ret)
+		goto exit;
+
+	/* wait for IRQ (until done) up to 700ms */
+	ret = tda18212_wait_irq(dev, 0x80, 70);
+	if (ret)
+		goto exit;
+
+	ret = regmap_read(dev->regmap, TDA18212_INPUT_POWER_LEVEL, &pwr);
+	if (ret)
+		goto exit;
+
+	pwr &= 0x7f;
+
+exit:
+	/* close I2C gate */
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	*str = pwr;
+
+	return ret;
+}
+
 static int tda18212_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tda18212_dev *dev = fe->tuner_priv;
@@ -242,6 +317,7 @@ static const struct dvb_tuner_ops tda18212_tuner_ops = {
 
 	.set_params    = tda18212_set_params,
 	.get_if_frequency = tda18212_get_if_frequency,
+	.get_rf_strength = tda18212_get_rf_strength,
 };
 
 static int tda18212_probe(struct i2c_client *client)
