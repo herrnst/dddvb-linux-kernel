@@ -1982,8 +1982,27 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
 	s32 strength;
+	u16 tuner_strength;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+
+	if (fe->ops.tuner_ops.get_rf_strength) {
+		if ((priv->flags & CXD2841ER_USE_GATECTRL) &&
+		    fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		fe->ops.tuner_ops.get_rf_strength(fe, &tuner_strength);
+
+		if ((priv->flags & CXD2841ER_USE_GATECTRL) &&
+		    fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		strength = 1000 * (s64) (s16) tuner_strength;
+		strength -= 108750;
+
+		dev_info(&priv->i2c->dev, "%s() tuner strength = %d, tuner db = %d\n", __func__, tuner_strength, strength);
+	}
+
 	switch (p->delivery_system) {
 	case SYS_DVBT:
 	case SYS_DVBT2:
@@ -1991,7 +2010,8 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 							p->delivery_system);
 		p->strength.stat[0].scale = FE_SCALE_DECIBEL;
 		/* Formula was empirically determinated @ 410 MHz */
-		p->strength.stat[0].uvalue = strength * 366 / 100 - 89520;
+		p->strength.stat[0].svalue = strength * 366 / 100 - 89520;
+		dev_info(&priv->i2c->dev, "%s() agc val = %d, agc strength = %lld\n", __func__, strength, p->strength.stat[0].svalue);
 		break;	/* Code moved out of the function */
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_B:
@@ -2004,7 +2024,8 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 		 * using frequencies: 175 MHz, 410 MHz and 800 MHz, and a
 		 * stream modulated with QAM64
 		 */
-		p->strength.stat[0].uvalue = strength * 4045 / 1000 - 85224;
+		p->strength.stat[0].svalue = strength * 4045 / 1000 - 85224;
+		dev_info(&priv->i2c->dev, "%s() agc val = %d, agc strength = %lld\n", __func__, strength, p->strength.stat[0].svalue);
 		break;
 	case SYS_ISDBT:
 		strength = cxd2841er_read_agc_gain_i(priv, p->delivery_system);
@@ -2013,7 +2034,7 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 		 * Formula was empirically determinated via linear regression,
 		 * using frequencies: 175 MHz, 410 MHz and 800 MHz.
 		 */
-		p->strength.stat[0].uvalue = strength * 3775 / 1000 - 90185;
+		p->strength.stat[0].svalue = strength * 3775 / 1000 - 90185;
 		break;
 	case SYS_DVBS:
 	case SYS_DVBS2:
