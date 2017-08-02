@@ -96,7 +96,7 @@ static int tda18212_wait_irq(struct tda18212_dev *dev, u8 mask, int timeout)
 		/* read IRQ_STATUS */
 		ret = regmap_read(dev->regmap, TDA18212_IRQ_STATUS, &irq);
 		if (ret)
-			return -1;
+			return ret;
 
 		/* break if bit indicated by mask is set */
 		if (irq & mask)
@@ -104,12 +104,13 @@ static int tda18212_wait_irq(struct tda18212_dev *dev, u8 mask, int timeout)
 
 		timeout--;
 		if (!timeout)
-			return -1;
+			return -ETIME;
 
 		/* wait ~10ms */
 		usleep_range(10000, 12000);
 	}
 
+	dev_info(&dev->client->dev, "%s(): ticks left = %d\n", __func__, timeout);
 	return 0;
 }
 
