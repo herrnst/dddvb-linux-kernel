@@ -8459,6 +8459,7 @@ W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/pci/ddbridge/*
+F:	include/uapi/linux/ddbridge-ioctl.h
 
 MEDIA DRIVERS FOR FREESCALE IMX
 M:	Steve Longerbeam <slongerbeam@gmail.com>
