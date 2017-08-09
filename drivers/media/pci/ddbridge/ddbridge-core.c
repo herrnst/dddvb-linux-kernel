@@ -39,6 +39,7 @@
 #include "ddbridge-regs.h"
 #include "ddbridge-maxs8.h"
 #include "ddbridge-io.h"
+#include "ddbridge-ioctl.h"
 
 #include "tda18271c2dd.h"
 #include "stv6110x.h"
@@ -2799,111 +2800,13 @@ irqreturn_t ddb_irq_handler(int irq, void *dev_id)
 /****************************************************************************/
 /****************************************************************************/
 
-static int reg_wait(struct ddb *dev, u32 reg, u32 bit)
-{
-	u32 count = 0;
-
-	while (safe_ddbreadl(dev, reg) & bit) {
-		ndelay(10);
-		if (++count == 100)
-			return -1;
-	}
-	return 0;
-}
-
-static int flashio(struct ddb *dev, u32 lnr, u8 *wbuf, u32 wlen, u8 *rbuf,
-	u32 rlen)
-{
-	u32 data, shift;
-	u32 tag = DDB_LINK_TAG(lnr);
-	struct ddb_link *link = &dev->link[lnr];
-
-	mutex_lock(&link->flash_mutex);
-	if (wlen > 4)
-		ddbwritel(dev, 1, tag | SPI_CONTROL);
-	while (wlen > 4) {
-		/* FIXME: check for big-endian */
-		data = swab32(*(u32 *) wbuf);
-		wbuf += 4;
-		wlen -= 4;
-		ddbwritel(dev, data, tag | SPI_DATA);
-		if (reg_wait(dev, tag | SPI_CONTROL, 4))
-			goto fail;
-	}
-	if (rlen)
-		ddbwritel(dev, 0x0001 | ((wlen << (8 + 3)) & 0x1f00),
-			  tag | SPI_CONTROL);
-	else
-		ddbwritel(dev, 0x0003 | ((wlen << (8 + 3)) & 0x1f00),
-			  tag | SPI_CONTROL);
-
-	data = 0;
-	shift = ((4 - wlen) * 8);
-	while (wlen) {
-		data <<= 8;
-		data |= *wbuf;
-		wlen--;
-		wbuf++;
-	}
-	if (shift)
-		data <<= shift;
-	ddbwritel(dev, data, tag | SPI_DATA);
-	if (reg_wait(dev, tag | SPI_CONTROL, 4))
-		goto fail;
-
-	if (!rlen) {
-		ddbwritel(dev, 0, tag | SPI_CONTROL);
-		goto exit;
-	}
-	if (rlen > 4)
-		ddbwritel(dev, 1, tag | SPI_CONTROL);
-
-	while (rlen > 4) {
-		ddbwritel(dev, 0xffffffff, tag | SPI_DATA);
-		if (reg_wait(dev, tag | SPI_CONTROL, 4))
-			goto fail;
-		data = ddbreadl(dev, tag | SPI_DATA);
-		*(u32 *) rbuf = swab32(data);
-		rbuf += 4;
-		rlen -= 4;
-	}
-	ddbwritel(dev, 0x0003 | ((rlen << (8 + 3)) & 0x1F00),
-		tag | SPI_CONTROL);
-	ddbwritel(dev, 0xffffffff, tag | SPI_DATA);
-	if (reg_wait(dev, tag | SPI_CONTROL, 4))
-		goto fail;
-
-	data = ddbreadl(dev, tag | SPI_DATA);
-	ddbwritel(dev, 0, tag | SPI_CONTROL);
-
-	if (rlen < 4)
-		data <<= ((4 - rlen) * 8);
-
-	while (rlen > 0) {
-		*rbuf = ((data >> 24) & 0xff);
-		data <<= 8;
-		rbuf++;
-		rlen--;
-	}
-exit:
-	mutex_unlock(&link->flash_mutex);
-	return 0;
-fail:
-	mutex_unlock(&link->flash_mutex);
-	return -1;
-}
-
 int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len)
 {
 	u8 cmd[4] = {0x03, (addr >> 16) & 0xff,
 		     (addr >> 8) & 0xff, addr & 0xff};
 
-	return flashio(dev, link, cmd, 4, buf, len);
+	return ddb_flashio(dev, link, cmd, 4, buf, len);
 }
-
-/*
- * TODO/FIXME: add/implement IOCTLs from upstream driver
- */
 
 #define DDB_NAME "ddbridge"
 
@@ -2928,16 +2831,6 @@ static int ddb_open(struct inode *inode, struct file *file)
 	dev->ddb_dev_users++;
 	file->private_data = dev;
 	return 0;
-}
-
-static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	struct ddb *dev = file->private_data;
-
-	dev_warn(dev->dev, "DDB IOCTLs unsupported (cmd: %d, arg: %lu)\n",
-		 cmd, arg);
-
-	return -ENOTTY;
 }
 
 static const struct file_operations ddb_fops = {
