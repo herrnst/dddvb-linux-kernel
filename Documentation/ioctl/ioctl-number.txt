@@ -215,6 +215,7 @@ Code  Seq#(hex)	Include File		Comments
 'c'	A0-AF   arch/x86/include/asm/msr.h	conflict!
 'd'	00-FF	linux/char/drm/drm.h	conflict!
 'd'	02-40	pcmcia/ds.h		conflict!
+'d'	00-0B	linux/ddbridge-ioctl.h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
 'e'	00-1F	drivers/net/irda/irtty-sir.h	conflict!
