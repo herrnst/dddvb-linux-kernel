@@ -166,7 +166,7 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (fio.link > 3)
 			return -EINVAL;
 
-		wbuf = &dev->iobuf[0];
+		wbuf = dev->iobuf;
 		rbuf = wbuf + fio.write_len;
 
 		if (copy_from_user(wbuf, fio.write_buf, fio.write_len))
@@ -254,7 +254,7 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case IOCTL_DDB_READ_MEM:
 	{
 		struct ddb_mem mem;
-		u8 *buf = &dev->iobuf[0];
+		u8 *buf = dev->iobuf;
 
 		if (copy_from_user(&mem, parg, sizeof(mem)))
 			return -EFAULT;
@@ -269,7 +269,7 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case IOCTL_DDB_WRITE_MEM:
 	{
 		struct ddb_mem mem;
-		u8 *buf = &dev->iobuf[0];
+		u8 *buf = dev->iobuf;
 
 		if (copy_from_user(&mem, parg, sizeof(mem)))
 			return -EFAULT;
@@ -285,7 +285,7 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	{
 		struct ddb_i2c_msg i2c;
 		struct i2c_adapter *adap;
-		u8 *mbuf, *hbuf = &dev->iobuf[0];
+		u8 *mbuf, *hbuf = dev->iobuf;
 
 		if (copy_from_user(&i2c, parg, sizeof(i2c)))
 			return -EFAULT;
@@ -296,7 +296,6 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		adap = &dev->i2c[i2c.bus].adap;
 		mbuf = hbuf + i2c.hlen;
-
 
 		if (copy_from_user(hbuf, i2c.hdr, i2c.hlen))
 			return -EFAULT;
@@ -310,7 +309,7 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	{
 		struct ddb_i2c_msg i2c;
 		struct i2c_adapter *adap;
-		u8 *buf = &dev->iobuf[0];
+		u8 *buf = dev->iobuf;
 
 		if (copy_from_user(&i2c, parg, sizeof(i2c)))
 			return -EFAULT;
