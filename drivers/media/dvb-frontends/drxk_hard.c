@@ -6780,6 +6780,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	struct drxk_state *state = NULL;
 	u8 adr = config->adr;
 	int status;
+	int ret;
 
 	dprintk(1, "\n");
 	state = kzalloc(sizeof(struct drxk_state), GFP_KERNEL);
@@ -6826,6 +6827,10 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		state->m_gpio &= ~state->antenna_gpio;
 
 	mutex_init(&state->mutex);
+
+	ret = dvb_frontend_init(&state->frontend);
+	if (ret < 0)
+		goto error;
 
 	memcpy(&state->frontend.ops, &drxk_ops, sizeof(drxk_ops));
 	state->frontend.demodulator_priv = state;
