@@ -324,7 +324,7 @@ static void dvb_frontend_clear_events(struct dvb_frontend *fe)
 	mutex_unlock(&events->mtx);
 }
 
-static void dvb_frontend_init(struct dvb_frontend *fe)
+static void dvb_frontend_initialise(struct dvb_frontend *fe)
 {
 	dev_dbg(fe->dvb->device,
 			"%s: initialising adapter %i frontend %i (%s)...\n",
@@ -663,7 +663,7 @@ static int dvb_frontend_thread(void *data)
 	fepriv->wakeup = 0;
 	fepriv->reinitialise = 0;
 
-	dvb_frontend_init(fe);
+	dvb_frontend_initialise(fe);
 
 	set_freezable();
 	while (1) {
@@ -689,7 +689,7 @@ restart:
 			break;
 
 		if (fepriv->reinitialise) {
-			dvb_frontend_init(fe);
+			dvb_frontend_initialise(fe);
 			if (fe->ops.set_tone && fepriv->tone != -1)
 				fe->ops.set_tone(fe, fepriv->tone);
 			if (fe->ops.set_voltage && fepriv->voltage != -1)
