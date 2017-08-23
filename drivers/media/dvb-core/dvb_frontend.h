@@ -694,6 +694,17 @@ int dvb_register_frontend(struct dvb_adapter *dvb,
 int dvb_unregister_frontend(struct dvb_frontend *fe);
 
 /**
+ * dvb_frontend_init() - Initialize a frontend after allocation
+ * @fe: the frontend to be initialized
+ *
+ * This function must be called by frontend drivers in their attach handler to
+ * initialize the frontend structure they allocate.
+ *
+ * Return 0 on success and a negative error code on failure.
+ */
+int dvb_frontend_init(struct dvb_frontend *fe);
+
+/**
  * dvb_frontend_detach() - Detaches and frees frontend specific data
  *
  * @fe: pointer to &struct dvb_frontend

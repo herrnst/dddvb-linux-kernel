@@ -2862,7 +2862,7 @@ EXPORT_SYMBOL(dvb_frontend_resume);
 int dvb_register_frontend(struct dvb_adapter* dvb,
 			  struct dvb_frontend* fe)
 {
-	struct dvb_frontend_private *fepriv;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	const struct dvb_device dvbdev_template = {
 		.users = ~0,
 		.writers = 1,
@@ -2878,28 +2878,15 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	if (mutex_lock_interruptible(&frontend_mutex))
 		return -ERESTARTSYS;
 
-	fe->frontend_priv = kzalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
-	if (fe->frontend_priv == NULL) {
-		mutex_unlock(&frontend_mutex);
-		return -ENOMEM;
-	}
-	fepriv = fe->frontend_priv;
-
-	kref_init(&fe->refcount);
+	printk(KERN_INFO "%s: frontend %p (id %d)\n", __func__, fe, fe->id);
 
 	/*
-	 * After initialization, there need to be two references: one
-	 * for dvb_unregister_frontend(), and another one for
-	 * dvb_frontend_detach().
+	 * Take a reference to the frontend that will be released at
+	 * unregistration time.
 	 */
 	dvb_frontend_get(fe);
 
-	sema_init(&fepriv->sem, 1);
-	init_waitqueue_head (&fepriv->wait_queue);
-	init_waitqueue_head (&fepriv->events.wait_queue);
-	mutex_init(&fepriv->events.mtx);
 	fe->dvb = dvb;
-	fepriv->inversion = INVERSION_OFF;
 
 	dev_info(fe->dvb->device,
 			"DVB: registering adapter %i frontend %i (%s)...\n",
@@ -2957,3 +2944,26 @@ void dvb_frontend_detach(struct dvb_frontend* fe)
 	dvb_frontend_put(fe);
 }
 EXPORT_SYMBOL(dvb_frontend_detach);
+
+int dvb_frontend_init(struct dvb_frontend *fe)
+{
+	struct dvb_frontend_private *fepriv;
+
+	fepriv = kzalloc(sizeof(*fepriv), GFP_KERNEL);
+	if (fepriv == NULL)
+		return -ENOMEM;
+
+	fe->frontend_priv = fepriv;
+
+	kref_init(&fe->refcount);
+
+	sema_init(&fepriv->sem, 1);
+	init_waitqueue_head(&fepriv->wait_queue);
+	init_waitqueue_head(&fepriv->events.wait_queue);
+	mutex_init(&fepriv->events.mtx);
+
+	fepriv->inversion = INVERSION_OFF;
+
+	return 0;
+}
+EXPORT_SYMBOL(dvb_frontend_init);
