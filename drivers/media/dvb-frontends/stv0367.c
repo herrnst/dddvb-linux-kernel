@@ -3304,6 +3304,7 @@ struct dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
 	struct stv0367_state *state = NULL;
 	struct stv0367ter_state *ter_state = NULL;
 	struct stv0367cab_state *cab_state = NULL;
+	int ret;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct stv0367_state), GFP_KERNEL);
@@ -3343,6 +3344,10 @@ struct dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
 	dev_info(&i2c->dev, "Found %s with ChipID %02X at adr %02X\n",
 		state->fe.ops.info.name, state->chip_id,
 		config->demod_address);
+
+	ret = dvb_frontend_init(&state->fe);
+	if (ret < 0)
+		goto error;
 
 	stv0367ddb_init(state);
 

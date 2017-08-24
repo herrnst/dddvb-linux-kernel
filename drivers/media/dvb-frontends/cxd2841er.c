@@ -3842,6 +3842,7 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	const char *type;
 	const char *name;
 	struct cxd2841er_priv *priv = NULL;
+	int ret;
 
 	/* allocate memory for the internal state */
 	priv = kzalloc(sizeof(struct cxd2841er_priv), GFP_KERNEL);
@@ -3919,6 +3920,13 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 		__func__, name, type);
 	dev_info(&priv->i2c->dev, "%s(): chip ID 0x%02x OK.\n",
 		__func__, chip_id);
+
+	ret = dvb_frontend_init(&priv->frontend);
+	if (ret < 0) {
+		kfree(priv);
+		return NULL;
+	}
+
 	return &priv->frontend;
 }
 
