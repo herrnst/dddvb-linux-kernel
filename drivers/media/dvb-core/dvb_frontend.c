@@ -2862,7 +2862,7 @@ EXPORT_SYMBOL(dvb_frontend_resume);
 int dvb_register_frontend(struct dvb_adapter* dvb,
 			  struct dvb_frontend* fe)
 {
-	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_frontend_private *fepriv;
 	const struct dvb_device dvbdev_template = {
 		.users = ~0,
 		.writers = 1,
@@ -2874,6 +2874,15 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	};
 
 	dev_dbg(dvb->device, "%s:\n", __func__);
+
+	if (!fe->frontend_priv) {
+		dev_info(dvb->device, "initialising frontend '%s', which should be done by the frontend driver by calling dvb_frontend_init() during attach!",
+			 fe->ops.info.name);
+		if (dvb_frontend_init(fe))
+			return -ERESTARTSYS;
+	}
+
+	fepriv = fe->frontend_priv;
 
 	if (mutex_lock_interruptible(&frontend_mutex))
 		return -ERESTARTSYS;
