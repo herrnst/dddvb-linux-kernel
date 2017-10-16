@@ -2345,81 +2345,59 @@ void ddb_ports_release(struct ddb *dev)
 /****************************************************************************/
 /****************************************************************************/
 
-#define IRQ_HANDLE(_nr) \
-	do { if ((s & (1UL << ((_nr) & 0x1f))) && dev->handler[0][_nr]) \
-		dev->handler[0][_nr](dev->handler_data[0][_nr]); } \
-	while (0)
-
-static void irq_handle_msg(struct ddb *dev, u32 s)
+void ddb_irq_tasklet(unsigned long data)
 {
-	dev->i2c_irq++;
-	IRQ_HANDLE(0);
-	IRQ_HANDLE(1);
-	IRQ_HANDLE(2);
-	IRQ_HANDLE(3);
-}
+	struct ddb *dev = (struct ddb *) data;
+	int i;
+	u32 s;
 
-static void irq_handle_io(struct ddb *dev, u32 s)
-{
-	dev->ts_irq++;
-	if ((s & 0x000000f0)) {
-		IRQ_HANDLE(4);
-		IRQ_HANDLE(5);
-		IRQ_HANDLE(6);
-		IRQ_HANDLE(7);
+	/* debug */
+	dev->irqtasklet.count++;
+
+	if (!(dev->irqtasklet.count % 500))
+		dev_dbg(dev->dev, "irqtasklet ping\n");
+
+	/* end debug */
+
+	/* loop and schedule work as long as INTERRUPT_STATUS != 0 */
+	while ((s = safe_ddbreadl(dev, INTERRUPT_STATUS))) {
+		ddbwritel(dev, s, INTERRUPT_ACK);
+
+		if (s & 0x80000000)
+			dev_info(dev->dev, "IRS = 0x%08X, bit31?\n", s);
+
+		if (s & 0x0000000f)
+			dev->i2c_irq++;
+		if (s & 0x0fffff00)
+			dev->ts_irq++;
+
+		if (s) {
+			for (i=0; i<32; i++) {
+				if ((s & (0x01 << i)) && dev->handler[0][i])
+					dev->handler[0][i](dev->handler_data[0][i]);
+			}
+		}
 	}
-	if ((s & 0x0000ff00)) {
-		IRQ_HANDLE(8);
-		IRQ_HANDLE(9);
-		IRQ_HANDLE(10);
-		IRQ_HANDLE(11);
-		IRQ_HANDLE(12);
-		IRQ_HANDLE(13);
-		IRQ_HANDLE(14);
-		IRQ_HANDLE(15);
-	}
-	if ((s & 0x00ff0000)) {
-		IRQ_HANDLE(16);
-		IRQ_HANDLE(17);
-		IRQ_HANDLE(18);
-		IRQ_HANDLE(19);
-		IRQ_HANDLE(20);
-		IRQ_HANDLE(21);
-		IRQ_HANDLE(22);
-		IRQ_HANDLE(23);
-	}
-	if ((s & 0xff000000)) {
-		IRQ_HANDLE(24);
-		IRQ_HANDLE(25);
-		IRQ_HANDLE(26);
-		IRQ_HANDLE(27);
-		IRQ_HANDLE(28);
-		IRQ_HANDLE(29);
-		IRQ_HANDLE(30);
-		IRQ_HANDLE(31);
-	}
+
+	ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
 }
 
 irqreturn_t ddb_irq_handler(int irq, void *dev_id)
 {
 	struct ddb *dev = (struct ddb *)dev_id;
-	u32 s = ddbreadl(dev, INTERRUPT_STATUS);
-	int ret = IRQ_HANDLED;
+	u32 s;
 
+	s = safe_ddbreadl(dev, INTERRUPT_STATUS);
+
+	/* our IRQ? */
 	if (!s)
 		return IRQ_NONE;
-	do {
-		if (s & 0x80000000)
-			return IRQ_NONE;
-		ddbwritel(dev, s, INTERRUPT_ACK);
 
-		if (s & 0x0000000f)
-			irq_handle_msg(dev, s);
-		if (s & 0x0fffff00)
-			irq_handle_io(dev, s);
-	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
+	ddbwritel(dev, 0, INTERRUPT_ENABLE);
 
-	return ret;
+	tasklet_hi_schedule(&dev->irqtasklet.tasklet);
+
+	return IRQ_HANDLED;
 }
 
 /****************************************************************************/

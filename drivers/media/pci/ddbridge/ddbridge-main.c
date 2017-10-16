@@ -95,6 +95,8 @@ static void ddb_irq_disable(struct ddb *dev)
 
 static void ddb_irq_exit(struct ddb *dev)
 {
+	tasklet_kill(&dev->irqtasklet.tasklet);
+
 	ddb_irq_disable(dev);
 	if (dev->msi == 2)
 		free_irq(dev->pdev->irq + 1, dev);
@@ -167,6 +169,10 @@ static int ddb_irq_init(struct ddb *dev)
 
 	ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
+
+	tasklet_init(&dev->irqtasklet.tasklet, ddb_irq_tasklet, (unsigned long) dev);
+
+	dev->irqtasklet.count = 0;
 
 	return stat;
 }
@@ -307,6 +313,7 @@ static __init int module_init_ddbridge(void)
 	if (stat < 0)
 		goto exit2;
 	return stat;
+
 exit2:
 	destroy_workqueue(ddb_wq);
 exit1:

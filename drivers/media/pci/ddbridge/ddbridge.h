@@ -63,7 +63,7 @@
 #include <media/dvb_ca_en50221.h>
 #include <media/dvb_net.h>
 
-#define DDBRIDGE_VERSION "0.9.32-integrated"
+#define DDBRIDGE_VERSION "0.9.32-integrated-irqtest"
 
 #define DDB_MAX_I2C    32
 #define DDB_MAX_PORT   32
@@ -321,6 +321,11 @@ struct ddb_link {
 	u8                     temp_tab[11];
 };
 
+struct ddb_irqtasklet {
+	struct tasklet_struct    tasklet;
+	u32                      count;
+};
+
 struct ddb {
 	struct pci_dev          *pdev;
 	struct platform_device  *pfdev;
@@ -355,6 +360,8 @@ struct ddb {
 	u32                      ts_irq;
 	u32                      i2c_irq;
 
+	struct ddb_irqtasklet    irqtasklet;
+
 	struct mutex             mutex; /* lock access to global ddb array */
 
 	u8                       tsbuf[TS_CAPTURE_LEN];
@@ -382,6 +389,7 @@ void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
 void ddb_buffers_free(struct ddb *dev);
 void ddb_device_destroy(struct ddb *dev);
+void ddb_irq_tasklet(unsigned long data);
 irqreturn_t ddb_irq_handler(int irq, void *dev_id);
 void ddb_ports_init(struct ddb *dev);
 int ddb_buffers_alloc(struct ddb *dev);

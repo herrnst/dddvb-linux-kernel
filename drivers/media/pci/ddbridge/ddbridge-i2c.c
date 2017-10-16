@@ -61,6 +61,12 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 				dev_err(dev->dev, "DDBridge link %u IRS %08x\n",
 					i2c->link, listat);
 			}
+			if (istat != 0xffffffff)
+				dev_err(dev->dev, "[01F4]: %08X [01F8]: %08X [01FC]: %08X\n",
+					ddbreadl(dev, 0x1F4),
+					ddbreadl(dev, 0x1F8),
+					ddbreadl(dev, 0x1FC));
+
 			if (istat & 1) {
 				ddbwritel(dev, istat & 1, INTERRUPT_ACK);
 			} else {
@@ -69,6 +75,15 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 
 				dev_err(dev->dev, "I2C cmd=%08x mon=%08x\n",
 					val, mon);
+			}
+
+			if (istat && istat != 0xffffffff) {
+				dev_err(dev->dev, "trying to recover and re-arm\n");
+				ddbwritel(dev, 0, INTERRUPT_ENABLE);
+				tasklet_hi_schedule(&dev->irqtasklet);
+			} else {
+				dev_err(dev->dev, "IRS = %08x, IO/Bus error, not attempting to recover\n",
+					istat);
 			}
 		}
 		return -EIO;
