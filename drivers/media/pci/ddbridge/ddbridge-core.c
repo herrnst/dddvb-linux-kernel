@@ -2400,40 +2400,6 @@ static void irq_handle_io(struct ddb *dev, u32 s)
 	}
 }
 
-irqreturn_t ddb_irq_handler0(int irq, void *dev_id)
-{
-	struct ddb *dev = (struct ddb *)dev_id;
-	u32 s = ddbreadl(dev, INTERRUPT_STATUS);
-
-	do {
-		if (s & 0x80000000)
-			return IRQ_NONE;
-		if (!(s & 0xfffff00))
-			return IRQ_NONE;
-		ddbwritel(dev, s & 0xfffff00, INTERRUPT_ACK);
-		irq_handle_io(dev, s);
-	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
-
-	return IRQ_HANDLED;
-}
-
-irqreturn_t ddb_irq_handler1(int irq, void *dev_id)
-{
-	struct ddb *dev = (struct ddb *)dev_id;
-	u32 s = ddbreadl(dev, INTERRUPT_STATUS);
-
-	do {
-		if (s & 0x80000000)
-			return IRQ_NONE;
-		if (!(s & 0x0000f))
-			return IRQ_NONE;
-		ddbwritel(dev, s & 0x0000f, INTERRUPT_ACK);
-		irq_handle_msg(dev, s);
-	} while ((s = ddbreadl(dev, INTERRUPT_STATUS)));
-
-	return IRQ_HANDLED;
-}
-
 irqreturn_t ddb_irq_handler(int irq, void *dev_id)
 {
 	struct ddb *dev = (struct ddb *)dev_id;

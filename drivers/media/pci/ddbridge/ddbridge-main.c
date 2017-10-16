@@ -155,36 +155,19 @@ static int ddb_irq_init(struct ddb *dev)
 	ddbwritel(dev, 0x00000000, MSI7_ENABLE);
 
 #ifdef CONFIG_PCI_MSI
-	ddb_irq_msi(dev, 2);
+	ddb_irq_msi(dev, 1);
 
 	if (dev->msi)
 		irq_flag = 0;
-	if (dev->msi == 2) {
-		stat = request_irq(dev->pdev->irq, ddb_irq_handler0,
-				   irq_flag, "ddbridge", (void *)dev);
-		if (stat < 0)
-			return stat;
-		stat = request_irq(dev->pdev->irq + 1, ddb_irq_handler1,
-				   irq_flag, "ddbridge", (void *)dev);
-		if (stat < 0) {
-			free_irq(dev->pdev->irq, dev);
-			return stat;
-		}
-	} else
 #endif
-	{
-		stat = request_irq(dev->pdev->irq, ddb_irq_handler,
-				   irq_flag, "ddbridge", (void *)dev);
-		if (stat < 0)
-			return stat;
-	}
-	if (dev->msi == 2) {
-		ddbwritel(dev, 0x0fffff00, INTERRUPT_ENABLE);
-		ddbwritel(dev, 0x0000000f, MSI1_ENABLE);
-	} else {
-		ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
-		ddbwritel(dev, 0x00000000, MSI1_ENABLE);
-	}
+	stat = request_irq(dev->pdev->irq, ddb_irq_handler,
+			   irq_flag, "ddbridge", (void *)dev);
+	if (stat < 0)
+		return stat;
+
+	ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
+	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
+
 	return stat;
 }
 

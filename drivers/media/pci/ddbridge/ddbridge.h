@@ -382,8 +382,6 @@ void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
 void ddb_buffers_free(struct ddb *dev);
 void ddb_device_destroy(struct ddb *dev);
-irqreturn_t ddb_irq_handler0(int irq, void *dev_id);
-irqreturn_t ddb_irq_handler1(int irq, void *dev_id);
 irqreturn_t ddb_irq_handler(int irq, void *dev_id);
 void ddb_ports_init(struct ddb *dev);
 int ddb_buffers_alloc(struct ddb *dev);
