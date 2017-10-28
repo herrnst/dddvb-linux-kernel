@@ -321,11 +321,6 @@ struct ddb_link {
 	u8                     temp_tab[11];
 };
 
-struct ddb_irqtasklet {
-	struct tasklet_struct    tasklet;
-	u32                      count;
-};
-
 struct ddb {
 	struct pci_dev          *pdev;
 	struct platform_device  *pfdev;
@@ -360,7 +355,7 @@ struct ddb {
 	u32                      ts_irq;
 	u32                      i2c_irq;
 
-	struct ddb_irqtasklet    irqtasklet;
+	struct tasklet_struct    irqtasklet;
 
 	struct mutex             mutex; /* lock access to global ddb array */
 
@@ -376,6 +371,7 @@ int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 /****************************************************************************/
 
 /* ddbridge-main.c (modparams) */
+extern int irqtasklet;
 extern int ci_bitrate;
 extern int ts_loop;
 extern int xo2_speed;

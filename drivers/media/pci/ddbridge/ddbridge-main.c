@@ -55,6 +55,10 @@ MODULE_PARM_DESC(msi, "Control MSI interrupts: 0-disable (default), 1-enable");
 #endif
 #endif
 
+int irqtasklet;
+module_param(irqtasklet, int, 0444);
+MODULE_PARM_DESC(irqtasklet, "Use deferred and re-arming IRQ processing (tasklet): 0-disable (default), 1-enable");
+
 int ci_bitrate = 70000;
 module_param(ci_bitrate, int, 0444);
 MODULE_PARM_DESC(ci_bitrate, " Bitrate in KHz for output to CI.");
@@ -95,7 +99,8 @@ static void ddb_irq_disable(struct ddb *dev)
 
 static void ddb_irq_exit(struct ddb *dev)
 {
-	tasklet_kill(&dev->irqtasklet.tasklet);
+	if (irqtasklet)
+		tasklet_kill(&dev->irqtasklet);
 
 	ddb_irq_disable(dev);
 	if (dev->msi == 2)
@@ -170,9 +175,10 @@ static int ddb_irq_init(struct ddb *dev)
 	ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
 	ddbwritel(dev, 0x00000000, MSI1_ENABLE);
 
-	tasklet_init(&dev->irqtasklet.tasklet, ddb_irq_tasklet, (unsigned long) dev);
-
-	dev->irqtasklet.count = 0;
+	if (irqtasklet) {
+		dev_info(dev->dev, "Using deferred IRQ processing (IRQ tasklet)\n");
+		tasklet_init(&dev->irqtasklet, ddb_irq_tasklet, (unsigned long) dev);
+	}
 
 	return stat;
 }

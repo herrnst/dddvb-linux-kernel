@@ -2351,20 +2351,12 @@ void ddb_irq_tasklet(unsigned long data)
 	int i;
 	u32 s;
 
-	/* debug */
-	dev->irqtasklet.count++;
-
-	if (!(dev->irqtasklet.count % 500))
-		dev_dbg(dev->dev, "irqtasklet ping\n");
-
-	/* end debug */
-
 	/* loop and schedule work as long as INTERRUPT_STATUS != 0 */
 	while ((s = safe_ddbreadl(dev, INTERRUPT_STATUS))) {
 		ddbwritel(dev, s, INTERRUPT_ACK);
 
 		if (s & 0x80000000)
-			dev_info(dev->dev, "IRS = 0x%08X, bit31?\n", s);
+			dev_warn(dev->dev, "IRS bit 31 == 1 (IRS = 0x%08X)\n", s);
 
 		if (s & 0x0000000f)
 			dev->i2c_irq++;
@@ -2379,7 +2371,8 @@ void ddb_irq_tasklet(unsigned long data)
 		}
 	}
 
-	ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
+	if (irqtasklet)
+		ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
 }
 
 irqreturn_t ddb_irq_handler(int irq, void *dev_id)
@@ -2393,9 +2386,16 @@ irqreturn_t ddb_irq_handler(int irq, void *dev_id)
 	if (!s)
 		return IRQ_NONE;
 
-	ddbwritel(dev, 0, INTERRUPT_ENABLE);
-
-	tasklet_hi_schedule(&dev->irqtasklet.tasklet);
+	/*
+	 * IRQ tasklet: Turn off generation of interrupts and defer
+	 * handling using a tasklet which will re-arm IRQs
+	 */
+	if (irqtasklet) {
+		ddbwritel(dev, 0, INTERRUPT_ENABLE);
+		tasklet_hi_schedule(&dev->irqtasklet);
+	} else {
+		ddb_irq_tasklet((unsigned long) dev);
+	}
 
 	return IRQ_HANDLED;
 }

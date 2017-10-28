@@ -80,7 +80,13 @@ static int ddb_i2c_cmd(struct ddb_i2c *i2c, u32 adr, u32 cmd)
 			if (istat && istat != 0xffffffff) {
 				dev_err(dev->dev, "trying to recover and re-arm\n");
 				ddbwritel(dev, 0, INTERRUPT_ENABLE);
-				tasklet_hi_schedule(&dev->irqtasklet);
+
+				if (irqtasklet) {
+					tasklet_hi_schedule(&dev->irqtasklet);
+				} else {
+					ddb_irq_tasklet((unsigned long) dev);
+					ddbwritel(dev, 0x0fffff0f, INTERRUPT_ENABLE);
+				}
 			} else {
 				dev_err(dev->dev, "IRS = %08x, IO/Bus error, not attempting to recover\n",
 					istat);
