@@ -260,10 +260,6 @@ static int tda18212_remove(struct i2c_client *client)
 	struct tda18212_dev *dev = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = dev->cfg.fe;
 
-	dev_dbg(&client->dev, "\n");
-
-	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
-	fe->tuner_priv = NULL;
 	kfree(dev);
 
 	return 0;
