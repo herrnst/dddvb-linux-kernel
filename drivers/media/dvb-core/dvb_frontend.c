@@ -2311,6 +2311,15 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBS2:
 		switch (c->rolloff) {
+		case ROLLOFF_5:
+			rolloff = 105;
+			break;
+		case ROLLOFF_10:
+			rolloff = 110;
+			break;
+		case ROLLOFF_15:
+			rolloff = 115;
+			break;
 		case ROLLOFF_20:
 			rolloff = 120;
 			break;
