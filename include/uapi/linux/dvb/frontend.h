@@ -296,6 +296,8 @@ enum fe_spectral_inversion {
  * @FEC_3_5:  Forward Error Correction Code 3/5
  * @FEC_9_10: Forward Error Correction Code 9/10
  * @FEC_2_5:  Forward Error Correction Code 2/5
+ * @FEC_1_4:  Forward Error Correction Code 1/4
+ * @FEC_1_3:  Forward Error Correction Code 1/3
  *
  * Please note that not all FEC types are supported by a given standard.
  */
@@ -313,6 +315,8 @@ enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
+	FEC_1_4,
+	FEC_1_3,
 };
 
 /**
@@ -331,6 +335,9 @@ enum fe_code_rate {
  * @APSK_32:	32-APSK modulation
  * @DQPSK:	DQPSK modulation
  * @QAM_4_NR:	4-QAM-NR modulation
+ * @APSK_64:	64-APSK modulation
+ * @APSK_128:	128-APSK modulation
+ * @APSK_256:	256-APSK modulation
  *
  * Please note that not all modulations are supported by a given standard.
  *
@@ -350,6 +357,9 @@ enum fe_modulation {
 	APSK_32,
 	DQPSK,
 	QAM_4_NR,
+	APSK_64,
+	APSK_128,
+	APSK_256,
 };
 
 /**
@@ -374,6 +384,8 @@ enum fe_modulation {
  *	Single Carrier (C=1) transmission mode (DTMB only)
  * @TRANSMISSION_MODE_C3780:
  *	Multi Carrier (C=3780) transmission mode (DTMB only)
+ * @TRANSMISSION_MODE_64K:
+ *	Transmission mode 64K
  *
  * Please note that not all transmission modes are supported by a given
  * standard.
@@ -388,6 +400,7 @@ enum fe_transmit_mode {
 	TRANSMISSION_MODE_32K,
 	TRANSMISSION_MODE_C1,
 	TRANSMISSION_MODE_C3780,
+	TRANSMISSION_MODE_64K,
 };
 
 /**
@@ -567,20 +580,26 @@ enum fe_pilot {
 
 /**
  * enum fe_rolloff - Rolloff factor
- * @ROLLOFF_35:		Roloff factor: α=35%
- * @ROLLOFF_20:		Roloff factor: α=20%
- * @ROLLOFF_25:		Roloff factor: α=25%
- * @ROLLOFF_AUTO:	Auto-detect the roloff factor.
+ * @ROLLOFF_35:		Rolloff factor: α=35%
+ * @ROLLOFF_20:		Rolloff factor: α=20%
+ * @ROLLOFF_25:		Rolloff factor: α=25%
+ * @ROLLOFF_AUTO:	Auto-detect the rolloff factor.
+ * @ROLLOFF_15:		Rolloff factor: α=15%
+ * @ROLLOFF_10:		Rolloff factor: α=10%
+ * @ROLLOFF_5:		Rolloff factor: α=5%
  *
  * .. note:
  *
- *    Roloff factor of 35% is implied on DVB-S. On DVB-S2, it is default.
+ *    Rolloff factor of 35% is implied on DVB-S. On DVB-S2, it is default.
  */
 enum fe_rolloff {
 	ROLLOFF_35,
 	ROLLOFF_20,
 	ROLLOFF_25,
 	ROLLOFF_AUTO,
+	ROLLOFF_15,
+	ROLLOFF_10,
+	ROLLOFF_5,
 };
 
 /**
