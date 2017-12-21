@@ -93,6 +93,8 @@ ignore symbol APSK_16_L
 ignore symbol APSK_32_L
 ignore symbol APSK_64
 ignore symbol APSK_64_L
+ignore symbol APSK_128
+ignore symbol APSK_256
 
 ignore symbol SEC_VOLTAGE_13
 ignore symbol SEC_VOLTAGE_18
@@ -158,6 +160,7 @@ ignore symbol TRANSMISSION_MODE_C1
 ignore symbol TRANSMISSION_MODE_C3780
 ignore symbol TRANSMISSION_MODE_2K
 ignore symbol TRANSMISSION_MODE_8K
+ignore symbol TRANSMISSION_MODE_64K
 
 ignore symbol GUARD_INTERVAL_AUTO
 ignore symbol GUARD_INTERVAL_1_128
