@@ -222,6 +222,8 @@ int saa716x_ir_init(struct saa716x_dev *saa716x)
 		ir->key_map[i] = i+1;
 	ir_register_keys(ir);
 
+	input_enable_softrepeat(input_dev, 800, 200);
+
 	tasklet_init(&ir->tasklet, ir_emit_key, (unsigned long) saa716x);
 	saa716x->ir_priv = ir;
 
