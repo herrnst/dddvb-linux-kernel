@@ -1,19 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011-2013 MaxLinear, Inc. All rights reserved
  *
- * License type: GPLv2
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- *
  * This program may alternatively be licensed under a proprietary license from
  * MaxLinear, Inc.
- *
  */
 
 #ifndef __MXL58X_REGISTERS_H__

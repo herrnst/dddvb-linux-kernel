@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Defines for the Maxlinear MX58x family of tuners/demods
  *
@@ -6,10 +7,6 @@
  * based on code:
  * Copyright (c) 2011-2013 MaxLinear, Inc. All rights reserved
  * which was released under GPL V2
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
  */
 
 enum MXL_BOOL_E {
