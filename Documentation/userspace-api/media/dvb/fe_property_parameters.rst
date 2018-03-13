@@ -150,7 +150,8 @@ ISDB-T			5MHz, 6MHz, 7MHz and 8MHz, although most places
      :ref:`DTV-SYMBOL-RATE`, and the rolloff factor, with is fixed for
      DVB-C and DVB-S.
 
-     For DVB-S2, the rolloff should also be set via :ref:`DTV-ROLLOFF`.
+     For DVB-S2 and DVB-S2X, the rolloff should also be set via
+     :ref:`DTV-ROLLOFF`.
 
 
 .. _DTV-INVERSION:
@@ -219,9 +220,9 @@ Currently not used.
 DTV_PILOT
 =========
 
-Used on DVB-S2.
+Used on DVB-S2 and DVB-S2X.
 
-Sets DVB-S2 pilot.
+Sets DVB-S2(X) pilot.
 
 The acceptable values are defined by :c:type:`fe_pilot`.
 
@@ -231,11 +232,16 @@ The acceptable values are defined by :c:type:`fe_pilot`.
 DTV_ROLLOFF
 ===========
 
-Used on DVB-S2.
+Used on DVB-S2 and DVB-S2X.
 
-Sets DVB-S2 rolloff.
+Sets DVB-S2(X) rolloff.
 
 The acceptable values are defined by :c:type:`fe_rolloff`.
+
+.. note::
+
+   Rolloff factors 15%, 10% an 5% are part of the DVB-S2X specifications
+   and thus are valid only for S2X-modulated transponders.
 
 
 .. _DTV-DISEQC-SLAVE-REPLY:
@@ -270,6 +276,12 @@ DTV_DELIVERY_SYSTEM
 Specifies the type of the delivery system.
 
 The acceptable values are defined by :c:type:`fe_delivery_system`.
+
+.. note::
+
+   Since DVB-S2X only defines more rolloff's and more APSK modulations
+   without adding more attributes, DVB-S2X is handled via the DVB-S2
+   delivery system.
 
 
 .. _DTV-ISDBT-PARTIAL-RECEPTION:
@@ -899,7 +911,7 @@ The acceptable values are defined by :c:type:`fe_transmit_mode`.
 
    #. DVB-T specifies 2K and 8K as valid sizes.
 
-   #. DVB-T2 specifies 1K, 2K, 4K, 8K, 16K and 32K.
+   #. DVB-T2 specifies 1K, 2K, 4K, 8K, 16K, 32K and 64K.
 
    #. DTMB specifies C1 and C3780.
 
@@ -1000,13 +1012,14 @@ use the special macro LNA_AUTO to set LNA auto
 DTV_SCRAMBLING_SEQUENCE_INDEX
 =============================
 
-Used on DVB-S2.
+Used on DVB-S2 and DVB-S2X.
 
-This 18 bit field, when present, carries the index of the DVB-S2 physical
-layer scrambling sequence as defined in clause 5.5.4 of EN 302 307.
-There is no explicit signalling method to convey scrambling sequence index
-to the receiver. If S2 satellite delivery system descriptor is available
-it can be used to read the scrambling sequence index (EN 300 468 table 41).
+This 18 bit field, when present, carries the index of the DVB-S2(X)
+physical layer scrambling sequence as defined in clause 5.5.4 of
+EN 302 307. There is no explicit signalling method to convey scrambling
+sequence index to the receiver. If S2 satellite delivery system descriptor
+is available it can be used to read the scrambling sequence index
+(EN 300 468 table 41).
 
 By default, gold scrambling sequence index 0 is used.
 
