@@ -46,11 +46,11 @@ Future implementations might add those two missing parameters:
 
 .. _dvbs2-params:
 
-DVB-S2 delivery system
-======================
+DVB-S2 and -S2X delivery systems
+================================
 
-In addition to all parameters valid for DVB-S, DVB-S2 supports the
-following parameters:
+In addition to all parameters valid for DVB-S, both DVB-S2 and DVB-S2X
+support the following parameters:
 
 -  :ref:`DTV_MODULATION <DTV-MODULATION>`
 
