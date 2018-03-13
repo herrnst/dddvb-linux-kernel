@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ngene-cards.c: nGene PCIe bridge driver - card specific info
  *
@@ -8,19 +9,14 @@
  *                         support for EEPROM-copying,
  *                         support for new dual DVB-S2 card prototype
  *
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 only, as published by the Free Software Foundation.
  *
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1253,4 +1249,4 @@ module_exit(module_exit_ngene);
 
 MODULE_DESCRIPTION("nGene");
 MODULE_AUTHOR("Micronas, Ralph Metzler, Manfred Voelkel");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
