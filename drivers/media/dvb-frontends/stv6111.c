@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the ST STV6111 tuner
  *
@@ -9,9 +10,8 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -688,4 +688,4 @@ EXPORT_SYMBOL_GPL(stv6111_attach);
 
 MODULE_DESCRIPTION("ST STV6111 satellite tuner driver");
 MODULE_AUTHOR("Ralph Metzler, Manfred Voelkel");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

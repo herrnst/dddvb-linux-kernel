@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the ST STV0910 DVB-S/S2 demodulator.
  *
@@ -11,7 +12,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  */
 
@@ -1841,4 +1842,4 @@ EXPORT_SYMBOL_GPL(stv0910_attach);
 
 MODULE_DESCRIPTION("ST STV0910 multistandard frontend driver");
 MODULE_AUTHOR("Ralph and Marcus Metzler, Manfred Voelkel");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
