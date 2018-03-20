@@ -23,7 +23,6 @@
 static LIST_HEAD(mci_list);
 
 static const u32 MCLK = (1550000000 / 12);
-static const u32 MAX_DEMOD_LDPC_BITRATE = (1550000000 / 6);
 static const u32 MAX_LDPC_BITRATE = (720000000);
 
 struct mci_base {
@@ -33,6 +32,8 @@ struct mci_base {
 	struct completion    completion;
 
 	struct device       *dev;
+	struct i2c_adapter  *i2c;
+	struct mutex         i2c_lock;
 	struct mutex         tuner_lock; /* concurrent tuner access lock */
 	u8                   adr;
 	struct mutex         mci_lock; /* concurrent MCI access lock */
@@ -122,6 +123,17 @@ static int _mci_cmd_unlocked(struct mci *state,
 	return 0;
 }
 
+static int mci_cmd_unlocked(struct mci *state,
+			    struct mci_command *command,
+			    struct mci_result *result)
+{
+	u32 *cmd = (u32 *)command;
+	u32 *res = (u32 *)result;
+
+	return _mci_cmd_unlocked(state, cmd, sizeof(*command) / sizeof(u32),
+				 res, sizeof(*result) / sizeof(u32));
+}
+
 static int mci_cmd(struct mci *state,
 		   struct mci_command *command,
 		   struct mci_result *result)
@@ -136,12 +148,61 @@ static int mci_cmd(struct mci *state,
 	return stat;
 }
 
+static int _mci_cmd(struct mci *state,
+		    struct mci_command *command, u32 command_len,
+		    struct mci_result *result, u32 result_len)
+{
+	int stat;
+
+	mutex_lock(&state->base->mci_lock);
+	stat = _mci_cmd_unlocked(state,
+				 (u32 *)command, command_len,
+				 (u32 *)result, result_len);
+	mutex_unlock(&state->base->mci_lock);
+	return stat;
+}
+
 static void mci_handler(void *priv)
 {
 	struct mci_base *base = (struct mci_base *)priv;
 
 	complete(&base->completion);
 }
+
+static const u8 dvbs2_bits_per_symbol[] = {
+	0, 0, 0, 0,
+	/* S2 QPSK */
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	/* S2 8PSK */
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3,
+	/* S2 16APSK */
+	4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+	4, 4, 4, 4, 4, 4, 4, 4,
+	/* S2 32APSK */
+	5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5,
+
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+	3, 0, 4, 0,
+	2, 2, 2,                               2, 2, 2,                                  // S2X QPSK
+	3, 3, 3, 3, 3,                         3, 3, 3, 3, 3,                            // S2X 8PSK
+	4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,    // S2X 16APSK
+	5, 5, 5, 5, 5,                         5, 5, 5, 5, 5,                            // S2X 32APSK
+	6, 6, 6, 6, 6, 6, 6, 6,                6, 6, 6, 6, 6, 6, 6, 6,                   // S2X 64APSK
+	7, 7,                                  7, 7,                                     // S2X 128APSK
+	8, 8, 8, 8, 8, 8,                      8, 8, 8, 8, 8, 8,                         // S2X 256APSK
+
+	2, 2, 2, 2, 2, 2,                      2, 2, 2, 2, 2, 2,                         // S2X QPSK
+	3, 3, 3, 3,                            3, 3, 3, 3,                               // S2X 8PSK
+	4, 4, 4, 4, 4,                         4, 4, 4, 4, 4,                            // S2X 16APSK
+	5, 5,                                  5, 5,                                     // S2X 32APSK
+
+	3, 4, 5, 6, 8, 10,
+};
 
 static void release(struct dvb_frontend *fe)
 {
@@ -155,22 +216,36 @@ static void release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
+static int get_info(struct dvb_frontend *fe)
+{
+	int stat;
+	struct mci *state = fe->demodulator_priv;
+	struct mci_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.command = MCI_CMD_GETSIGNALINFO;
+	cmd.demod = state->demod;
+	stat = mci_cmd(state, &cmd, &state->signal_info);
+	return stat;
+}
+
 static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int stat;
 	struct mci *state = fe->demodulator_priv;
 	struct mci_command cmd;
-	struct mci_result res;
+	u32 val;
+	struct mci_result *res = (struct mci_result *)&val;
 
 	cmd.command = MCI_CMD_GETSTATUS;
 	cmd.demod = state->demod;
-	stat = mci_cmd(state, &cmd, &res);
+	stat = _mci_cmd(state, &cmd, 1, res, 1);
 	if (stat)
 		return stat;
 	*status = 0x00;
-	if (res.status == SX8_DEMOD_WAIT_MATYPE)
+	if (res->status == SX8_DEMOD_WAIT_MATYPE)
 		*status = 0x0f;
-	if (res.status == SX8_DEMOD_LOCKED)
+	if (res->status == SX8_DEMOD_LOCKED)
 		*status = 0x1f;
 	return stat;
 }
@@ -224,6 +299,7 @@ static int start(struct dvb_frontend *fe, u32 flags, u32 modmask, u32 ts_config)
 {
 	struct mci *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	static const u32 MAX_DEMOD_LDPC_BITRATE = (1550000000 / 6);
 	u32 used_ldpc_bitrate = 0, free_ldpc_bitrate;
 	u32 used_demods = 0;
 	struct mci_command cmd;
@@ -333,6 +409,8 @@ static int start_iq(struct dvb_frontend *fe, u32 ts_config)
 {
 	struct mci *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	static const u32 MAX_DEMOD_LDPC_BITRATE = (1550000000 / 6);
+	u32 used_ldpc_bitrate = 0, free_ldpc_bitrate;
 	u32 used_demods = 0;
 	struct mci_command cmd;
 	u32 input = state->tuner;
@@ -453,9 +531,42 @@ static enum dvbfe_algo get_algo(struct dvb_frontend *fe)
 static int set_input(struct dvb_frontend *fe, int input)
 {
 	struct mci *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	state->tuner = input;
 	dev_dbg(state->base->dev, "MCI-%d: input=%d\n", state->nr, input);
+	return 0;
+}
+
+static int sleep(struct dvb_frontend *fe)
+{
+	struct mci *state = fe->demodulator_priv;
+}
+
+static int get_snr(struct dvb_frontend *fe)
+{
+	struct mci *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	s32 snr;
+
+	get_info(fe);
+	p->cnr.len = 1;
+	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	p->cnr.stat[0].svalue = (s64)state->signal_info.dvbs2_signal_info.signal_to_noise * 100;
+	return 0;
+}
+
+static int get_strength(struct dvb_frontend *fe)
+{
+	struct mci *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	s32 str;
+
+	get_info(fe);
+	str = 100000 - (state->signal_info.dvbs2_signal_info.channel_power * 10 + 108750);
+	p->strength.len = 1;
+	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	p->strength.stat[0].svalue = str;
 	return 0;
 }
 
