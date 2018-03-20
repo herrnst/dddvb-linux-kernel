@@ -94,30 +94,31 @@
 #define M4_CMD_DIAG_READRF      (0xE8)
 #define M4_CMD_DIAG_WRITERF     (0xE9)
 
+
 struct mci_command {
-	union {
-		u32 command_word;
-		struct {
-			u8 command;
-			u8 tuner;
-			u8 demod;
-			u8 output;
-		};
-	};
-	union {
-		u32 params[31];
-		struct {
-			u8  flags;
-			u8  s2_modulation_mask;
-			u8  rsvd1;
-			u8  retry;
-			u32 frequency;
-			u32 symbol_rate;
-			u8  input_stream_id;
-			u8  rsvd2[3];
-			u32 scrambling_sequence_index;
-		} dvbs2_search;
-	};
+    union {
+        u32 command_word;
+        struct {
+            u8 command;
+            u8 tuner;
+            u8 demod;
+            u8 output;
+        };
+    };
+    union {
+        u32 params[31];
+        struct {
+		u8  flags;
+		u8  s2_modulation_mask;
+		u8  rsvd1;
+		u8  retry;
+		u32 frequency;
+		u32 symbol_rate;
+		u8  input_stream_id;
+		u8  rsvd2[3];
+		u32 scrambling_sequence_index;
+        } dvbs2_search;
+    };
 };
 
 struct mci_result {
@@ -133,10 +134,8 @@ struct mci_result {
 		u32 result[27];
 		struct {
 			u8  standard;
-			/* puncture rate for DVB-S */
-			u8  pls_code;
-			/* 7-6: rolloff, 5-2: rsrvd, 1:short, 0:pilots */
-			u8  roll_off;
+			u8  pls_code;   /* puncture rate for DVB-S */
+			u8  roll_off;  /* 7-6: rolloff, 5-2: rsrvd, 1:short, 0:pilots */
 			u8  rsvd;
 			u32 frequency;
 			u32 symbol_rate;
@@ -157,6 +156,8 @@ struct mci_result {
 };
 
 struct mci_cfg {
+
+
 };
 
 struct dvb_frontend
@@ -164,4 +165,4 @@ struct dvb_frontend
 		int mci_type, int nr,
 		int (**fn_set_input)(struct dvb_frontend *fe, int input));
 
-#endif /* _DDBRIDGE_MCI_H_ */
+#endif
