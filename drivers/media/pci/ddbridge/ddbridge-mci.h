@@ -148,6 +148,9 @@ struct mci_result {
 	u32 version[4];
 };
 
+struct mci_cfg {
+};
+
 struct dvb_frontend
 *ddb_mci_attach(struct ddb_input *input,
 		int mci_type, int nr,

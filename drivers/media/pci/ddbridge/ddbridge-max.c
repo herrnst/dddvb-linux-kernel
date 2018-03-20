@@ -457,6 +457,10 @@ int ddb_fe_attach_mxl5xx(struct ddb_input *input)
 /******************************************************************************/
 /* MAX MCI related functions */
 
+static struct mci_cfg maxsx8 = {
+
+};
+
 int ddb_fe_attach_mci(struct ddb_input *input)
 {
 	struct ddb *dev = input->port->dev;
@@ -464,7 +468,9 @@ int ddb_fe_attach_mci(struct ddb_input *input)
 	struct ddb_port *port = input->port;
 	struct ddb_link *link = &dev->link[port->lnr];
 	int demod, tuner;
+	struct mci_cfg cfg;
 
+	cfg = maxsx8;
 	demod = input->nr;
 	tuner = demod & 3;
 	if (fmode == 3)
