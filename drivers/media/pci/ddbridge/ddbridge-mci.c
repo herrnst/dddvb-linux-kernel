@@ -31,7 +31,6 @@ struct mci_base {
 	struct ddb_link     *link;
 	struct completion    completion;
 
-	struct device       *dev;
 	struct i2c_adapter  *i2c;
 	struct mutex         i2c_lock;
 	struct mutex         tuner_lock; /* concurrent tuner access lock */
@@ -114,7 +113,7 @@ static int _mci_cmd_unlocked(struct mci *state,
 
 	stat = wait_for_completion_timeout(&state->base->completion, HZ);
 	if (stat == 0) {
-		dev_warn(state->base->dev, "MCI-%d: MCI timeout\n", state->nr);
+		printk("MCI timeout\n");
 		return -EIO;
 	}
 	if (res && res_len)
@@ -381,8 +380,7 @@ unlock:
 	}
 	if (p->stream_id != NO_STREAM_ID_FILTER && p->stream_id != 0x80000000)
 		flags |= 0x80;
-	dev_dbg(state->base->dev, "MCI-%d: tuner=%d demod=%d\n",
-		state->nr, state->tuner, state->demod);
+	printk("frontend %u: tuner=%u demod=%u\n", state->nr, state->tuner, state->demod);
 	cmd.command = MCI_CMD_SEARCH_DVBS;
 	cmd.dvbs2_search.flags = flags;
 	cmd.dvbs2_search.s2_modulation_mask =
@@ -534,7 +532,7 @@ static int set_input(struct dvb_frontend *fe, int input)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	state->tuner = input;
-	dev_dbg(state->base->dev, "MCI-%d: input=%d\n", state->nr, input);
+	printk("fe %u, input = %u\n", state->nr, input);
 	return 0;
 }
 
@@ -635,7 +633,6 @@ struct dvb_frontend
 		base->key = key;
 		base->count = 1;
 		base->link = link;
-		base->dev = dev->dev;
 		mutex_init(&base->mci_lock);
 		mutex_init(&base->tuner_lock);
 		ddb_irq_set(dev, link->nr, 0, mci_handler, base);
