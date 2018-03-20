@@ -83,8 +83,16 @@
 #define SX8_CMD_DIAG_WRITE8     (0xE2)
 #define SX8_CMD_DIAG_WRITE32    (0xE3)
 
-#define SX8_CMD_DIAG_READRF     (0xE8)
-#define SX8_CMD_DIAG_WRITERF    (0xE9)
+#define M4_CMD_DIAG_READRF      (0xE8)
+#define M4_CMD_DIAG_WRITERF     (0xE9)
+
+#define M4_CMD_DIAG_READX       (0xE0)
+#define M4_CMD_DIAG_READT       (0xE1)
+#define M4_CMD_DIAG_WRITEX      (0xE2)
+#define M4_CMD_DIAG_WRITET      (0xE3)
+
+#define M4_CMD_DIAG_READRF      (0xE8)
+#define M4_CMD_DIAG_WRITERF     (0xE9)
 
 struct mci_command {
 	union {
