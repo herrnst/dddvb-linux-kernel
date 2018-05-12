@@ -40,6 +40,27 @@ static int reg_wait(struct ddb *dev, u32 reg, u32 bit)
 	return 0;
 }
 
+static int mdio_write(struct ddb *dev, u8 adr, u8 reg, u16 val)
+{
+	ddbwritel(dev, adr, MDIO_ADR);
+	ddbwritel(dev, reg, MDIO_REG);
+	ddbwritel(dev, val, MDIO_VAL);
+	ddbwritel(dev, 0x03, MDIO_CTRL);
+	while (ddbreadl(dev, MDIO_CTRL) & 0x02)
+		ndelay(500);
+	return 0;
+}
+
+static u16 mdio_read(struct ddb *dev, u8 adr, u8 reg)
+{
+	ddbwritel(dev, adr, MDIO_ADR);
+	ddbwritel(dev, reg, MDIO_REG);
+	ddbwritel(dev, 0x07, MDIO_CTRL);
+	while (ddbreadl(dev, MDIO_CTRL) & 0x02)
+		ndelay(500);
+	return ddbreadl(dev, MDIO_VAL);
+}
+
 /******************************************************************************/
 
 int ddb_do_flashio(struct ddb *dev, u32 lnr, u8 *wbuf, u32 wlen,
@@ -158,6 +179,16 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		break;
 	}
+	case DDB_IOCTL_GPIO_OUT:
+	{
+		struct ddb_gpio gpio;
+
+		if (copy_from_user(&gpio, parg, sizeof(gpio)))
+			return -EFAULT;
+		ddbwritel(dev, gpio.mask, GPIO_DIRECTION);
+		ddbwritel(dev, gpio.data, GPIO_OUTPUT);
+		break;
+	}
 	case DDB_IOCTL_ID:
 	{
 		struct ddb_id ddbid;
@@ -170,6 +201,131 @@ long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ddbid.regmap = ddbreadl(dev, 4);
 		if (copy_to_user(parg, &ddbid, sizeof(ddbid)))
 			return -EFAULT;
+		break;
+	}
+	case DDB_IOCTL_READ_REG:
+	{
+		struct ddb_reg reg;
+
+		if (copy_from_user(&reg, parg, sizeof(reg)))
+			return -EFAULT;
+		if ((reg.reg & 0xfffffff) >= dev->regs_len)
+			return -EINVAL;
+		reg.val = ddbreadl(dev, reg.reg);
+		if (copy_to_user(parg, &reg, sizeof(reg)))
+			return -EFAULT;
+		break;
+	}
+	case DDB_IOCTL_WRITE_REG:
+	{
+		struct ddb_reg reg;
+
+		if (copy_from_user(&reg, parg, sizeof(reg)))
+			return -EFAULT;
+		if ((reg.reg & 0xfffffff) >= dev->regs_len)
+			return -EINVAL;
+		ddbwritel(dev, reg.val, reg.reg);
+		break;
+	}
+	case DDB_IOCTL_READ_MDIO:
+	{
+		struct ddb_mdio mdio;
+
+		if (!dev->link[0].info->mdio_num)
+			return -EIO;
+		if (copy_from_user(&mdio, parg, sizeof(mdio)))
+			return -EFAULT;
+		mdio.val = mdio_read(dev, mdio.adr, mdio.reg);
+		if (copy_to_user(parg, &mdio, sizeof(mdio)))
+			return -EFAULT;
+		break;
+	}
+	case DDB_IOCTL_WRITE_MDIO:
+	{
+		struct ddb_mdio mdio;
+
+		if (!dev->link[0].info->mdio_num)
+			return -EIO;
+		if (copy_from_user(&mdio, parg, sizeof(mdio)))
+			return -EFAULT;
+		mdio_write(dev, mdio.adr, mdio.reg, mdio.val);
+		break;
+	}
+	case DDB_IOCTL_READ_MEM:
+	{
+		struct ddb_mem mem;
+		u8 *buf = dev->iobuf;
+
+		if (copy_from_user(&mem, parg, sizeof(mem)))
+			return -EFAULT;
+		if ((((mem.len + mem.off) & 0xfffffff) > dev->regs_len) ||
+		    mem.len > 1024)
+			return -EINVAL;
+		ddbcpyfrom(dev, buf, mem.off, mem.len);
+		if (copy_to_user(mem.buf, buf, mem.len))
+			return -EFAULT;
+		break;
+	}
+	case DDB_IOCTL_WRITE_MEM:
+	{
+		struct ddb_mem mem;
+		u8 *buf = dev->iobuf;
+
+		if (copy_from_user(&mem, parg, sizeof(mem)))
+			return -EFAULT;
+		if ((((mem.len + mem.off) & 0xfffffff) > dev->regs_len) ||
+		    mem.len > 1024)
+			return -EINVAL;
+		if (copy_from_user(buf, mem.buf, mem.len))
+			return -EFAULT;
+		ddbcpyto(dev, mem.off, buf, mem.len);
+		break;
+	}
+	case DDB_IOCTL_READ_I2C:
+	{
+		struct ddb_i2c_msg i2c;
+		struct i2c_adapter *adap;
+		u8 *mbuf, *hbuf = dev->iobuf;
+
+		if (copy_from_user(&i2c, parg, sizeof(i2c)))
+			return -EFAULT;
+		if (i2c.bus > dev->link[0].info->regmap->i2c->num)
+			return -EINVAL;
+		if (i2c.mlen + i2c.hlen > 512)
+			return -EINVAL;
+
+		adap = &dev->i2c[i2c.bus].adap;
+		mbuf = hbuf + i2c.hlen;
+
+		if (copy_from_user(hbuf, (void __user *)i2c.hdr, i2c.hlen))
+			return -EFAULT;
+		if (i2c_io(adap, i2c.adr, hbuf, i2c.hlen, mbuf, i2c.mlen) < 0)
+			return -EIO;
+		if (copy_to_user((void __user *)i2c.msg, mbuf, i2c.mlen))
+			return -EFAULT;
+		break;
+	}
+	case DDB_IOCTL_WRITE_I2C:
+	{
+		struct ddb_i2c_msg i2c;
+		struct i2c_adapter *adap;
+		u8 *buf = dev->iobuf;
+
+		if (copy_from_user(&i2c, parg, sizeof(i2c)))
+			return -EFAULT;
+		if (i2c.bus > dev->link[0].info->regmap->i2c->num)
+			return -EINVAL;
+		if (i2c.mlen + i2c.hlen > 250)
+			return -EINVAL;
+
+		adap = &dev->i2c[i2c.bus].adap;
+		if (copy_from_user(buf, (void __user *)i2c.hdr, i2c.hlen))
+			return -EFAULT;
+		if (copy_from_user(buf + i2c.hlen, (void __user *)i2c.msg,
+				   i2c.mlen))
+			return -EFAULT;
+		if (i2c_write(adap, i2c.adr, buf, i2c.hlen + i2c.mlen) < 0)
+			return -EIO;
 		break;
 	}
 	default:
