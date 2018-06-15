@@ -58,6 +58,11 @@
 #define SX8_DEMOD_TIMEOUT        (14)
 #define SX8_DEMOD_LOCKED         (15)
 
+#define M4_DEMOD_STOPPED         (0)
+#define M4_DEMOD_WAIT_SIGNAL     (1)
+#define M4_DEMOD_TIMEOUT         (14)
+#define M4_DEMOD_LOCKED          (15)
+
 #define MCI_CMD_STOP             (0x01)
 #define MCI_CMD_GETSTATUS        (0x02)
 #define MCI_CMD_GETSIGNALINFO    (0x03)
@@ -85,6 +90,14 @@
 
 #define SX8_CMD_DIAG_READRF      (0xE8)
 #define SX8_CMD_DIAG_WRITERF     (0xE9)
+
+#define M4_CMD_DIAG_READX        (0xE0)
+#define M4_CMD_DIAG_READT        (0xE1)
+#define M4_CMD_DIAG_WRITEX       (0xE2)
+#define M4_CMD_DIAG_WRITET       (0xE3)
+
+#define M4_CMD_DIAG_READRF       (0xE8)
+#define M4_CMD_DIAG_WRITERF      (0xE9)
 
 struct mci_command {
 	union {
