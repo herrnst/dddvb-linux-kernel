@@ -338,7 +338,7 @@ unlock:
 	memset(&cmd, 0, sizeof(cmd));
 
 	if (state->base->iq_mode) {
-		cmd.command = SX8_CMD_SELECT_IQOUT;
+		cmd.command = SX8_CMD_ENABLE_IQOUTPUT;
 		cmd.demod = state->demod;
 		cmd.output = 0;
 		mci_cmd(state, &cmd, NULL);
