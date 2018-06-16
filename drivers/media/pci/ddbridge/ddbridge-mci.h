@@ -219,6 +219,10 @@ struct mci_result {
 	u32 version[4];
 };
 
+int ddb_mci_cmd(struct mci *state, struct mci_command *command,
+		struct mci_result *result);
+int ddb_mci_config(struct mci *state, u32 config);
+
 struct dvb_frontend
 *ddb_mci_attach(struct ddb_input *input,
 		int mci_type, int nr,
