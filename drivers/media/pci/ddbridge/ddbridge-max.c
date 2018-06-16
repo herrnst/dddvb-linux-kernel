@@ -474,6 +474,9 @@ int ddb_fe_attach_mci(struct ddb_input *input, u32 type)
 		if (fmode == 3)
 			tuner = 0;
 		break;
+	case DDB_TUNER_MCI_M4:
+		cfg = ddb_max_m4_cfg;
+		break;
 	default:
 		return -EINVAL;
 	}
