@@ -42,6 +42,22 @@
 #define SX8_TSCONFIG_MODE_NORMAL            (0x00000001)
 #define SX8_TSCONFIG_MODE_IQ                (0x00000003)
 
+/*
+ * IQMode only vailable on MaxSX8 on a single tuner
+ *
+ * IQ_MODE_SAMPLES
+ *       sampling rate is 1550/24 MHz (64.583 MHz)
+ *       channel agc is frozen, to allow stitching the FFT results together
+ *
+ * IQ_MODE_VTM
+ *       sampling rate is the supplied symbolrate
+ *       channel agc is active
+ *
+ * in both cases down sampling is done with a RRC Filter (currently fixed to
+ * alpha = 0.05) which causes some (ca 5%) aliasing at the edges from
+ * outside the spectrum
+ */
+
 #define SX8_TSCONFIG_TSHEADER               (0x00000004)
 #define SX8_TSCONFIG_BURST                  (0x00000008)
 
@@ -86,22 +102,6 @@
 #define MCI_STATUS_ERROR         (0xFF)
 
 #define MCI_SUCCESS(status)      ((status & MCI_STATUS_UNSUPPORTED) == 0)
-
-#define SX8_CMD_DIAG_READ8       (0xE0)
-#define SX8_CMD_DIAG_READ32      (0xE1)
-#define SX8_CMD_DIAG_WRITE8      (0xE2)
-#define SX8_CMD_DIAG_WRITE32     (0xE3)
-
-#define SX8_CMD_DIAG_READRF      (0xE8)
-#define SX8_CMD_DIAG_WRITERF     (0xE9)
-
-#define M4_CMD_DIAG_READX        (0xE0)
-#define M4_CMD_DIAG_READT        (0xE1)
-#define M4_CMD_DIAG_WRITEX       (0xE2)
-#define M4_CMD_DIAG_WRITET       (0xE3)
-
-#define M4_CMD_DIAG_READRF       (0xE8)
-#define M4_CMD_DIAG_WRITERF      (0xE9)
 
 struct mci_command {
 	union {
