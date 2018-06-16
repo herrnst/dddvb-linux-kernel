@@ -219,13 +219,42 @@ struct mci_result {
 	u32 version[4];
 };
 
+struct mci_base {
+	struct list_head     mci_list;
+	void                *key;
+	struct ddb_link     *link;
+	struct completion    completion;
+	struct device       *dev;
+	struct mutex         tuner_lock; /* concurrent tuner access lock */
+	struct mutex         mci_lock; /* concurrent MCI access lock */
+	int                  count;
+	int                  type;
+};
+
+struct mci {
+	struct mci_base     *base;
+	struct dvb_frontend  fe;
+	int                  nr;
+	int                  demod;
+	int                  tuner;
+};
+
+struct mci_cfg {
+	int                  type;
+	struct dvb_frontend_ops *fe_ops;
+	u32                  base_size;
+	u32                  state_size;
+	int (*init)(struct mci *mci);
+	int (*base_init)(struct mci_base *mci_base);
+	int (*set_input)(struct dvb_frontend *fe, int input);
+};
+
 int ddb_mci_cmd(struct mci *state, struct mci_command *command,
 		struct mci_result *result);
 int ddb_mci_config(struct mci *state, u32 config);
 
 struct dvb_frontend
-*ddb_mci_attach(struct ddb_input *input,
-		int mci_type, int nr,
-		int (**fn_set_input)(struct dvb_frontend *fe, int input));
+*ddb_mci_attach(struct ddb_input *input, struct mci_cfg *cfg, int nr,
+                int (**fn_set_input)(struct dvb_frontend *fe, int input));
 
 #endif /* _DDBRIDGE_MCI_H_ */

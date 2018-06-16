@@ -23,8 +23,11 @@
 
 /******************************************************************************/
 
+/* defined in ddbridge-sx8.c */
+extern const struct mci_cfg ddb_max_sx8_cfg;
+
 int ddb_lnb_init_fmode(struct ddb *dev, struct ddb_link *link, u32 fm);
 int ddb_fe_attach_mxl5xx(struct ddb_input *input);
-int ddb_fe_attach_mci(struct ddb_input *input);
+int ddb_fe_attach_mci(struct ddb_input *input, u32 type);
 
 #endif /* _DDBRIDGE_MAX_H */
