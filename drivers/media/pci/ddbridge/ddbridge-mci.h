@@ -137,6 +137,32 @@ struct mci_command {
 			u32 scrambling_sequence_index;
 			u32 frequency_range;
 		} dvbs2_search;
+		struct {
+			u8  flags;
+			u8  bandwidth;
+			u8  rsvd1;
+			u8  retry;
+			u32 frequency;
+		} dvbc_search;
+
+		struct {
+			u8  flags; /* Bit 0: LP Stream */
+			u8  bandwidth;
+			u8  rsvd1;
+			u8  retry;
+			u32 frequency;
+		} dvbt_search;
+
+		struct {
+			u8  flags; /* Bit 0: T2 Lite Profile, 7: PLP */
+			u8  bandwidth;
+			u8  rsvd1;
+			u8  retry;
+			u32 frequency;
+			u32 reserved;
+			u8  plp;
+			u8  rsvd2[3];
+		} dvbt2_search;
 
 		struct {
 			u8  tap;
@@ -210,11 +236,85 @@ struct mci_result {
 			u32 ber_numerator;
 			u32 ber_denominator;
 		} dvbs2_signal_info;
-
+		struct {
+			u8  modulation;
+			u8  rsvd1[3];
+			/* actual frequency in Hz */
+			u32 frequency;
+			/* actual symbolrate in Hz */
+			u32 symbol_rate;
+			/* channel power in dBm x 100 */
+			s16 channel_power;
+			/* band power in dBm x 100 */
+			s16 band_power;
+			/* SNR in dB x 100 */
+			s16 signal_to_noise;
+			s16 rsvd2;
+			/*
+			 * Counter for packet errors
+			 * (set to 0 on start command)
+			 */
+			u32 packet_errors;
+			u32 ber_numerator;
+			u32 ber_denominator;
+		} dvbc_signal_info;
+		struct {
+			/* Constellation (2), Hierarchy (3), Coderate HP (3) */
+			u8  tps_25_32;
+			/* Coderate LP (3), Guardinterval (2), FFT (2), 0 (1) */
+			u8  tps_33_39;
+			/* Cell Identifier */
+			u16 tps_cell_id;
+			/* actual frequency in Hz */
+			u32 frequency;
+			u32 rsvd1;
+			/* channel power in dBm x 100 */
+			s16 channel_power;
+			/* band power in dBm x 100 */
+			s16 band_power;
+			/* SNR in dB x 100 */
+			s16 signal_to_noise;
+			s16 rsvd2;
+			/*
+			 * Counter for packet errors
+			 * (set to 0 on start command)
+			 */
+			u32 packet_errors;
+			/* Bit error rate */
+			u32 ber_numerator;
+			u32 ber_denominator;
+		} dvbt_signal_info;
+		struct {
+			u32 rsvd0;
+			/* actual frequency in Hz */
+			u32 frequency;
+			u32 rsvd1;
+			/* channel power in dBm x 100 */
+			s16 channel_power;
+			/* band power in dBm x 100 */
+			s16 band_power;
+			/* SNR in dB x 100 */
+			s16 signal_to_noise;
+			s16 rsvd2;
+			/*
+			 * Counter for packet errors
+			 * (set to 0 on start command)
+			 */
+			u32 packet_errors;
+			/* Bit error rate */
+			u32 ber_numerator;
+			u32 ber_denominator;
+		} dvbt2_signal_info;
 		struct {
 			s16 i;
 			s16 q;
 		} iq_symbol;
+		struct {
+			u8  t2_l1_pre[37];
+			u8  t2_l1_post[15];
+			u8  t2_l1_post_d[19];
+			u8  t2_l1_post_c[19];
+		} dvbt2_l1_info;
 	};
 	u32 version[4];
 };
