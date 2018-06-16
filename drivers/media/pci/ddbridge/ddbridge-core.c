@@ -1847,6 +1847,7 @@ static void ddb_port_probe(struct ddb_port *port)
 {
 	struct ddb *dev = port->dev;
 	u32 l = port->lnr;
+	struct ddb_link *link = &dev->link[l];
 	u8 id, type;
 
 	port->name = "NO MODULE";
@@ -1856,7 +1857,7 @@ static void ddb_port_probe(struct ddb_port *port)
 	/* Handle missing ports and ports without I2C */
 
 	if (dummy_tuner && !port->nr &&
-	    dev->link[l].ids.device == 0x0005) {
+	    link->ids.device == 0x0005) {
 		port->name = "DUMMY";
 		port->class = DDB_PORT_TUNER;
 		port->type = DDB_TUNER_DUMMY;
@@ -1870,14 +1871,14 @@ static void ddb_port_probe(struct ddb_port *port)
 		return;
 	}
 
-	if (port->nr == 1 && dev->link[l].info->type == DDB_OCTOPUS_CI &&
-	    dev->link[l].info->i2c_mask == 1) {
+	if (port->nr == 1 && link->info->type == DDB_OCTOPUS_CI &&
+	    link->info->i2c_mask == 1) {
 		port->name = "NO TAB";
 		port->class = DDB_PORT_NONE;
 		return;
 	}
 
-	if (dev->link[l].info->type == DDB_OCTOPUS_MAX) {
+	if (link->info->type == DDB_OCTOPUS_MAX) {
 		port->name = "DUAL DVB-S2 MAX";
 		port->type_name = "MXL5XX";
 		port->class = DDB_PORT_TUNER;
@@ -1888,8 +1889,8 @@ static void ddb_port_probe(struct ddb_port *port)
 		return;
 	}
 
-	if (dev->link[l].info->type == DDB_OCTOPUS_MCI) {
-		if (port->nr >= dev->link[l].info->mci)
+	if (link->info->type == DDB_OCTOPUS_MCI) {
+		if (port->nr >= link->info->mci)
 			return;
 		port->name = "DUAL MCI";
 		port->type_name = "MCI";
@@ -1898,7 +1899,7 @@ static void ddb_port_probe(struct ddb_port *port)
 		return;
 	}
 
-	if (port->nr > 1 && dev->link[l].info->type == DDB_OCTOPUS_CI) {
+	if (port->nr > 1 && link->info->type == DDB_OCTOPUS_CI) {
 		port->name = "CI internal";
 		port->type_name = "INTERNAL";
 		port->class = DDB_PORT_CI;
@@ -1983,7 +1984,7 @@ static void ddb_port_probe(struct ddb_port *port)
 		port->class = DDB_PORT_TUNER;
 		if (id == 0x51) {
 			if (port->nr == 0 &&
-			    dev->link[l].info->ts_quirks & TS_QUIRK_REVERSED)
+			    link->info->ts_quirks & TS_QUIRK_REVERSED)
 				port->type = DDB_TUNER_DVBS_STV0910_PR;
 			else
 				port->type = DDB_TUNER_DVBS_STV0910_P;
