@@ -1,7 +1,7 @@
 /*
  * @DVB-S/DVB-S2 STMicroelectronics STV0900 register definitions
  * Author Manfred Voelkel, August 2013
- * (c) 2013 Digital Devices GmbH Germany.  All rights reserved
+ * (c) 2013 Digital Devices GmbH Germany. All rights reserved
  *
  * =======================================================================
  * Registers Declaration (Internal ST, All Applications )
